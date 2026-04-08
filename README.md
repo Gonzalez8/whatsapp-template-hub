@@ -20,7 +20,7 @@ A dashboard to visualize and search WhatsApp Business message templates across a
 ## Getting started
 
 ```bash
-git clone https://github.com/Memory-Northius/whatsapp-template-hub.git
+git clone https://github.com/Gonzalez8/whatsapp-template-hub.git
 cd whatsapp-template-hub
 cp .env.example .env.local
 # Fill in your credentials in .env.local
@@ -46,7 +46,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Deploy on Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FMemory-Northius%2Fwhatsapp-template-hub&env=META_ACCESS_TOKEN,META_BUSINESS_ID&envDescription=Meta%20Business%20API%20credentials)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGonzalez8%2Fwhatsapp-template-hub&env=META_ACCESS_TOKEN,META_BUSINESS_ID&envDescription=Meta%20Business%20API%20credentials)
 
 Set `META_ACCESS_TOKEN` and `META_BUSINESS_ID` in your Vercel project's environment variables.
 
