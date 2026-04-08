@@ -30,7 +30,7 @@ export function FiltersBar({
   onToggleStatus,
 }: FiltersBarProps) {
   return (
-    <div className="sticky top-0 z-50 border-b border-transparent bg-gray-100 py-4 dark:bg-gray-900">
+    <div className="sticky top-0 z-50 border-b border-transparent bg-gray-100 py-4">
       <div className="mb-3 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <div className="relative flex-1">
           <label htmlFor="template-search" className="sr-only">
@@ -52,7 +52,7 @@ export function FiltersBar({
             placeholder="Buscar por nombre, texto, idioma o categoria..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pr-4 pl-10 text-sm outline-none transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-600/10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-teal-400"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pr-4 pl-10 text-sm outline-none transition-all focus:border-teal-600 focus:ring-2 focus:ring-teal-600/10"
           />
         </div>
         <div className="flex gap-2">
@@ -64,7 +64,7 @@ export function FiltersBar({
               className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all ${
                 selectedStatuses.has(s)
                   ? STATUS_ACTIVE_STYLES[s]
-                  : "border-gray-200 bg-white text-gray-600 hover:border-teal-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-teal-600"
               }`}
             >
               {s}
@@ -82,7 +82,7 @@ export function FiltersBar({
             className={`rounded-full border px-4 py-1.5 text-[13px] font-medium whitespace-nowrap transition-all ${
               selectedWabas.has(w.waba_id)
                 ? "border-teal-600 bg-teal-600 text-white"
-                : "border-gray-200 bg-white text-gray-700 hover:border-teal-600 hover:bg-teal-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                : "border-gray-200 bg-white text-gray-700 hover:border-teal-600 hover:bg-teal-50"
             }`}
           >
             {w.waba_name} ({w.templates.length})

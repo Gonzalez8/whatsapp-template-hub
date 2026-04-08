@@ -34,9 +34,9 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
         onToggleStatus={toggleStatus}
       />
 
-      <p className="mb-5 text-[13px] text-gray-500 dark:text-gray-400">
-        Mostrando <strong className="text-gray-900 dark:text-gray-100">{totalTemplates}</strong> templates en{" "}
-        <strong className="text-gray-900 dark:text-gray-100">{filtered.length}</strong> WABAs
+      <p className="mb-5 text-[13px] text-gray-500">
+        Mostrando <strong className="text-gray-900">{totalTemplates}</strong> templates en{" "}
+        <strong className="text-gray-900">{filtered.length}</strong> WABAs
       </p>
 
       {filtered.length === 0 ? (

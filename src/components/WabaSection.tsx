@@ -9,7 +9,7 @@ export function WabaSection({ waba }: WabaSectionProps) {
   return (
     <section className="mb-9">
       <div className="mb-4 flex items-center gap-2.5 border-b-2 border-emerald-500 pb-2.5">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900 ">
           {waba.waba_name}
         </h2>
         <span className="rounded-xl bg-emerald-500 px-2.5 py-0.5 text-xs font-semibold text-white">
