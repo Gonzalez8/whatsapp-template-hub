@@ -1,8 +1,9 @@
-import type { Template } from "@/types/template";
+import type { Template, PreviewMode } from "@/types/template";
 import { WhatsAppPreview } from "./WhatsAppPreview";
 
 interface TemplateCardProps {
   template: Template;
+  previewMode: PreviewMode;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -11,7 +12,7 @@ const STATUS_STYLES: Record<string, string> = {
   REJECTED: "bg-red-50 text-red-700",
 };
 
-export function TemplateCard({ template }: TemplateCardProps) {
+export function TemplateCard({ template, previewMode }: TemplateCardProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
       <div className="px-4 pt-3.5 pb-3">
@@ -33,7 +34,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
         </div>
       </div>
 
-      <WhatsAppPreview components={template.components ?? []} />
+      <WhatsAppPreview components={template.components ?? []} mode={previewMode} />
     </div>
   );
 }

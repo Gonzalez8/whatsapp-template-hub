@@ -16,7 +16,14 @@ export interface TemplateComponent {
   text?: string;
   format?: string;
   buttons?: TemplateButton[];
+  example?: {
+    body_text?: string[][];
+    header_text?: string[];
+    header_handle?: string[];
+  };
 }
+
+export type PreviewMode = "template" | "example";
 
 export interface Template {
   id: string;

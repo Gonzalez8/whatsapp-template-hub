@@ -1,11 +1,12 @@
-import type { Waba } from "@/types/template";
+import type { Waba, PreviewMode } from "@/types/template";
 import { TemplateCard } from "./TemplateCard";
 
 interface WabaSectionProps {
   waba: Waba;
+  previewMode: PreviewMode;
 }
 
-export function WabaSection({ waba }: WabaSectionProps) {
+export function WabaSection({ waba, previewMode }: WabaSectionProps) {
   return (
     <section className="mb-9">
       <div className="mb-4 flex items-center gap-2.5 border-b-2 border-emerald-500 pb-2.5">
@@ -18,7 +19,7 @@ export function WabaSection({ waba }: WabaSectionProps) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {waba.templates.map((t) => (
-          <TemplateCard key={t.id} template={t} />
+          <TemplateCard key={t.id} template={t} previewMode={previewMode} />
         ))}
       </div>
     </section>
