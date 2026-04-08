@@ -17,9 +17,11 @@ function replaceVariables(
   examples: string[] | undefined
 ): string {
   if (!examples || examples.length === 0) return text;
-  return text.replace(/\{\{(\d+)\}\}/g, (match, index) => {
-    const i = parseInt(index, 10) - 1;
-    return examples[i] ?? match;
+  let idx = 0;
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    const numericIndex = /^\d+$/.test(key) ? parseInt(key, 10) - 1 : idx;
+    idx++;
+    return examples[numericIndex] ?? match;
   });
 }
 

@@ -46,8 +46,8 @@ const FORMAT_RULES: FormatRule[] = [
     ),
   },
   {
-    // {{1}} variable placeholders
-    pattern: /\{\{(\d+)\}\}/,
+    // {{1}}, {{nombre}}, {{rol}} variable placeholders
+    pattern: /\{\{(\w+)\}\}/,
     render: (text, key) => (
       <span
         key={key}
