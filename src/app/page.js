@@ -88,45 +88,55 @@ export default function Home() {
   return (
     <div className="app">
       <div className="header">
-        <div className="logo">W</div>
-        <h1>WhatsApp Template Hub</h1>
+        <div className="header-inner">
+          <div className="logo">W</div>
+          <div>
+            <h1>WhatsApp Template Hub</h1>
+            <p className="header-subtitle">
+              Visualiza y gestiona los templates de WhatsApp Business
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="filters">
-        <input
-          className="search-input"
-          type="text"
-          placeholder="Buscar por nombre, texto, idioma o categoria..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="status-filters">
-          {["APPROVED", "PENDING", "REJECTED"].map((s) => (
+      <div className="filters-bar">
+        <div className="filters">
+          <input
+            className="search-input"
+            type="text"
+            placeholder="Buscar por nombre, texto, idioma o categoria..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="status-filters">
+            {["APPROVED", "PENDING", "REJECTED"].map((s) => (
+              <button
+                key={s}
+                className={`status-chip ${selectedStatuses.has(s) ? "active" : ""} ${s.toLowerCase()}`}
+                onClick={() => toggleStatus(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="filter-chips">
+          {data.wabas.map((w) => (
             <button
-              key={s}
-              className={`status-chip ${selectedStatuses.has(s) ? "active" : ""} ${s.toLowerCase()}`}
-              onClick={() => toggleStatus(s)}
+              key={w.waba_id}
+              className={`chip ${selectedWabas.has(w.waba_id) ? "active" : ""}`}
+              onClick={() => toggleWaba(w.waba_id)}
             >
-              {s}
+              {w.waba_name} ({w.templates.length})
             </button>
           ))}
         </div>
       </div>
 
-      <div className="filter-chips">
-        {data.wabas.map((w) => (
-          <button
-            key={w.waba_id}
-            className={`chip ${selectedWabas.has(w.waba_id) ? "active" : ""}`}
-            onClick={() => toggleWaba(w.waba_id)}
-          >
-            {w.waba_name} ({w.templates.length})
-          </button>
-        ))}
-      </div>
-
-      <p className="summary" style={{ marginTop: 16 }}>
-        Mostrando {totalTemplates} templates en {filtered.length} WABAs
+      <p className="summary">
+        Mostrando <strong>{totalTemplates}</strong> templates en{" "}
+        <strong>{filtered.length}</strong> WABAs
       </p>
 
       {filtered.map((waba) => (
@@ -147,29 +157,48 @@ export default function Home() {
 }
 
 function TemplateCard({ template }) {
+  const header = template.components?.find((c) => c.type === "HEADER");
   const body = template.components?.find((c) => c.type === "BODY");
+  const footer = template.components?.find((c) => c.type === "FOOTER");
   const buttons = template.components?.find((c) => c.type === "BUTTONS");
   const statusClass = `status-${template.status?.toLowerCase()}`;
 
   return (
     <div className="template-card">
-      <div className="name">{template.name}</div>
-      <div className="meta">
-        <span className={`tag ${statusClass}`}>{template.status}</span>
-        <span className="tag category">{template.category}</span>
-        <span className="tag">{template.language}</span>
-      </div>
-      {body?.text && <div className="body-text">{body.text}</div>}
-      {buttons?.buttons?.length > 0 && (
-        <div className="buttons-list">
-          {buttons.buttons.map((btn, i) => (
-            <span key={i} className="btn-tag">
-              {btn.type === "URL" ? "🔗" : btn.type === "PHONE_NUMBER" ? "📞" : "↩️"}{" "}
-              {btn.text}
-            </span>
-          ))}
+      <div className="card-header">
+        <div className="name">{template.name}</div>
+        <div className="meta">
+          <span className={`tag ${statusClass}`}>{template.status}</span>
+          <span className="tag category">{template.category}</span>
+          <span className="tag">{template.language}</span>
         </div>
-      )}
+      </div>
+
+      <div className="wa-preview">
+        <div className="wa-bubble">
+          {header?.text && <div className="wa-header-text">{header.text}</div>}
+          {body?.text && <div className="wa-body-text">{body.text}</div>}
+          {footer?.text && <div className="wa-footer-text">{footer.text}</div>}
+          <div className="wa-timestamp">12:00</div>
+        </div>
+
+        {buttons?.buttons?.length > 0 && (
+          <div className="wa-buttons">
+            {buttons.buttons.map((btn, i) => (
+              <div key={i} className="wa-btn">
+                <span className="wa-btn-icon">
+                  {btn.type === "URL"
+                    ? "\uD83D\uDD17"
+                    : btn.type === "PHONE_NUMBER"
+                      ? "\uD83D\uDCDE"
+                      : "\u21A9\uFE0F"}
+                </span>
+                {btn.text}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

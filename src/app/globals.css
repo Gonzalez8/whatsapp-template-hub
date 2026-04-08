@@ -7,7 +7,7 @@
 }
 
 :root {
-  --bg: #f5f6fa;
+  --bg: #f0f2f5;
   --card-bg: #ffffff;
   --border: #e2e5ed;
   --text: #1a1a2e;
@@ -18,6 +18,18 @@
   --pending: #f5a623;
   --rejected: #e74c3c;
   --tag-bg: #f0f2f5;
+
+  /* WhatsApp preview */
+  --wa-bg: #efeae2;
+  --wa-bubble: #ffffff;
+  --wa-text: #111b21;
+  --wa-footer: #8696a0;
+  --wa-btn-blue: #00a5f4;
+  --wa-btn-divider: #e9edef;
+
+  /* Header */
+  --header-start: #075e54;
+  --header-end: #128c7e;
 }
 
 body {
@@ -27,59 +39,93 @@ body {
   line-height: 1.5;
 }
 
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, var(--header-start), var(--header-end));
+  margin: -24px -24px 24px;
+  padding: 28px 32px;
+  color: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header .logo {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.header-subtitle {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* ── Layout ── */
 .app {
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+/* ── Filters ── */
+.filters-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  padding: 16px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
 }
 
-.header h1 {
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.header .logo {
-  width: 36px;
-  height: 36px;
-  background: var(--accent);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 18px;
-}
-
-/* Filters */
 .filters {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 24px;
   align-items: center;
+  margin-bottom: 12px;
 }
 
 .search-input {
   flex: 1;
   min-width: 240px;
-  padding: 10px 14px;
+  padding: 10px 14px 10px 40px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238696a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 12px center;
 }
 
 .search-input:focus {
   border-color: var(--accent-dark);
+  box-shadow: 0 0 0 3px rgba(18, 140, 126, 0.1);
 }
 
 .filter-chips {
@@ -89,10 +135,11 @@ body {
 }
 
 .chip {
-  padding: 6px 14px;
+  padding: 7px 16px;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 24px;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   background: var(--card-bg);
   transition: all 0.15s;
@@ -101,6 +148,7 @@ body {
 
 .chip:hover {
   border-color: var(--accent-dark);
+  background: #f0faf8;
 }
 
 .chip.active {
@@ -115,9 +163,9 @@ body {
 }
 
 .status-chip {
-  padding: 6px 12px;
+  padding: 7px 14px;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 24px;
   font-size: 12px;
   cursor: pointer;
   background: var(--card-bg);
@@ -128,7 +176,7 @@ body {
 }
 
 .status-chip:hover {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .status-chip.active.approved {
@@ -149,24 +197,28 @@ body {
   border-color: var(--rejected);
 }
 
-/* Summary */
+/* ── Summary ── */
 .summary {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
-/* WABA section */
+.summary strong {
+  color: var(--text);
+}
+
+/* ── WABA section ── */
 .waba-section {
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 }
 
 .waba-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
   border-bottom: 2px solid var(--accent);
 }
 
@@ -184,23 +236,29 @@ body {
   font-weight: 600;
 }
 
-/* Templates grid */
+/* ── Templates grid ── */
 .templates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
 }
 
+/* ── Template card ── */
 .template-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  transition: box-shadow 0.15s;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
 }
 
 .template-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  padding: 14px 16px 12px;
 }
 
 .template-card .name {
@@ -208,13 +266,13 @@ body {
   font-size: 14px;
   margin-bottom: 8px;
   word-break: break-word;
+  color: var(--text);
 }
 
 .template-card .meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
 }
 
 .tag {
@@ -247,38 +305,99 @@ body {
   color: #4a4e9c;
 }
 
-.template-card .body-text {
-  font-size: 13px;
-  color: var(--text-secondary);
-  background: var(--tag-bg);
-  padding: 10px;
-  border-radius: 6px;
+/* ── WhatsApp preview ── */
+.wa-preview {
+  background-color: var(--wa-bg);
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 54c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z' fill='%23d6cfc4' fill-opacity='0.3'/%3E%3C/svg%3E");
+  padding: 16px;
+}
+
+.wa-bubble {
+  background: var(--wa-bubble);
+  border-radius: 0 8px 8px 8px;
+  padding: 8px 10px 6px;
+  position: relative;
+  max-width: 95%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  word-break: break-word;
+}
+
+.wa-bubble::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 0 solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 8px solid var(--wa-bubble);
+}
+
+.wa-header-text {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--wa-text);
+  margin-bottom: 4px;
+}
+
+.wa-body-text {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--wa-text);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 120px;
+  max-height: 180px;
   overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-.template-card .buttons-list {
-  margin-top: 8px;
+.wa-footer-text {
+  font-size: 12px;
+  color: var(--wa-footer);
+  margin-top: 4px;
+}
+
+.wa-timestamp {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.template-card .btn-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  justify-content: flex-end;
   font-size: 11px;
-  background: #e8f8ef;
-  color: var(--accent-dark);
-  font-weight: 500;
+  color: var(--wa-footer);
+  margin-top: 2px;
 }
 
-/* Loading */
+/* ── WhatsApp buttons ── */
+.wa-buttons {
+  margin-top: 4px;
+  background: var(--wa-bubble);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  max-width: 95%;
+}
+
+.wa-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--wa-btn-blue);
+  font-weight: 500;
+  border-bottom: 1px solid var(--wa-btn-divider);
+}
+
+.wa-btn:last-child {
+  border-bottom: none;
+}
+
+.wa-btn-icon {
+  display: inline-flex;
+  font-size: 14px;
+}
+
+/* ── Loading ── */
 .loading {
   text-align: center;
   padding: 80px 20px;
@@ -287,8 +406,8 @@ body {
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 3px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
@@ -304,4 +423,33 @@ body {
   text-align: center;
   padding: 40px;
   color: var(--rejected);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .app {
+    padding: 16px;
+  }
+
+  .header {
+    margin: -16px -16px 20px;
+    padding: 20px;
+  }
+
+  .templates-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input {
+    min-width: unset;
+  }
+
+  .status-filters {
+    justify-content: center;
+  }
 }
