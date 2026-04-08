@@ -14,17 +14,21 @@ const STATUS_STYLES: Record<string, string> = {
   REJECTED: "bg-red-50 text-red-700",
 };
 
-function hasVariables(template: Template): boolean {
+function hasExamples(template: Template): boolean {
   return (
     template.components?.some(
-      (c) => c.text && /\{\{\w+\}\}/.test(c.text)
+      (c) =>
+        c.text &&
+        /\{\{\w+\}\}/.test(c.text) &&
+        ((c.type === "BODY" && (c.example?.body_text?.[0]?.length ?? 0) > 0) ||
+          (c.type === "HEADER" && (c.example?.header_text?.length ?? 0) > 0))
     ) ?? false
   );
 }
 
 export function TemplateCard({ template }: TemplateCardProps) {
   const [mode, setMode] = useState<PreviewMode>("template");
-  const showToggle = useMemo(() => hasVariables(template), [template]);
+  const showToggle = useMemo(() => hasExamples(template), [template]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
