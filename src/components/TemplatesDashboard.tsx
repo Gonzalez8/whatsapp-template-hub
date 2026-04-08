@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Waba } from "@/types/template";
 import { useTemplateFilters } from "@/hooks/useTemplateFilters";
 import { FiltersBar } from "./FiltersBar";
 import { WabaSection } from "./WabaSection";
 import { EmptyState } from "./EmptyState";
+
+const SYNC_COOLDOWN_S = 120;
 
 interface TemplatesDashboardProps {
   wabas: Waba[];
@@ -29,16 +31,34 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
 
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  const isCoolingDown = cooldown > 0;
+
+  useEffect(() => {
+    if (!isCoolingDown) return;
+    const id = setInterval(() => {
+      setCooldown((c) => (c <= 1 ? 0 : c - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isCoolingDown]);
 
   const handleSync = useCallback(async () => {
+    if (cooldown > 0) return;
     setSyncing(true);
     try {
-      await fetch("/api/revalidate", { method: "POST" });
-      router.refresh();
+      const res = await fetch("/api/revalidate", { method: "POST" });
+      if (res.status === 429) {
+        const data = await res.json();
+        setCooldown(data.retryAfterSeconds ?? SYNC_COOLDOWN_S);
+      } else {
+        setCooldown(SYNC_COOLDOWN_S);
+        router.refresh();
+      }
     } finally {
       setSyncing(false);
     }
-  }, [router]);
+  }, [router, cooldown]);
 
   return (
     <>
@@ -62,8 +82,8 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
         </p>
         <button
           onClick={handleSync}
-          disabled={syncing}
-          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-700 disabled:opacity-50"
+          disabled={syncing || cooldown > 0}
+          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg
             aria-hidden="true"
@@ -79,7 +99,11 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
             />
           </svg>
-          {syncing ? "Sincronizando..." : "Sincronizar con Meta"}
+          {syncing
+            ? "Sincronizando..."
+            : cooldown > 0
+              ? `Espera ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
+              : "Sincronizar con Meta"}
         </button>
       </div>
 
