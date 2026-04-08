@@ -19,7 +19,7 @@ Thanks for your interest in contributing to WhatsApp Template Hub!
 
 ## Code style
 
-- Plain JavaScript (no TypeScript)
+- TypeScript for all source files
 - Follow existing patterns in the codebase
 - Keep components and API routes simple
 

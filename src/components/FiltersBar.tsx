@@ -18,6 +18,9 @@ interface FiltersBarProps {
   onToggleWaba: (id: string) => void;
   selectedStatuses: Set<TemplateStatus>;
   onToggleStatus: (status: TemplateStatus) => void;
+  allLanguages: string[];
+  selectedLanguages: Set<string>;
+  onToggleLanguage: (lang: string) => void;
 }
 
 export function FiltersBar({
@@ -28,6 +31,9 @@ export function FiltersBar({
   onToggleWaba,
   selectedStatuses,
   onToggleStatus,
+  allLanguages,
+  selectedLanguages,
+  onToggleLanguage,
 }: FiltersBarProps) {
   return (
     <div className="sticky top-0 z-50 border-b border-transparent bg-gray-100 py-4">
@@ -89,6 +95,26 @@ export function FiltersBar({
           </button>
         ))}
       </div>
+
+      {allLanguages.length > 1 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-gray-500">Idioma:</span>
+          {allLanguages.map((lang) => (
+            <button
+              key={lang}
+              onClick={() => onToggleLanguage(lang)}
+              aria-pressed={selectedLanguages.has(lang)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                selectedLanguages.has(lang)
+                  ? "border-indigo-500 bg-indigo-500 text-white"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-indigo-400 hover:bg-indigo-50"
+              }`}
+            >
+              {lang}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

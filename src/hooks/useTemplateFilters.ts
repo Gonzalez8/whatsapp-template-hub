@@ -7,6 +7,19 @@ export function useTemplateFilters(wabas: Waba[]) {
   const [selectedStatuses, setSelectedStatuses] = useState<Set<TemplateStatus>>(
     new Set()
   );
+  const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(
+    new Set()
+  );
+
+  const allLanguages = useMemo(() => {
+    const langs = new Set<string>();
+    for (const w of wabas) {
+      for (const t of w.templates) {
+        if (t.language) langs.add(t.language);
+      }
+    }
+    return Array.from(langs).sort();
+  }, [wabas]);
 
   const toggleWaba = useCallback((id: string) => {
     setSelectedWabas((prev) => {
@@ -26,6 +39,15 @@ export function useTemplateFilters(wabas: Waba[]) {
     });
   }, []);
 
+  const toggleLanguage = useCallback((lang: string) => {
+    setSelectedLanguages((prev) => {
+      const next = new Set(prev);
+      if (next.has(lang)) next.delete(lang);
+      else next.add(lang);
+      return next;
+    });
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
 
@@ -34,6 +56,8 @@ export function useTemplateFilters(wabas: Waba[]) {
       .map((w) => {
         const templates = w.templates.filter((t) => {
           if (selectedStatuses.size > 0 && !selectedStatuses.has(t.status))
+            return false;
+          if (selectedLanguages.size > 0 && !selectedLanguages.has(t.language))
             return false;
           if (!q) return true;
           const bodyComp = t.components?.find((c) => c.type === "BODY");
@@ -48,7 +72,7 @@ export function useTemplateFilters(wabas: Waba[]) {
         return { ...w, templates };
       })
       .filter((w) => w.templates.length > 0);
-  }, [wabas, search, selectedWabas, selectedStatuses]);
+  }, [wabas, search, selectedWabas, selectedStatuses, selectedLanguages]);
 
   const totalTemplates = useMemo(
     () => filtered.reduce((sum, w) => sum + w.templates.length, 0),
@@ -62,6 +86,9 @@ export function useTemplateFilters(wabas: Waba[]) {
     toggleWaba,
     selectedStatuses,
     toggleStatus,
+    allLanguages,
+    selectedLanguages,
+    toggleLanguage,
     filtered,
     totalTemplates,
   };
