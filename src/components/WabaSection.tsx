@@ -12,12 +12,10 @@ export function WabaSection({ waba }: WabaSectionProps) {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-xs font-bold text-white shadow-sm">
           {waba.waba_name.charAt(0)}
         </div>
-        <div className="flex-1">
-          <h2 className="font-display text-[15px] font-bold text-gray-900">
-            {waba.waba_name}
-          </h2>
-        </div>
-        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600 ring-1 ring-gray-200/80">
+        <h2 className="font-display flex-1 text-[15px] font-bold text-gray-900">
+          {waba.waba_name}
+        </h2>
+        <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-semibold text-gray-500 ring-1 ring-gray-200/80">
           {waba.templates.length} templates
         </span>
       </div>

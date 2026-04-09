@@ -34,7 +34,7 @@ export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps)
 
   return (
     <div
-      className="card-enter group overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-gray-900/[0.08]"
+      className="card-enter group flex flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-gray-900/[0.08]"
       style={{ animationDelay: `${index * 60}ms` }}
     >
       <div className="px-4 pt-4 pb-3">
@@ -48,9 +48,7 @@ export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps)
                 setMode((m) => (m === "template" ? "example" : "template"))
               }
               aria-label={
-                mode === "template"
-                  ? "Ver con ejemplos"
-                  : "Ver template original"
+                mode === "template" ? "Ver con ejemplos" : "Ver template original"
               }
               className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-all ${
                 mode === "example"
@@ -82,13 +80,15 @@ export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps)
         </div>
       </div>
 
-      <WhatsAppPreview components={template.components ?? []} mode={mode} />
+      <div className="flex-1 bg-[#efeae2]">
+        <WhatsAppPreview components={template.components ?? []} mode={mode} />
+      </div>
 
       <a
         href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${wabaId}&id=${template.id}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-1.5 border-t border-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-50 hover:text-teal-600"
+        className="mt-auto flex items-center justify-center gap-1.5 border-t border-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-50 hover:text-teal-600"
       >
         <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />

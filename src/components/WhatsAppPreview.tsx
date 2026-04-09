@@ -62,7 +62,7 @@ export function WhatsAppPreview({ components, mode }: WhatsAppPreviewProps) {
           </p>
         )}
         {bodyText && (
-          <p className="max-h-[180px] overflow-y-auto break-words text-sm leading-[1.45] text-[#111b21] whitespace-pre-wrap [scrollbar-width:thin]">
+          <p className="overflow-y-auto break-words text-sm leading-[1.45] text-[#111b21] whitespace-pre-wrap [scrollbar-width:thin]">
             {formatWhatsAppText(bodyText)}
           </p>
         )}
