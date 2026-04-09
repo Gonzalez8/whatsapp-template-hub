@@ -11,6 +11,10 @@ export function useTemplateFilters(wabas: Waba[]) {
     new Set()
   );
 
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set()
+  );
+
   const allLanguages = useMemo(() => {
     const langs = new Set<string>();
     for (const w of wabas) {
@@ -19,6 +23,16 @@ export function useTemplateFilters(wabas: Waba[]) {
       }
     }
     return Array.from(langs).sort();
+  }, [wabas]);
+
+  const allCategories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const w of wabas) {
+      for (const t of w.templates) {
+        if (t.category) cats.add(t.category);
+      }
+    }
+    return Array.from(cats).sort();
   }, [wabas]);
 
   const toggleWaba = useCallback((id: string) => {
@@ -35,6 +49,15 @@ export function useTemplateFilters(wabas: Waba[]) {
       const next = new Set(prev);
       if (next.has(status)) next.delete(status);
       else next.add(status);
+      return next;
+    });
+  }, []);
+
+  const toggleCategory = useCallback((cat: string) => {
+    setSelectedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
       return next;
     });
   }, []);
@@ -59,6 +82,8 @@ export function useTemplateFilters(wabas: Waba[]) {
             return false;
           if (selectedLanguages.size > 0 && !selectedLanguages.has(t.language))
             return false;
+          if (selectedCategories.size > 0 && !selectedCategories.has(t.category))
+            return false;
           if (!q) return true;
           const bodyComp = t.components?.find((c) => c.type === "BODY");
           const bodyText = bodyComp?.text ?? "";
@@ -72,7 +97,7 @@ export function useTemplateFilters(wabas: Waba[]) {
         return { ...w, templates };
       })
       .filter((w) => w.templates.length > 0);
-  }, [wabas, search, selectedWabas, selectedStatuses, selectedLanguages]);
+  }, [wabas, search, selectedWabas, selectedStatuses, selectedLanguages, selectedCategories]);
 
   const totalTemplates = useMemo(
     () => filtered.reduce((sum, w) => sum + w.templates.length, 0),
@@ -89,6 +114,9 @@ export function useTemplateFilters(wabas: Waba[]) {
     allLanguages,
     selectedLanguages,
     toggleLanguage,
+    allCategories,
+    selectedCategories,
+    toggleCategory,
     filtered,
     totalTemplates,
   };

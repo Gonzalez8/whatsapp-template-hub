@@ -1,0 +1,102 @@
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+
+interface FilterDropdownProps {
+  label: string;
+  items: { id: string; name: string; count?: number }[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  accentClass?: string;
+}
+
+export function FilterDropdown({
+  label,
+  items,
+  selected,
+  onToggle,
+  accentClass = "bg-teal-600",
+}: FilterDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const activeCount = selected.size;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1.5 rounded-lg border px-3 py-[7px] text-xs font-medium transition-all ${
+          activeCount > 0
+            ? "border-teal-200 bg-teal-50 text-teal-700"
+            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+        }`}
+      >
+        {label}
+        {activeCount > 0 && (
+          <span
+            className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${accentClass}`}
+          >
+            {activeCount}
+          </span>
+        )}
+        <svg
+          aria-hidden="true"
+          className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeWidth="2.5" d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="dropdown-enter absolute top-full left-0 z-50 mt-1.5 max-h-64 min-w-48 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-900/[0.08]">
+          {items.map((item) => {
+            const isActive = selected.has(item.id);
+            return (
+              <button
+                key={item.id}
+                onClick={() => onToggle(item.id)}
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${
+                  isActive
+                    ? "bg-teal-50 text-teal-700"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                    isActive
+                      ? "border-teal-600 bg-teal-600 text-white"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {isActive && (
+                    <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </span>
+                <span className="flex-1 truncate font-medium">{item.name}</span>
+                {item.count !== undefined && (
+                  <span className="text-[10px] text-gray-400">{item.count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -25,6 +25,9 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
     allLanguages,
     selectedLanguages,
     toggleLanguage,
+    allCategories,
+    selectedCategories,
+    toggleCategory,
     filtered,
     totalTemplates,
   } = useTemplateFilters(wabas);
@@ -73,17 +76,20 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
         allLanguages={allLanguages}
         selectedLanguages={selectedLanguages}
         onToggleLanguage={toggleLanguage}
+        allCategories={allCategories}
+        selectedCategories={selectedCategories}
+        onToggleCategory={toggleCategory}
       />
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] text-gray-500">
-          Mostrando <strong className="text-gray-900">{totalTemplates}</strong> templates en{" "}
-          <strong className="text-gray-900">{filtered.length}</strong> WABAs
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[13px] font-medium text-gray-500">
+          Mostrando <strong className="font-display font-bold text-gray-900">{totalTemplates}</strong> templates en{" "}
+          <strong className="font-display font-bold text-gray-900">{filtered.length}</strong> WABAs
         </p>
         <button
           onClick={handleSync}
           disabled={syncing || cooldown > 0}
-          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 shadow-sm transition-all hover:border-teal-600 hover:bg-teal-50 hover:text-teal-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg
             aria-hidden="true"

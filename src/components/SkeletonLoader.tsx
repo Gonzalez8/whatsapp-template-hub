@@ -1,19 +1,19 @@
 function SkeletonCard() {
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="px-4 pt-3.5 pb-3">
-        <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+    <div className="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm">
+      <div className="px-4 pt-4 pb-3">
+        <div className="shimmer mb-2.5 h-4 w-3/4 rounded-md" />
         <div className="flex gap-1.5">
-          <div className="h-5 w-16 animate-pulse rounded bg-gray-200" />
-          <div className="h-5 w-20 animate-pulse rounded bg-gray-200" />
-          <div className="h-5 w-10 animate-pulse rounded bg-gray-200" />
+          <div className="shimmer h-5 w-16 rounded-md" />
+          <div className="shimmer h-5 w-20 rounded-md" />
+          <div className="shimmer h-5 w-10 rounded-md" />
         </div>
       </div>
       <div className="bg-[#efeae2] p-4">
         <div className="space-y-2 rounded-lg bg-white p-3">
-          <div className="h-3 w-full animate-pulse rounded bg-gray-200" />
-          <div className="h-3 w-5/6 animate-pulse rounded bg-gray-200" />
-          <div className="h-3 w-2/3 animate-pulse rounded bg-gray-200" />
+          <div className="shimmer h-3 w-full rounded" />
+          <div className="shimmer h-3 w-5/6 rounded" />
+          <div className="shimmer h-3 w-2/3 rounded" />
         </div>
       </div>
     </div>
@@ -22,12 +22,13 @@ function SkeletonCard() {
 
 export function SkeletonLoader() {
   return (
-    <div className="space-y-9">
+    <div className="space-y-10">
       {[1, 2].map((section) => (
         <div key={section}>
-          <div className="mb-4 flex items-center gap-2.5 border-b-2 border-gray-200 pb-2.5">
-            <div className="h-5 w-48 animate-pulse rounded bg-gray-200" />
-            <div className="h-5 w-8 animate-pulse rounded-xl bg-gray-200" />
+          <div className="mb-5 flex items-center gap-3">
+            <div className="shimmer h-8 w-8 rounded-lg" />
+            <div className="shimmer h-4 w-40 rounded-md" />
+            <div className="shimmer ml-auto h-6 w-24 rounded-full" />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[1, 2, 3].map((card) => (

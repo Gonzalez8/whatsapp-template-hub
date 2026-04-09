@@ -6,12 +6,14 @@ import { WhatsAppPreview } from "./WhatsAppPreview";
 
 interface TemplateCardProps {
   template: Template;
+  wabaId: string;
+  index?: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  APPROVED: "bg-emerald-50 text-emerald-700",
-  PENDING: "bg-amber-50 text-amber-700",
-  REJECTED: "bg-red-50 text-red-700",
+  APPROVED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+  PENDING: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+  REJECTED: "bg-red-50 text-red-700 ring-1 ring-red-200",
 };
 
 function hasExamples(template: Template): boolean {
@@ -26,15 +28,18 @@ function hasExamples(template: Template): boolean {
   );
 }
 
-export function TemplateCard({ template }: TemplateCardProps) {
+export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps) {
   const [mode, setMode] = useState<PreviewMode>("template");
   const showToggle = useMemo(() => hasExamples(template), [template]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="px-4 pt-3.5 pb-3">
-        <div className="mb-2 flex items-start justify-between gap-2">
-          <p className="break-words text-sm font-semibold text-gray-900">
+    <div
+      className="card-enter group overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-gray-900/[0.08]"
+      style={{ animationDelay: `${index * 60}ms` }}
+    >
+      <div className="px-4 pt-4 pb-3">
+        <div className="mb-2.5 flex items-start justify-between gap-2">
+          <p className="font-display break-words text-[13px] font-bold leading-snug text-gray-900">
             {template.name}
           </p>
           {showToggle && (
@@ -54,7 +59,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
               }`}
             >
               <span
-                className={`inline-block h-2 w-2 rounded-full transition-colors ${
+                className={`inline-block h-1.5 w-1.5 rounded-full transition-colors ${
                   mode === "example" ? "bg-teal-500" : "bg-gray-300"
                 }`}
               />
@@ -64,20 +69,32 @@ export function TemplateCard({ template }: TemplateCardProps) {
         </div>
         <div className="flex flex-wrap gap-1.5">
           <span
-            className={`inline-block rounded px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLES[template.status] ?? "bg-gray-100 text-gray-500"}`}
+            className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[template.status] ?? "bg-gray-100 text-gray-500"}`}
           >
             {template.status}
           </span>
-          <span className="inline-block rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">
+          <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 ring-1 ring-indigo-200">
             {template.category}
           </span>
-          <span className="inline-block rounded bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
+          <span className="inline-block rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-semibold text-gray-500 ring-1 ring-gray-200">
             {template.language}
           </span>
         </div>
       </div>
 
       <WhatsAppPreview components={template.components ?? []} mode={mode} />
+
+      <a
+        href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${wabaId}&id=${template.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-1.5 border-t border-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-400 transition-colors hover:bg-gray-50 hover:text-teal-600"
+      >
+        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+        </svg>
+        Ver en Meta
+      </a>
     </div>
   );
 }
