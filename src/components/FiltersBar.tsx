@@ -28,6 +28,65 @@ interface FiltersBarProps {
   onToggleCategory: (cat: string) => void;
 }
 
+interface FilterDropdownGroupProps {
+  wabas: Waba[];
+  selectedWabas: Set<string>;
+  onToggleWaba: (id: string) => void;
+  allCategories: string[];
+  selectedCategories: Set<string>;
+  onToggleCategory: (cat: string) => void;
+  allLanguages: string[];
+  selectedLanguages: Set<string>;
+  onToggleLanguage: (lang: string) => void;
+}
+
+function FilterDropdownGroup({
+  wabas,
+  selectedWabas,
+  onToggleWaba,
+  allCategories,
+  selectedCategories,
+  onToggleCategory,
+  allLanguages,
+  selectedLanguages,
+  onToggleLanguage,
+}: FilterDropdownGroupProps) {
+  return (
+    <>
+      <FilterDropdown
+        label="WABA"
+        items={wabas.map((w) => ({
+          id: w.waba_id,
+          name: w.waba_name,
+          count: w.templates.length,
+        }))}
+        selected={selectedWabas}
+        onToggle={onToggleWaba}
+      />
+
+      {allCategories.length > 1 && (
+        <FilterDropdown
+          label="Categoria"
+          items={allCategories.map((c) => ({ id: c, name: c }))}
+          selected={selectedCategories}
+          onToggle={onToggleCategory}
+          accentClass="bg-violet-500"
+        />
+      )}
+
+      {allLanguages.length > 1 && (
+        <FilterDropdown
+          label="Idioma"
+          items={allLanguages.map((l) => ({ id: l, name: l }))}
+          selected={selectedLanguages}
+          onToggle={onToggleLanguage}
+          accentClass="bg-indigo-500"
+        />
+      )}
+    </>
+  );
+}
+
 export function FiltersBar({
   search,
   onSearchChange,
@@ -125,39 +184,17 @@ export function FiltersBar({
           {/* Divider */}
           <div className="h-6 w-px bg-gray-200/80" />
 
-          {/* WABA dropdown */}
-          <FilterDropdown
-            label="WABA"
-            items={wabas.map((w) => ({
-              id: w.waba_id,
-              name: w.waba_name,
-              count: w.templates.length,
-            }))}
-            selected={selectedWabas}
-            onToggle={onToggleWaba}
+          <FilterDropdownGroup
+            wabas={wabas}
+            selectedWabas={selectedWabas}
+            onToggleWaba={onToggleWaba}
+            allCategories={allCategories}
+            selectedCategories={selectedCategories}
+            onToggleCategory={onToggleCategory}
+            allLanguages={allLanguages}
+            selectedLanguages={selectedLanguages}
+            onToggleLanguage={onToggleLanguage}
           />
-
-          {/* Category dropdown */}
-          {allCategories.length > 1 && (
-            <FilterDropdown
-              label="Categoria"
-              items={allCategories.map((c) => ({ id: c, name: c }))}
-              selected={selectedCategories}
-              onToggle={onToggleCategory}
-              accentClass="bg-violet-500"
-            />
-          )}
-
-          {/* Language dropdown */}
-          {allLanguages.length > 1 && (
-            <FilterDropdown
-              label="Idioma"
-              items={allLanguages.map((l) => ({ id: l, name: l }))}
-              selected={selectedLanguages}
-              onToggle={onToggleLanguage}
-              accentClass="bg-indigo-500"
-            />
-          )}
         </div>
       </div>
 
@@ -192,36 +229,17 @@ export function FiltersBar({
 
           {/* Dropdowns */}
           <div className="flex flex-wrap gap-2">
-            <FilterDropdown
-              label="WABA"
-              items={wabas.map((w) => ({
-                id: w.waba_id,
-                name: w.waba_name,
-                count: w.templates.length,
-              }))}
-              selected={selectedWabas}
-              onToggle={onToggleWaba}
+            <FilterDropdownGroup
+              wabas={wabas}
+              selectedWabas={selectedWabas}
+              onToggleWaba={onToggleWaba}
+              allCategories={allCategories}
+              selectedCategories={selectedCategories}
+              onToggleCategory={onToggleCategory}
+              allLanguages={allLanguages}
+              selectedLanguages={selectedLanguages}
+              onToggleLanguage={onToggleLanguage}
             />
-
-            {allCategories.length > 1 && (
-              <FilterDropdown
-                label="Categoria"
-                items={allCategories.map((c) => ({ id: c, name: c }))}
-                selected={selectedCategories}
-                onToggle={onToggleCategory}
-                accentClass="bg-violet-500"
-              />
-            )}
-
-            {allLanguages.length > 1 && (
-              <FilterDropdown
-                label="Idioma"
-                items={allLanguages.map((l) => ({ id: l, name: l }))}
-                selected={selectedLanguages}
-                onToggle={onToggleLanguage}
-                accentClass="bg-indigo-500"
-              />
-            )}
           </div>
         </div>
       )}

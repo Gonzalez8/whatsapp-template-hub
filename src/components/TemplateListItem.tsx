@@ -1,16 +1,11 @@
 import type { Template } from "@/types/template";
+import { STATUS_DOT } from "@/lib/template-utils";
 
 interface TemplateListItemProps {
   template: Template;
   selected: boolean;
   onSelect: () => void;
 }
-
-const STATUS_DOT: Record<string, string> = {
-  APPROVED: "bg-emerald-500",
-  PENDING: "bg-amber-500",
-  REJECTED: "bg-red-500",
-};
 
 export function TemplateListItem({ template, selected, onSelect }: TemplateListItemProps) {
   return (
