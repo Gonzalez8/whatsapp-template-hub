@@ -1,9 +1,14 @@
 import { revalidatePath } from "next/cache";
 
-const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+const COOLDOWN_MS = 2 * 60 * 1000;
 let lastRevalidation = 0;
 
-export async function POST() {
+export async function POST(request: Request) {
+  const secret = request.headers.get("x-revalidate-secret");
+  if (secret !== process.env.REVALIDATE_SECRET) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const now = Date.now();
   const elapsed = now - lastRevalidation;
 

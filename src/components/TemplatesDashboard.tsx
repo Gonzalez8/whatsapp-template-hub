@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { Waba, Template } from "@/types/template";
 import { useTemplateFilters } from "@/hooks/useTemplateFilters";
+import { syncTemplates } from "@/app/actions";
 import { FiltersBar } from "./FiltersBar";
 import { WabaSection } from "./WabaSection";
 import { TemplateList } from "./TemplateList";
@@ -57,10 +58,9 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
   const handleSync = useCallback(async () => {
     setSyncing(true);
     try {
-      const res = await fetch("/api/revalidate", { method: "POST" });
-      if (res.status === 429) {
-        const data = await res.json();
-        setCooldown(data.retryAfterSeconds ?? SYNC_COOLDOWN_S);
+      const result = await syncTemplates();
+      if (!result.success) {
+        setCooldown(result.retryAfterSeconds ?? SYNC_COOLDOWN_S);
       } else {
         setCooldown(SYNC_COOLDOWN_S);
         router.refresh();

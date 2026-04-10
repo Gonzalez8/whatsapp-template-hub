@@ -92,7 +92,7 @@ function PanelContent({ template, wabaId, wabaName }: { template: Template; waba
       {/* Zone 3: Actions */}
       <div className="border-t border-gray-100 px-5 py-3.5">
         <a
-          href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${wabaId}&id=${template.id}`}
+          href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${encodeURIComponent(wabaId)}&id=${encodeURIComponent(template.id)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="group flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-gray-200/80 px-4 py-2.5 text-sm font-semibold text-gray-500 transition-all duration-200 hover:border-teal-500 hover:bg-teal-50 hover:text-teal-600 sm:min-h-0 sm:text-xs"
