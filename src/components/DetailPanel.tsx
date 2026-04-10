@@ -22,7 +22,7 @@ function PanelEmpty() {
       <p className="font-display text-[14px] font-bold text-gray-600">
         Selecciona un template
       </p>
-      <p className="mt-1.5 max-w-[200px] text-[12px] leading-relaxed text-gray-400">
+      <p className="mt-1.5 max-w-[200px] text-[12px] leading-relaxed text-gray-500">
         Haz click en un template de la lista para ver su detalle y vista previa
       </p>
     </div>
@@ -40,7 +40,7 @@ function PanelContent({ template, wabaId, wabaName }: { template: Template; waba
         <p className="font-display break-words text-[14px] font-bold leading-snug text-gray-900">
           {template.name}
         </p>
-        <p className="mt-1 text-[11px] font-medium text-gray-400">{wabaName}</p>
+        <p className="mt-1 text-[11px] font-medium text-gray-500">{wabaName}</p>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           <span
