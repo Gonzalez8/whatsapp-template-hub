@@ -90,9 +90,9 @@ export async function fetchWabasWithTemplates(): Promise<Waba[]> {
     })
   );
 
-  return settled
-    .filter(
-      (r): r is PromiseFulfilledResult<Waba> => r.status === "fulfilled"
-    )
-    .map((r) => r.value);
+  return settled.map((r, i) =>
+    r.status === "fulfilled"
+      ? r.value
+      : { waba_id: wabas[i].id, waba_name: wabas[i].name, phone_numbers: [], templates: [], error: r.reason?.message ?? "Error desconocido" }
+  );
 }

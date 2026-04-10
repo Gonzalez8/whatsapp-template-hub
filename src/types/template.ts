@@ -48,6 +48,7 @@ export interface Waba {
   waba_name: string;
   phone_numbers: WabaPhoneNumber[];
   templates: Template[];
+  error?: string;
 }
 
 export interface TemplatesResponse {

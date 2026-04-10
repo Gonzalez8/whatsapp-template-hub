@@ -44,6 +44,11 @@ export function WabaSection({ waba }: WabaSectionProps) {
           {waba.templates.length} templates
         </span>
       </div>
+      {waba.error && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          No se pudieron cargar los templates de esta WABA: {waba.error}
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
         {waba.templates.map((t, i) => (
           <TemplateCard key={t.id} template={t} wabaId={waba.waba_id} index={i} />

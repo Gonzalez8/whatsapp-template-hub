@@ -85,7 +85,7 @@ export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps)
       </div>
 
       <a
-        href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${wabaId}&id=${template.id}`}
+        href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${encodeURIComponent(wabaId)}&id=${encodeURIComponent(template.id)}`}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-auto flex min-h-[44px] items-center justify-center gap-1.5 border-t border-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-400 transition-all duration-200 hover:bg-gray-50 hover:text-teal-600 sm:min-h-0 sm:text-xs"
