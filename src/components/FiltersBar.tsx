@@ -62,6 +62,8 @@ function FilterDropdownGroup({
         }))}
         selected={selectedWabas}
         onToggle={onToggleWaba}
+        searchable
+        searchPlaceholder="Buscar WABA..."
       />
 
       {allCategories.length > 1 && (
