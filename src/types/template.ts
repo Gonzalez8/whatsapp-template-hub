@@ -35,9 +35,18 @@ export interface Template {
   quality_score?: { score: "GREEN" | "YELLOW" | "RED" | "UNKNOWN" };
 }
 
+export interface WabaPhoneNumber {
+  id: string;
+  display_phone_number: string;
+  verified_name: string;
+  quality_rating?: string;
+  status?: string;
+}
+
 export interface Waba {
   waba_id: string;
   waba_name: string;
+  phone_numbers: WabaPhoneNumber[];
   templates: Template[];
 }
 

@@ -3,6 +3,7 @@ import type {
   MetaPaginatedResponse,
   Template,
   Waba,
+  WabaPhoneNumber,
 } from "@/types/template";
 
 const META_API = "https://graph.facebook.com/v23.0";
@@ -42,6 +43,17 @@ async function fetchAllTemplates(
   return templates;
 }
 
+async function fetchPhoneNumbers(
+  wabaId: string,
+  token: string
+): Promise<WabaPhoneNumber[]> {
+  const url = `${META_API}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,status`;
+  const res = await metaFetch(url, token);
+  if (!res.ok) return [];
+  const data: MetaPaginatedResponse<WabaPhoneNumber> = await res.json();
+  return data.data ?? [];
+}
+
 export async function fetchWabasWithTemplates(): Promise<Waba[]> {
   const token = process.env.META_ACCESS_TOKEN;
   const businessId = process.env.META_BUSINESS_ID;
@@ -65,10 +77,14 @@ export async function fetchWabasWithTemplates(): Promise<Waba[]> {
 
   const settled = await Promise.allSettled(
     wabas.map(async (waba): Promise<Waba> => {
-      const templates = await fetchAllTemplates(waba.id, token);
+      const [templates, phone_numbers] = await Promise.all([
+        fetchAllTemplates(waba.id, token),
+        fetchPhoneNumbers(waba.id, token),
+      ]);
       return {
         waba_id: waba.id,
         waba_name: waba.name,
+        phone_numbers,
         templates,
       };
     })

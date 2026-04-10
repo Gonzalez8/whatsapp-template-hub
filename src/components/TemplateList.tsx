@@ -39,10 +39,11 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="flex items-center justify-end border-b border-gray-200 px-3 py-1.5">
+      <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-4 py-2 sm:py-2">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Templates</span>
         <button
           onClick={allExpanded ? collapseAll : expandAll}
-          className="text-[10px] font-semibold text-gray-400 transition-colors hover:text-gray-600"
+          className="min-h-[44px] text-xs font-semibold text-gray-400 transition-colors hover:text-teal-600 sm:min-h-0 sm:text-[10px]"
         >
           {allExpanded ? "Contraer todos" : "Expandir todos"}
         </button>
@@ -54,10 +55,10 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
           const isOpen = expanded.has(waba.waba_id);
           return (
             <div key={waba.waba_id}>
-              {/* WABA header — clickable */}
+              {/* WABA header -- clickable */}
               <button
                 onClick={() => toggle(waba.waba_id)}
-                className="sticky top-0 z-10 flex w-full items-center gap-2.5 border-b border-gray-200 bg-gray-50/95 px-4 py-2.5 text-left backdrop-blur-sm transition-colors hover:bg-gray-100/80"
+                className="sticky top-0 z-10 flex w-full min-h-[48px] items-center gap-2.5 border-b border-gray-200/80 bg-white/95 px-4 py-3 text-left backdrop-blur-sm transition-colors duration-150 hover:bg-gray-50 active:bg-gray-100 sm:min-h-0 sm:py-2.5"
               >
                 <svg
                   className={`h-3 w-3 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
@@ -67,18 +68,30 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="m9 5 7 7-7 7" />
                 </svg>
-                <div className="flex h-5 w-5 items-center justify-center rounded bg-gradient-to-br from-emerald-500 to-teal-600 text-[8px] font-bold text-white">
+                <div className="flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 text-[8px] font-bold text-white shadow-sm shadow-teal-600/20">
                   {waba.waba_name.charAt(0)}
                 </div>
-                <span className="font-display flex-1 text-[11px] font-bold text-gray-700">
-                  {waba.waba_name}
-                </span>
-                <span className="rounded-full bg-gray-200/60 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                <div className="flex-1 min-w-0">
+                  <span className="font-display text-[11px] font-bold text-gray-700">
+                    {waba.waba_name}
+                  </span>
+                  {waba.phone_numbers.length > 0 && (
+                    <div className="mt-0.5 truncate text-[9px] text-gray-400">
+                      {waba.phone_numbers.map((pn, i) => (
+                        <span key={pn.id}>
+                          {i > 0 && " · "}
+                          {pn.display_phone_number} ({pn.verified_name})
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
                   {waba.templates.length}
                 </span>
               </button>
 
-              {/* Templates — collapsible */}
+              {/* Templates -- collapsible */}
               {isOpen &&
                 waba.templates.map((t) => (
                   <TemplateListItem
