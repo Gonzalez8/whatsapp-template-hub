@@ -5,16 +5,12 @@ export function useTemplateFilters(wabas: Waba[]) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedWabas, setSelectedWabas] = useState<Set<string>>(new Set());
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<TemplateStatus>>(
-    new Set()
-  );
-  const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(
-    new Set()
-  );
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<TemplateStatus>>(new Set());
+  const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(new Set());
 
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set()
-  );
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+
+  const [hideSamples, setHideSamples] = useState(true);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search), 150);
@@ -84,12 +80,10 @@ export function useTemplateFilters(wabas: Waba[]) {
       .filter((w) => selectedWabas.size === 0 || selectedWabas.has(w.waba_id))
       .map((w) => {
         const templates = w.templates.filter((t) => {
-          if (selectedStatuses.size > 0 && !selectedStatuses.has(t.status))
-            return false;
-          if (selectedLanguages.size > 0 && !selectedLanguages.has(t.language))
-            return false;
-          if (selectedCategories.size > 0 && !selectedCategories.has(t.category))
-            return false;
+          if (hideSamples && t.name.startsWith("sample_")) return false;
+          if (selectedStatuses.size > 0 && !selectedStatuses.has(t.status)) return false;
+          if (selectedLanguages.size > 0 && !selectedLanguages.has(t.language)) return false;
+          if (selectedCategories.size > 0 && !selectedCategories.has(t.category)) return false;
           if (!q) return true;
           const bodyComp = t.components?.find((c) => c.type === "BODY");
           const bodyText = bodyComp?.text ?? "";
@@ -103,12 +97,9 @@ export function useTemplateFilters(wabas: Waba[]) {
         return { ...w, templates };
       })
       .filter((w) => w.templates.length > 0);
-  }, [wabas, debouncedSearch, selectedWabas, selectedStatuses, selectedLanguages, selectedCategories]);
+  }, [wabas, debouncedSearch, selectedWabas, selectedStatuses, selectedLanguages, selectedCategories, hideSamples]);
 
-  const totalTemplates = useMemo(
-    () => filtered.reduce((sum, w) => sum + w.templates.length, 0),
-    [filtered]
-  );
+  const totalTemplates = useMemo(() => filtered.reduce((sum, w) => sum + w.templates.length, 0), [filtered]);
 
   return {
     search,
@@ -123,6 +114,8 @@ export function useTemplateFilters(wabas: Waba[]) {
     allCategories,
     selectedCategories,
     toggleCategory,
+    hideSamples,
+    setHideSamples,
     filtered,
     totalTemplates,
   };

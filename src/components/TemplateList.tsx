@@ -40,7 +40,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     <div className="flex h-full flex-col">
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-4 py-2 sm:py-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Templates</span>
+        <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase">Templates</span>
         <button
           onClick={allExpanded ? collapseAll : expandAll}
           className="min-h-[44px] text-xs font-semibold text-gray-400 transition-colors hover:text-teal-600 sm:min-h-0 sm:text-[10px]"
@@ -59,7 +59,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
               <button
                 onClick={() => toggle(waba.waba_id)}
                 aria-expanded={isOpen}
-                className="sticky top-0 z-10 flex w-full min-h-[48px] items-center gap-2.5 border-b border-gray-200/80 bg-white/95 px-4 py-3 text-left backdrop-blur-sm transition-colors duration-150 hover:bg-gray-50 active:bg-gray-100 sm:min-h-0 sm:py-2.5"
+                className="sticky top-0 z-10 flex min-h-[48px] w-full items-center gap-2.5 border-b border-gray-200/80 bg-white/95 px-4 py-3 text-left backdrop-blur-sm transition-colors duration-150 hover:bg-gray-50 active:bg-gray-100 sm:min-h-0 sm:py-2.5"
               >
                 <svg
                   className={`h-3 w-3 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
@@ -72,10 +72,8 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
                 <div className="flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 text-[8px] font-bold text-white shadow-sm shadow-teal-600/20">
                   {waba.waba_name.charAt(0)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <span className="font-display text-[11px] font-bold text-gray-700">
-                    {waba.waba_name}
-                  </span>
+                <div className="min-w-0 flex-1">
+                  <span className="font-display text-[11px] font-bold text-gray-700">{waba.waba_name}</span>
                   {waba.phone_numbers.length > 0 && (
                     <div className="mt-0.5 truncate text-[10px] text-gray-500">
                       {waba.phone_numbers.map((pn, i) => (

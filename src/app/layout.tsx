@@ -21,16 +21,10 @@ export const metadata: Metadata = {
   description: "Visualiza todos los templates de WhatsApp Business",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`${jakarta.variable} ${dmSans.variable}`}>
-      <body className="font-body bg-[#f5f6f8] text-gray-900 antialiased">
-        {children}
-      </body>
+      <body className="font-body bg-[#f5f6f8] text-gray-900 antialiased">{children}</body>
     </html>
   );
 }

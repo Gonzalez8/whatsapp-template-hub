@@ -10,10 +10,7 @@ const FORMAT_RULES: FormatRule[] = [
     // ```monospace``` (must be checked before single patterns)
     pattern: /```([\s\S]+?)```/,
     render: (text, key) => (
-      <code
-        key={key}
-        className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[13px]"
-      >
+      <code key={key} className="rounded bg-gray-100 px-1 py-0.5 font-mono text-[13px]">
         {text}
       </code>
     ),
@@ -49,10 +46,7 @@ const FORMAT_RULES: FormatRule[] = [
     // {{1}}, {{nombre}}, {{rol}} variable placeholders
     pattern: /\{\{(\w+)\}\}/,
     render: (text, key) => (
-      <span
-        key={key}
-        className="rounded bg-teal-50 px-1 py-0.5 text-[13px] font-medium text-teal-700"
-      >
+      <span key={key} className="rounded bg-teal-50 px-1 py-0.5 text-[13px] font-medium text-teal-700">
         {`{{${text}}}`}
       </span>
     ),

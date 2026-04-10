@@ -12,11 +12,7 @@ async function TemplatesContent() {
     return <TemplatesDashboard wabas={wabas} />;
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error desconocido";
-    return (
-      <div className="py-10 text-center text-red-500">
-        Error: {message}
-      </div>
-    );
+    return <div className="py-10 text-center text-red-500">Error: {message}</div>;
   }
 }
 

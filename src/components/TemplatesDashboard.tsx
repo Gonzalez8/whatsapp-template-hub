@@ -33,6 +33,8 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
     allCategories,
     selectedCategories,
     toggleCategory,
+    hideSamples,
+    setHideSamples,
     filtered,
     totalTemplates,
   } = useTemplateFilters(wabas);
@@ -131,9 +133,11 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
         allCategories={allCategories}
         selectedCategories={selectedCategories}
         onToggleCategory={toggleCategory}
+        hideSamples={hideSamples}
+        onToggleHideSamples={() => setHideSamples((h) => !h)}
       />
 
-      <div className="mb-6 mt-6 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+      <div className="mt-6 mb-6 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <p className="text-xs font-medium text-gray-500 sm:text-[13px]">
           Mostrando <strong className="font-display font-bold text-gray-900">{totalTemplates}</strong> templates en{" "}
           <strong className="font-display font-bold text-gray-900">{filtered.length}</strong> WABAs
@@ -151,7 +155,12 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
               }`}
             >
               <svg className="h-4 w-4 sm:h-3.5 sm:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                />
               </svg>
               Lista
             </button>
@@ -165,7 +174,12 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
               }`}
             >
               <svg className="h-4 w-4 sm:h-3.5 sm:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+                />
               </svg>
               <span className="hidden sm:inline">Ver todo</span>
               <span className="sm:hidden">Grid</span>
@@ -234,20 +248,12 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
             className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm ring-1 ring-gray-900/[0.03] lg:w-[55%] xl:w-[60%]"
             style={{ height: "calc(100vh - 13rem)" }}
           >
-            <TemplateList
-              wabas={filtered}
-              selectedId={selectedId}
-              onSelect={handleSelect}
-            />
+            <TemplateList wabas={filtered} selectedId={selectedId} onSelect={handleSelect} />
           </div>
 
           {/* Right: detail panel — desktop only (inline) */}
           <div className="sticky top-20 hidden lg:block lg:w-[45%] xl:w-[40%]">
-            <DetailPanel
-              template={selectedTemplate}
-              wabaId={selectedWabaId}
-              wabaName={selectedWabaName}
-            />
+            <DetailPanel template={selectedTemplate} wabaId={selectedWabaId} wabaName={selectedWabaName} />
           </div>
 
           {/* Mobile detail overlay — slides up from bottom */}
@@ -256,7 +262,9 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
               role="dialog"
               aria-modal="true"
               aria-label="Detalle del template"
-              onKeyDown={(e) => { if (e.key === "Escape") handleMobileDetailClose(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") handleMobileDetailClose();
+              }}
               className="fixed inset-0 z-50 lg:hidden"
             >
               {/* Backdrop */}
@@ -265,7 +273,7 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
                 onClick={handleMobileDetailClose}
               />
               {/* Panel */}
-              <div className="slide-up-enter absolute inset-x-0 bottom-0 top-12 flex flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl">
+              <div className="slide-up-enter absolute inset-x-0 top-12 bottom-0 flex flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl">
                 {/* Close bar */}
                 <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
                   <button
@@ -280,11 +288,7 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
                 </div>
                 {/* Scrollable detail content */}
                 <div className="flex-1 overflow-y-auto">
-                  <DetailPanel
-                    template={selectedTemplate}
-                    wabaId={selectedWabaId}
-                    wabaName={selectedWabaName}
-                  />
+                  <DetailPanel template={selectedTemplate} wabaId={selectedWabaId} wabaName={selectedWabaName} />
                 </div>
               </div>
             </div>

@@ -11,10 +11,8 @@ export function TemplateListItem({ template, selected, onSelect }: TemplateListI
   return (
     <button
       onClick={onSelect}
-      className={`group flex w-full min-h-[44px] items-center gap-3 border-b border-gray-100/80 px-4 py-3 text-left transition-all duration-150 last:border-b-0 active:bg-gray-100 ${
-        selected
-          ? "border-l-2 border-l-teal-500 bg-teal-50/70 pl-[14px]"
-          : "hover:bg-gray-50/70"
+      className={`group flex min-h-[44px] w-full items-center gap-3 border-b border-gray-100/80 px-4 py-3 text-left transition-all duration-150 last:border-b-0 active:bg-gray-100 ${
+        selected ? "border-l-2 border-l-teal-500 bg-teal-50/70 pl-[14px]" : "hover:bg-gray-50/70"
       }`}
     >
       {/* Status dot */}
@@ -24,23 +22,23 @@ export function TemplateListItem({ template, selected, onSelect }: TemplateListI
       />
 
       {/* Name */}
-      <span className={`min-w-0 flex-1 truncate text-sm sm:text-[13px] transition-colors duration-150 ${
-        selected ? "font-semibold text-teal-900" : "font-medium text-gray-700 group-hover:text-gray-900"
-      }`}>
+      <span
+        className={`min-w-0 flex-1 truncate text-sm transition-colors duration-150 sm:text-[13px] ${
+          selected ? "font-semibold text-teal-900" : "font-medium text-gray-700 group-hover:text-gray-900"
+        }`}
+      >
         {template.name}
       </span>
 
       {/* Category */}
-      <span className="hidden shrink-0 text-[11px] text-gray-400 sm:block">
-        {template.category}
-      </span>
+      <span className="hidden shrink-0 text-[11px] text-gray-400 sm:block">{template.category}</span>
 
       {/* Language */}
-      <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors duration-150 ${
-        selected
-          ? "bg-teal-100/60 text-teal-700"
-          : "bg-gray-100 text-gray-500"
-      }`}>
+      <span
+        className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors duration-150 ${
+          selected ? "bg-teal-100/60 text-teal-700" : "bg-gray-100 text-gray-500"
+        }`}
+      >
         {template.language}
       </span>
 

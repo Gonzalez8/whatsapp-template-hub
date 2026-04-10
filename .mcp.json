@@ -2,10 +2,7 @@
   "mcpServers": {
     "executeautomation-playwright-server": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@executeautomation/playwright-mcp-server"
-      ]
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
     }
   }
 }

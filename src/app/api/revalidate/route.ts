@@ -14,10 +14,7 @@ export async function POST(request: Request) {
 
   if (elapsed < COOLDOWN_MS) {
     const retryAfter = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-    return Response.json(
-      { error: "Rate limited", retryAfterSeconds: retryAfter },
-      { status: 429 }
-    );
+    return Response.json({ error: "Rate limited", retryAfterSeconds: retryAfter }, { status: 429 });
   }
 
   lastRevalidation = now;

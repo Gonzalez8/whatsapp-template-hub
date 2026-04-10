@@ -19,7 +19,7 @@ export function hasExamples(template: Template): boolean {
         c.text &&
         /\{\{\w+\}\}/.test(c.text) &&
         ((c.type === "BODY" && (c.example?.body_text?.[0]?.length ?? 0) > 0) ||
-          (c.type === "HEADER" && (c.example?.header_text?.length ?? 0) > 0))
+          (c.type === "HEADER" && (c.example?.header_text?.length ?? 0) > 0)),
     ) ?? false
   );
 }

@@ -26,6 +26,8 @@ interface FiltersBarProps {
   allCategories: string[];
   selectedCategories: Set<string>;
   onToggleCategory: (cat: string) => void;
+  hideSamples: boolean;
+  onToggleHideSamples: () => void;
 }
 
 interface FilterDropdownGroupProps {
@@ -103,6 +105,8 @@ export function FiltersBar({
   allCategories,
   selectedCategories,
   onToggleCategory,
+  hideSamples,
+  onToggleHideSamples,
 }: FiltersBarProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -134,7 +138,7 @@ export function FiltersBar({
             placeholder="Buscar templates..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-11 w-full rounded-xl border border-gray-200/80 bg-gray-50/50 pr-3 pl-10 text-sm outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/10 sm:h-auto sm:py-2 sm:pl-9 sm:text-[13px]"
+            className="h-11 w-full rounded-xl border border-gray-200/80 bg-gray-50/50 pr-3 pl-10 text-sm transition-all outline-none placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/10 sm:h-auto sm:py-2 sm:pl-9 sm:text-[13px]"
           />
         </div>
 
@@ -145,7 +149,12 @@ export function FiltersBar({
           aria-expanded={filtersOpen}
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"
+            />
           </svg>
           Filtros
           {activeFilterCount > 0 && (
@@ -176,7 +185,9 @@ export function FiltersBar({
                       : "border-gray-200/80 bg-gray-50/50 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  <span className={`h-1.5 w-1.5 rounded-full transition-colors ${isActive ? colors.dot : "bg-gray-300"}`} />
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full transition-colors ${isActive ? colors.dot : "bg-gray-300"}`}
+                  />
                   {s}
                 </button>
               );
@@ -197,6 +208,39 @@ export function FiltersBar({
             selectedLanguages={selectedLanguages}
             onToggleLanguage={onToggleLanguage}
           />
+
+          {/* Divider */}
+          <div className="h-6 w-px bg-gray-200/80" />
+
+          {/* Hide samples toggle */}
+          <button
+            onClick={onToggleHideSamples}
+            aria-pressed={hideSamples}
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[11px] font-semibold tracking-wide transition-all duration-200 ${
+              hideSamples
+                ? "border-orange-200 bg-orange-50 text-orange-700"
+                : "border-gray-200/80 bg-gray-50/50 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {hideSamples ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              )}
+            </svg>
+            Ejemplos
+          </button>
         </div>
       </div>
 
@@ -205,7 +249,7 @@ export function FiltersBar({
         <div className="mt-3 flex flex-col gap-3 border-t border-gray-200/80 pt-3 sm:hidden">
           {/* Status pills */}
           <div>
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Estado</p>
+            <p className="mb-1.5 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Estado</p>
             <div className="flex gap-1.5">
               {STATUSES.map((s) => {
                 const isActive = selectedStatuses.has(s);
@@ -221,7 +265,9 @@ export function FiltersBar({
                         : "border-gray-200/80 bg-gray-50/50 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                     }`}
                   >
-                    <span className={`h-2 w-2 rounded-full transition-colors ${isActive ? colors.dot : "bg-gray-300"}`} />
+                    <span
+                      className={`h-2 w-2 rounded-full transition-colors ${isActive ? colors.dot : "bg-gray-300"}`}
+                    />
                     {s}
                   </button>
                 );
@@ -242,6 +288,34 @@ export function FiltersBar({
               selectedLanguages={selectedLanguages}
               onToggleLanguage={onToggleLanguage}
             />
+            <button
+              onClick={onToggleHideSamples}
+              aria-pressed={hideSamples}
+              className={`flex min-h-[44px] items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold tracking-wide transition-all duration-200 ${
+                hideSamples
+                  ? "border-orange-200 bg-orange-50 text-orange-700"
+                  : "border-gray-200/80 bg-gray-50/50 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {hideSamples ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
+                  />
+                ) : (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                )}
+              </svg>
+              Ejemplos
+            </button>
           </div>
         </div>
       )}

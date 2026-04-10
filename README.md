@@ -42,10 +42,10 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Environment variables
 
-| Variable | Description |
-|---|---|
+| Variable            | Description                                                      |
+| ------------------- | ---------------------------------------------------------------- |
 | `META_ACCESS_TOKEN` | System User token with `whatsapp_business_management` permission |
-| `META_BUSINESS_ID` | Your Meta Business account ID |
+| `META_BUSINESS_ID`  | Your Meta Business account ID                                    |
 
 See [.env.example](.env.example) for reference.
 
@@ -88,12 +88,12 @@ src/
 
 ## Available scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Create production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
+| Command         | Description              |
+| --------------- | ------------------------ |
+| `npm run dev`   | Start development server |
+| `npm run build` | Create production build  |
+| `npm run start` | Start production server  |
+| `npm run lint`  | Run ESLint               |
 
 ## Deploy on Vercel
 

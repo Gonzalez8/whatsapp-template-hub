@@ -26,6 +26,7 @@ Thanks for your interest in contributing to WhatsApp Template Hub!
 ## Reporting bugs
 
 Open an issue with:
+
 - Steps to reproduce
 - Expected vs actual behavior
 - Browser/Node version if relevant

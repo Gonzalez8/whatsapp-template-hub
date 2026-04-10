@@ -12,10 +12,8 @@ export function WabaSection({ waba }: WabaSectionProps) {
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-[11px] font-bold text-white shadow-sm shadow-teal-600/20">
           {waba.waba_name.charAt(0)}
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-display text-sm font-bold text-gray-900 sm:text-[15px]">
-            {waba.waba_name}
-          </h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-sm font-bold text-gray-900 sm:text-[15px]">{waba.waba_name}</h2>
           {waba.phone_numbers.length > 0 && (
             <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5">
               {waba.phone_numbers.map((pn) => (
@@ -26,11 +24,13 @@ export function WabaSection({ waba }: WabaSectionProps) {
                   {pn.status && (
                     <>
                       <span className="text-gray-300">·</span>
-                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
-                        pn.status === "CONNECTED"
-                          ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60"
-                          : "bg-amber-50 text-amber-700 ring-1 ring-amber-200/60"
-                      }`}>
+                      <span
+                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+                          pn.status === "CONNECTED"
+                            ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60"
+                            : "bg-amber-50 text-amber-700 ring-1 ring-amber-200/60"
+                        }`}
+                      >
                         {pn.status}
                       </span>
                     </>

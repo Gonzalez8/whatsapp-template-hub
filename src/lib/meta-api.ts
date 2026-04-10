@@ -1,10 +1,4 @@
-import type {
-  MetaWaba,
-  MetaPaginatedResponse,
-  Template,
-  Waba,
-  WabaPhoneNumber,
-} from "@/types/template";
+import type { MetaWaba, MetaPaginatedResponse, Template, Waba, WabaPhoneNumber } from "@/types/template";
 
 const META_API = "https://graph.facebook.com/v23.0";
 const FETCH_TIMEOUT_MS = 15_000;
@@ -17,22 +11,16 @@ function metaFetch(url: string, token: string): Promise<Response> {
   });
 }
 
-async function fetchAllTemplates(
-  wabaId: string,
-  token: string
-): Promise<Template[]> {
+async function fetchAllTemplates(wabaId: string, token: string): Promise<Template[]> {
   const templates: Template[] = [];
-  let url:
-    | string
-    | null = `${META_API}/${wabaId}/message_templates?fields=id,name,status,category,language,components,quality_score&limit=500`;
+  let url: string | null =
+    `${META_API}/${wabaId}/message_templates?fields=id,name,status,category,language,components,quality_score&limit=500`;
 
   while (url) {
     const res = await metaFetch(url, token);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(
-        `Failed to fetch templates for WABA ${wabaId}: ${JSON.stringify(err)}`
-      );
+      throw new Error(`Failed to fetch templates for WABA ${wabaId}: ${JSON.stringify(err)}`);
     }
 
     const data: MetaPaginatedResponse<Template> = await res.json();
@@ -43,10 +31,7 @@ async function fetchAllTemplates(
   return templates;
 }
 
-async function fetchPhoneNumbers(
-  wabaId: string,
-  token: string
-): Promise<WabaPhoneNumber[]> {
+async function fetchPhoneNumbers(wabaId: string, token: string): Promise<WabaPhoneNumber[]> {
   const url = `${META_API}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,status`;
   const res = await metaFetch(url, token);
   if (!res.ok) return [];
@@ -64,7 +49,7 @@ export async function fetchWabasWithTemplates(): Promise<Waba[]> {
 
   const wabasRes = await metaFetch(
     `${META_API}/${businessId}/owned_whatsapp_business_accounts?fields=id,name&limit=100`,
-    token
+    token,
   );
 
   if (!wabasRes.ok) {
@@ -87,12 +72,18 @@ export async function fetchWabasWithTemplates(): Promise<Waba[]> {
         phone_numbers,
         templates,
       };
-    })
+    }),
   );
 
   return settled.map((r, i) =>
     r.status === "fulfilled"
       ? r.value
-      : { waba_id: wabas[i].id, waba_name: wabas[i].name, phone_numbers: [], templates: [], error: r.reason?.message ?? "Error desconocido" }
+      : {
+          waba_id: wabas[i].id,
+          waba_name: wabas[i].name,
+          phone_numbers: [],
+          templates: [],
+          error: r.reason?.message ?? "Error desconocido",
+        },
   );
 }
