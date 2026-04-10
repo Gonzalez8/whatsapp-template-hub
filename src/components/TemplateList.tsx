@@ -40,7 +40,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     <div className="flex h-full flex-col">
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-4 py-2 sm:py-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Templates</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Templates</span>
         <button
           onClick={allExpanded ? collapseAll : expandAll}
           className="min-h-[44px] text-xs font-semibold text-gray-400 transition-colors hover:text-teal-600 sm:min-h-0 sm:text-[10px]"
@@ -58,6 +58,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
               {/* WABA header -- clickable */}
               <button
                 onClick={() => toggle(waba.waba_id)}
+                aria-expanded={isOpen}
                 className="sticky top-0 z-10 flex w-full min-h-[48px] items-center gap-2.5 border-b border-gray-200/80 bg-white/95 px-4 py-3 text-left backdrop-blur-sm transition-colors duration-150 hover:bg-gray-50 active:bg-gray-100 sm:min-h-0 sm:py-2.5"
               >
                 <svg
@@ -76,7 +77,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
                     {waba.waba_name}
                   </span>
                   {waba.phone_numbers.length > 0 && (
-                    <div className="mt-0.5 truncate text-[9px] text-gray-400">
+                    <div className="mt-0.5 truncate text-[10px] text-gray-500">
                       {waba.phone_numbers.map((pn, i) => (
                         <span key={pn.id}>
                           {i > 0 && " · "}

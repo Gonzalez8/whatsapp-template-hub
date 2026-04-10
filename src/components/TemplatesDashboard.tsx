@@ -144,6 +144,7 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
           <div className="flex overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm ring-1 ring-gray-900/[0.03]">
             <button
               onClick={() => setViewMode("list")}
+              aria-pressed={viewMode === "list"}
               className={`flex min-h-[44px] items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 sm:min-h-0 ${
                 viewMode === "list"
                   ? "bg-gray-900 text-white shadow-inner"
@@ -157,6 +158,7 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
             </button>
             <button
               onClick={() => setViewMode("all")}
+              aria-pressed={viewMode === "all"}
               className={`flex min-h-[44px] items-center gap-1.5 border-l border-gray-200/80 px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 sm:min-h-0 ${
                 viewMode === "all"
                   ? "bg-gray-900 text-white shadow-inner"
@@ -206,6 +208,13 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
                   : "Sync"}
             </span>
           </button>
+          <span aria-live="polite" aria-atomic="true" className="sr-only">
+            {syncing
+              ? "Sincronizando"
+              : cooldown > 0
+                ? `Sincronizar disponible en ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
+                : ""}
+          </span>
         </div>
       </div>
 
@@ -244,7 +253,13 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
 
           {/* Mobile detail overlay — slides up from bottom */}
           {mobileDetailOpen && selectedTemplate && (
-            <div className="fixed inset-0 z-50 lg:hidden">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Detalle del template"
+              onKeyDown={(e) => { if (e.key === "Escape") handleMobileDetailClose(); }}
+              className="fixed inset-0 z-50 lg:hidden"
+            >
               {/* Backdrop */}
               <div
                 className="fade-in-enter absolute inset-0 bg-black/40 backdrop-blur-sm"

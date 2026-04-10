@@ -26,8 +26,17 @@ export function FilterDropdown({
         setOpen(false);
       }
     }
-    if (open) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClick);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [open]);
 
   const activeCount = selected.size;
@@ -36,6 +45,8 @@ export function FilterDropdown({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className={`flex min-h-[44px] items-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium transition-all duration-200 sm:min-h-0 ${
           activeCount > 0
             ? "border-teal-200 bg-teal-50 text-teal-700"
@@ -62,12 +73,14 @@ export function FilterDropdown({
       </button>
 
       {open && (
-        <div className="dropdown-enter absolute top-full right-0 left-0 z-50 mt-2 max-h-64 min-w-52 overflow-y-auto rounded-xl border border-gray-200/80 bg-white p-1.5 shadow-xl shadow-gray-900/[0.08] ring-1 ring-gray-900/[0.03] sm:right-auto">
+        <div role="listbox" aria-multiselectable="true" className="dropdown-enter absolute top-full right-0 left-0 z-50 mt-2 max-h-64 min-w-52 overflow-y-auto rounded-xl border border-gray-200/80 bg-white p-1.5 shadow-xl shadow-gray-900/[0.08] ring-1 ring-gray-900/[0.03] sm:right-auto">
           {items.map((item) => {
             const isActive = selected.has(item.id);
             return (
               <button
                 key={item.id}
+                role="option"
+                aria-selected={isActive}
                 onClick={() => onToggle(item.id)}
                 className={`flex w-full min-h-[44px] items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] transition-colors duration-150 sm:min-h-0 ${
                   isActive
