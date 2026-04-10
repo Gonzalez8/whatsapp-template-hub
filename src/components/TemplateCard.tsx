@@ -35,7 +35,7 @@ export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps)
   return (
     <div
       className="card-enter group flex flex-col overflow-hidden rounded-2xl border border-gray-200/60 bg-white shadow-sm ring-1 ring-gray-900/[0.03] transition-all duration-300 hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg hover:shadow-gray-900/[0.07]"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: `${Math.min(index, 10) * 60}ms` }}
     >
       <div className="px-4 pt-4 pb-3">
         <div className="mb-3 flex items-start justify-between gap-2">

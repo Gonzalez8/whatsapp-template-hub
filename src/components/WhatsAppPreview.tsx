@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo } from "react";
 import type { TemplateComponent, PreviewMode } from "@/types/template";
 import { formatWhatsAppText } from "@/lib/whatsapp-format";
 
@@ -49,9 +52,11 @@ export function WhatsAppPreview({ components, mode }: WhatsAppPreviewProps) {
   const footer = components?.find((c) => c.type === "FOOTER");
   const buttons = components?.find((c) => c.type === "BUTTONS");
 
-  const headerText = resolveText(header, mode);
-  const bodyText = resolveText(body, mode);
-  const footerText = resolveText(footer, mode);
+  const { headerText, bodyText, footerText } = useMemo(() => ({
+    headerText: resolveText(header, mode),
+    bodyText: resolveText(body, mode),
+    footerText: resolveText(footer, mode),
+  }), [header, body, footer, mode]);
 
   return (
     <div className="bg-[#efeae2] bg-[url('data:image/svg+xml,%3Csvg%20width=%2260%22%20height=%2260%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M30%205c1.1%200%202-.9%202-2s-.9-2-2-2-2%20.9-2%202%20.9%202%202%202zm0%2054c1.1%200%202-.9%202-2s-.9-2-2-2-2%20.9-2%202%20.9%202%202%202z%22%20fill=%22%23d6cfc4%22%20fill-opacity=%220.3%22/%3E%3C/svg%3E')] p-4">

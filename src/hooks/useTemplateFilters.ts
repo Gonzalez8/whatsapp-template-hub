@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { Waba, TemplateStatus } from "@/types/template";
 
 export function useTemplateFilters(wabas: Waba[]) {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedWabas, setSelectedWabas] = useState<Set<string>>(new Set());
   const [selectedStatuses, setSelectedStatuses] = useState<Set<TemplateStatus>>(
     new Set()
@@ -14,6 +15,11 @@ export function useTemplateFilters(wabas: Waba[]) {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set()
   );
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 150);
+    return () => clearTimeout(id);
+  }, [search]);
 
   const allLanguages = useMemo(() => {
     const langs = new Set<string>();
@@ -72,7 +78,7 @@ export function useTemplateFilters(wabas: Waba[]) {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
+    const q = debouncedSearch.toLowerCase().trim();
 
     return wabas
       .filter((w) => selectedWabas.size === 0 || selectedWabas.has(w.waba_id))
@@ -97,7 +103,7 @@ export function useTemplateFilters(wabas: Waba[]) {
         return { ...w, templates };
       })
       .filter((w) => w.templates.length > 0);
-  }, [wabas, search, selectedWabas, selectedStatuses, selectedLanguages, selectedCategories]);
+  }, [wabas, debouncedSearch, selectedWabas, selectedStatuses, selectedLanguages, selectedCategories]);
 
   const totalTemplates = useMemo(
     () => filtered.reduce((sum, w) => sum + w.templates.length, 0),

@@ -55,7 +55,6 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
   }, [isCoolingDown]);
 
   const handleSync = useCallback(async () => {
-    if (cooldown > 0) return;
     setSyncing(true);
     try {
       const res = await fetch("/api/revalidate", { method: "POST" });
@@ -69,7 +68,7 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
     } finally {
       setSyncing(false);
     }
-  }, [router, cooldown]);
+  }, [router]);
 
   const handleSelect = useCallback((templateId: string, wabaId: string) => {
     setSelectedId(templateId);
