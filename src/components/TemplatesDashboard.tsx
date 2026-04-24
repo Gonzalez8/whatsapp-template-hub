@@ -83,13 +83,18 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
     setMobileDetailOpen(false);
   }, []);
 
-  // Lock body scroll when mobile detail overlay is open
+  // Reset mobile overlay when switching away from list view
   useEffect(() => {
-    if (mobileDetailOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+    if (viewMode !== "list") {
+      setMobileDetailOpen(false);
     }
+  }, [viewMode]);
+
+  // Lock body scroll only on mobile (< lg) when overlay is open
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const shouldLock = mobileDetailOpen && !mq.matches;
+    document.body.style.overflow = shouldLock ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
