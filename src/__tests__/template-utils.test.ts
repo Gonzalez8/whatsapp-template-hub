@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { getExampleValues, hasExamples, replaceVariables } from "@/lib/template-utils";
+import {
+  extractVariables,
+  getExampleValues,
+  hasExamples,
+  isRecategorized,
+  replaceVariables,
+} from "@/lib/template-utils";
 import type { Template, TemplateComponent } from "@/types/template";
 
 const namedBody: TemplateComponent = {
@@ -69,5 +75,58 @@ describe("hasExamples", () => {
   it("is false without variables or without examples", () => {
     expect(hasExamples(asTemplate([{ type: "BODY", text: "Sin variables" }]))).toBe(false);
     expect(hasExamples(asTemplate([{ type: "BODY", text: "Hola {{1}}" }]))).toBe(false);
+  });
+});
+
+describe("isRecategorized", () => {
+  it("flags a move between current categories", () => {
+    expect(isRecategorized({ ...asTemplate([]), category: "MARKETING", previous_category: "UTILITY" })).toBe(true);
+  });
+
+  it("ignores Meta's legacy categories and unchanged ones", () => {
+    expect(isRecategorized({ ...asTemplate([]), category: "UTILITY", previous_category: "TICKET_UPDATE" })).toBe(false);
+    expect(isRecategorized({ ...asTemplate([]), category: "UTILITY", previous_category: "UTILITY" })).toBe(false);
+    expect(isRecategorized(asTemplate([]))).toBe(false);
+  });
+});
+
+describe("extractVariables", () => {
+  it("lists header, body and URL button variables in order with their examples", () => {
+    const template = asTemplate([
+      {
+        type: "HEADER",
+        format: "TEXT",
+        text: "Hola {{1}}",
+        example: { header_text: ["Ana"] },
+      },
+      positionalBody,
+      {
+        type: "BUTTONS",
+        buttons: [
+          {
+            type: "URL",
+            text: "Ver curso",
+            url: "https://x.com/c{{1}}",
+            example: ["https://x.com/c?id=42"],
+          },
+          { type: "QUICK_REPLY", text: "Vale" },
+        ],
+      },
+    ]);
+
+    expect(extractVariables(template)).toEqual([
+      { token: "{{1}}", example: "Ana", location: "Cabecera" },
+      { token: "{{1}}", example: "Ana", location: "Cuerpo" },
+      { token: "{{2}}", example: "lunes", location: "Cuerpo" },
+      { token: "{{1}}", example: "https://x.com/c?id=42", location: "Botón «Ver curso»" },
+    ]);
+  });
+
+  it("reads NAMED examples and marks variables without one", () => {
+    expect(extractVariables(asTemplate([namedBody])).map((v) => [v.token, v.example])).toEqual([
+      ["{{lead_name}}", "Jose Manuel"],
+      ["{{user_id}}", "abc-123"],
+    ]);
+    expect(extractVariables(asTemplate([{ type: "BODY", text: "Hola {{1}}" }]))[0].example).toBeUndefined();
   });
 });

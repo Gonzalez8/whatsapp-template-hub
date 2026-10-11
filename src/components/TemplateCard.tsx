@@ -3,8 +3,9 @@
 import { useState } from "react";
 import type { Template, PreviewMode } from "@/types/template";
 import { WhatsAppPreview } from "./WhatsAppPreview";
-import { STATUS_STYLES, hasExamples } from "@/lib/template-utils";
+import { hasExamples } from "@/lib/template-utils";
 import { Highlight } from "./Highlight";
+import { TemplateBadges } from "./TemplateBadges";
 
 interface TemplateCardProps {
   template: Template;
@@ -45,19 +46,7 @@ export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps)
             </button>
           )}
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <span
-            className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[template.status] ?? "bg-gray-100 text-gray-500"}`}
-          >
-            {template.status}
-          </span>
-          <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 ring-1 ring-indigo-600/10">
-            {template.category}
-          </span>
-          <span className="inline-block rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-semibold text-gray-500 ring-1 ring-gray-900/[0.06]">
-            {template.language}
-          </span>
-        </div>
+        <TemplateBadges template={template} />
       </div>
 
       <div className="flex-1 bg-[#efeae2]">

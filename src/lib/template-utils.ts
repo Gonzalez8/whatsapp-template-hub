@@ -27,17 +27,21 @@ export function getExampleValues(component: TemplateComponent): ExampleValues | 
   return positional?.length ? positional : undefined;
 }
 
+/**
+ * Example value of the variable `key`, the `position`-th variable of its text.
+ * Named variables with positional examples are resolved by order of appearance.
+ */
+function exampleFor(values: ExampleValues | undefined, key: string, position: number): string | undefined {
+  if (!values) return undefined;
+  if (!Array.isArray(values)) return values[key];
+  return values[/^\d+$/.test(key) ? Number(key) - 1 : position];
+}
+
 /** Replaces {{1}} / {{name}} with example values, leaving unknown variables untouched. */
 export function replaceVariables(text: string, values: ExampleValues | undefined): string {
   if (!values) return text;
   let position = 0;
-  return text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => {
-    const index = /^\d+$/.test(key) ? Number(key) - 1 : position;
-    position++;
-    // Named variables with positional examples are resolved by order of appearance.
-    const value = Array.isArray(values) ? values[index] : values[key];
-    return value ?? match;
-  });
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => exampleFor(values, key, position++) ?? match);
 }
 
 export function hasExamples(template: Template): boolean {
@@ -50,4 +54,63 @@ export function hasExamples(template: Template): boolean {
         getExampleValues(c) !== undefined,
     ) ?? false
   );
+}
+
+const CURRENT_CATEGORIES = new Set(["MARKETING", "UTILITY", "AUTHENTICATION"]);
+
+/**
+ * True when Meta moved the template to another current category (e.g. UTILITY → MARKETING).
+ * Legacy values such as TICKET_UPDATE come from Meta's old category scheme and are ignored.
+ */
+export function isRecategorized(template: Template): boolean {
+  const prev = template.previous_category;
+  return !!prev && CURRENT_CATEGORIES.has(prev) && prev !== template.category;
+}
+
+export const BUTTON_TYPE_LABELS: Record<string, string> = {
+  URL: "Enlace",
+  PHONE_NUMBER: "Llamada",
+  QUICK_REPLY: "Respuesta rápida",
+  FLOW: "Flow",
+  COPY_CODE: "Copiar código",
+  OTP: "Código OTP",
+};
+
+export interface TemplateVariable {
+  /** As written in the template, e.g. "{{1}}" or "{{lead_name}}". */
+  token: string;
+  example?: string;
+  /** Where it appears: "Cabecera", "Cuerpo" or "Botón «Ver curso»". */
+  location: string;
+}
+
+const VARIABLE = /\{\{(\w+)\}\}/g;
+
+/** Every variable of the template, in order of appearance, with its example value. */
+export function extractVariables(template: Template): TemplateVariable[] {
+  const vars: TemplateVariable[] = [];
+
+  for (const c of template.components ?? []) {
+    if ((c.type === "HEADER" || c.type === "BODY") && c.text) {
+      const values = getExampleValues(c);
+      let position = 0;
+      for (const [token, key] of c.text.matchAll(VARIABLE)) {
+        vars.push({
+          token,
+          example: exampleFor(values, key, position++),
+          location: c.type === "HEADER" ? "Cabecera" : "Cuerpo",
+        });
+      }
+    }
+
+    for (const b of c.buttons ?? []) {
+      if (!b.url) continue;
+      for (const [token] of b.url.matchAll(VARIABLE)) {
+        // Meta gives the whole example URL, not just the variable's value.
+        vars.push({ token, example: b.example?.[0], location: `Botón «${b.text}»` });
+      }
+    }
+  }
+
+  return vars;
 }

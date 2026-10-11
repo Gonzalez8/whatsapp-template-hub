@@ -1,6 +1,7 @@
 export type TemplateStatus = "APPROVED" | "PENDING" | "REJECTED";
 
-export type ButtonType = "URL" | "PHONE_NUMBER" | "QUICK_REPLY";
+// Known types get autocompletion; Meta adds new ones over time, so any string is accepted.
+export type ButtonType = "URL" | "PHONE_NUMBER" | "QUICK_REPLY" | "FLOW" | "COPY_CODE" | "OTP" | (string & {});
 
 export type ComponentType = "HEADER" | "BODY" | "FOOTER" | "BUTTONS";
 
@@ -9,6 +10,11 @@ export interface TemplateButton {
   text: string;
   url?: string;
   phone_number?: string;
+  /** URL buttons: example of the final URL once its variable is filled. */
+  example?: string[];
+  flow_id?: number | string;
+  flow_action?: string;
+  navigate_screen?: string;
 }
 
 export interface NamedParamExample {
@@ -42,6 +48,12 @@ export interface Template {
   language: string;
   components?: TemplateComponent[];
   quality_score?: { score: "GREEN" | "YELLOW" | "RED" | "UNKNOWN" };
+  /** Category before Meta changed it (affects the price per message). */
+  previous_category?: string;
+  sub_category?: string;
+  parameter_format?: "POSITIONAL" | "NAMED";
+  /** "NONE" unless the template was rejected. */
+  rejected_reason?: string;
 }
 
 export interface WabaPhoneNumber {
