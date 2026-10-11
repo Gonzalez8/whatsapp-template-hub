@@ -21,6 +21,8 @@ interface TemplatesDashboardProps {
   wabas: Waba[];
   fetchedAt: number;
   brand?: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
+  /** Login is on for this deployment: show the signed-in user. */
+  authEnabled?: boolean;
 }
 
 /** A mobile overlay sliding up from the bottom; on desktop the same content lives inline. */
@@ -51,7 +53,7 @@ function MobileSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
-export function TemplatesDashboard({ wabas, fetchedAt, brand = {} }: TemplatesDashboardProps) {
+export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled = false }: TemplatesDashboardProps) {
   const filters = useTemplateFilters(wabas);
   const { filtered, searchTerms, debouncedSearch, selectedWabas, replaceFilters } = filters;
   const sync = useTemplatesSync(fetchedAt);
@@ -272,6 +274,7 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {} }: TemplatesDa
           onSync={sync.sync}
           view={view === "compare" ? null : view}
           brand={brand}
+          authEnabled={authEnabled}
           onViewChange={setView}
         />
 
