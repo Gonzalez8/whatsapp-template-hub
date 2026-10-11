@@ -36,10 +36,10 @@ export function WabaSidebar({ wabas, counts, selected, onToggle, onOnly, onClear
   }, [sorted, query]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="bg-side text-side-ink flex h-full min-h-0 flex-col">
       <div className="flex items-baseline justify-between px-4 pt-4 pb-2">
-        <h2 className="text-muted text-xs font-semibold tracking-wider uppercase">WABAs</h2>
-        <span className="text-muted text-xs">
+        <h2 className="text-side-muted text-xs font-semibold tracking-wider uppercase">WABAs</h2>
+        <span className="text-side-muted text-xs">
           {selected.size === 0 ? `Todas (${sorted.length})` : `${selected.size} de ${sorted.length}`}
         </span>
       </div>
@@ -54,7 +54,7 @@ export function WabaSidebar({ wabas, counts, selected, onToggle, onOnly, onClear
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filtrar WABAs"
-          className="border-line-strong bg-surface placeholder:text-faint focus:border-accent focus:ring-accent/15 h-9 w-full rounded-lg border px-3 text-[13px] outline-none focus:ring-2"
+          className="border-side-line placeholder:text-side-muted focus:border-accent focus:ring-accent/25 h-9 w-full rounded-lg border bg-black/25 px-3 text-[13px] outline-none focus:ring-2"
         />
       </div>
 
@@ -63,7 +63,7 @@ export function WabaSidebar({ wabas, counts, selected, onToggle, onOnly, onClear
           type="button"
           onClick={onClear}
           disabled={selected.size === 0}
-          className="text-accent-ink disabled:text-faint font-medium hover:underline disabled:no-underline"
+          className="text-accent disabled:text-side-muted font-medium hover:underline disabled:no-underline"
         >
           Mostrar todas
         </button>
@@ -78,30 +78,30 @@ export function WabaSidebar({ wabas, counts, selected, onToggle, onOnly, onClear
             <li key={w.waba_id} className="group relative">
               <label
                 className={`flex cursor-pointer items-center gap-2.5 rounded-lg py-1.5 pr-2 pl-2.5 ${
-                  checked ? "bg-accent-soft" : "hover:bg-subtle"
+                  checked ? "bg-accent/15" : "hover:bg-white/5"
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={checked}
                   onChange={() => onToggle(w.waba_id)}
-                  className="accent-accent h-4 w-4 shrink-0"
+                  className="accent-accent h-4 w-4 shrink-0 [color-scheme:dark]"
                 />
                 <span className={`min-w-0 flex-1 ${count === 0 ? "opacity-50" : ""}`}>
                   <span className={`block truncate text-[13px] ${checked ? "font-semibold" : ""}`}>{w.waba_name}</span>
                   {w.error ? (
                     // A failed WABA has no templates, so the list never shows it: flag it here.
-                    <span className="block truncate text-[11px] text-red-600" title={w.error}>
+                    <span className="block truncate text-[11px] text-red-300" title={w.error}>
                       Error al cargar
                     </span>
                   ) : (
-                    <span className="text-faint block truncate font-mono text-[11px]">
+                    <span className="text-side-muted block truncate font-mono text-[11px]">
                       {phone ?? "Sin número"}
                       {w.phone_numbers.length > 1 && ` +${w.phone_numbers.length - 1}`}
                     </span>
                   )}
                 </span>
-                <span className="text-muted font-mono text-xs group-focus-within:invisible group-hover:invisible">
+                <span className="text-side-muted font-mono text-xs group-focus-within:invisible group-hover:invisible">
                   {count}
                 </span>
               </label>
@@ -109,14 +109,14 @@ export function WabaSidebar({ wabas, counts, selected, onToggle, onOnly, onClear
                 type="button"
                 onClick={() => onOnly(w.waba_id)}
                 aria-label={`Mostrar solo ${w.waba_name}`}
-                className="border-line-strong bg-surface text-ink hover:border-accent absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[11px] font-medium group-focus-within:block group-hover:block"
+                className="border-side-line bg-side text-side-ink hover:border-accent absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[11px] font-medium group-focus-within:block group-hover:block"
               >
                 Solo
               </button>
             </li>
           );
         })}
-        {visible.length === 0 && <li className="text-muted px-3 py-4 text-xs">Ninguna WABA coincide.</li>}
+        {visible.length === 0 && <li className="text-side-muted px-3 py-4 text-xs">Ninguna WABA coincide.</li>}
       </ul>
     </div>
   );

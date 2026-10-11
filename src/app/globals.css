@@ -13,10 +13,23 @@
   --color-ink: #17201d;
   --color-muted: #5c6762;
   --color-faint: #6b7671;
-  --color-accent: #0b8a74;
-  --color-accent-soft: #e8f4f1;
-  --color-accent-ink: #0b4f44;
   --color-chat: #efeae2;
+
+  /* Accent = brand color. These defaults (WhatsApp green) are overridden per
+     deployment from BRAND_COLOR in layout.tsx; the soft tint derives from it. */
+  --color-accent: #25d366;
+  --color-on-accent: #0b1a12;
+  --color-accent-ink: #167f3d;
+  --color-accent-soft: color-mix(in oklab, var(--color-accent) 14%, white);
+
+  /* Dark chrome: graphite top bar, deeper green-black WABA sidebar. */
+  --color-chrome: #14181a;
+  --color-chrome-ink: #f2f4f3;
+  --color-chrome-muted: #9aa3a0;
+  --color-side: #111916;
+  --color-side-ink: #e6edea;
+  --color-side-muted: #8a9993;
+  --color-side-line: #22302b;
 }
 
 /* Shimmer animation for skeleton loading */

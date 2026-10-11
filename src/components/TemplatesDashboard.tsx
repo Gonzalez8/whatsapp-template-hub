@@ -20,6 +20,7 @@ import { EmptyState } from "./EmptyState";
 interface TemplatesDashboardProps {
   wabas: Waba[];
   fetchedAt: number;
+  brand?: { name?: string; logoUrl?: string };
 }
 
 /** A mobile overlay sliding up from the bottom; on desktop the same content lives inline. */
@@ -50,7 +51,7 @@ function MobileSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
-export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps) {
+export function TemplatesDashboard({ wabas, fetchedAt, brand = {} }: TemplatesDashboardProps) {
   const filters = useTemplateFilters(wabas);
   const { filtered, searchTerms, debouncedSearch, selectedWabas, replaceFilters } = filters;
   const sync = useTemplatesSync(fetchedAt);
@@ -270,15 +271,13 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
           syncError={sync.error}
           onSync={sync.sync}
           view={view === "compare" ? null : view}
+          brand={brand}
           onViewChange={setView}
         />
 
         <div className="flex min-h-0 flex-1">
           {isDesktop && (
-            <aside
-              aria-label="Filtrar por WABA"
-              className="border-line bg-surface hidden w-[272px] shrink-0 border-r lg:block"
-            >
+            <aside aria-label="Filtrar por WABA" className="bg-side hidden w-[272px] shrink-0 lg:block">
               {sidebar}
             </aside>
           )}
@@ -350,7 +349,7 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
                 </div>
 
                 {compareIds.length > 0 && (
-                  <div className="bg-ink flex shrink-0 items-center gap-3 px-4 py-2.5 text-white">
+                  <div className="bg-chrome text-chrome-ink flex shrink-0 items-center gap-3 px-4 py-2.5">
                     <span className="flex-1 text-[13px]">
                       {compareIds.length} {compareIds.length === 1 ? "plantilla" : "plantillas"} para comparar
                       {compareFull && <span className="text-white/60"> · máximo {MAX_COMPARE}</span>}
@@ -367,7 +366,7 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
                       onClick={openCompare}
                       disabled={compareIds.length < 2}
                       title={compareIds.length < 2 ? "Añade al menos dos plantillas" : undefined}
-                      className="bg-surface text-ink h-8 rounded-lg px-3 text-[13px] font-semibold disabled:opacity-50"
+                      className="bg-accent text-on-accent h-8 rounded-lg px-3 text-[13px] font-semibold hover:brightness-95 disabled:opacity-50"
                     >
                       Comparar →
                     </button>

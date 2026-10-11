@@ -72,7 +72,7 @@ export function ListToolbar(props: ListToolbarProps) {
         >
           WABAs
           {props.selectedWabas.size > 0 && (
-            <span className="bg-accent rounded-full px-1.5 text-[11px] text-white">{props.selectedWabas.size}</span>
+            <span className="bg-accent text-on-accent rounded-full px-1.5 text-[11px]">{props.selectedWabas.size}</span>
           )}
         </button>
         {/* With a single status in the data (e.g. everything approved) the filter is just noise. */}

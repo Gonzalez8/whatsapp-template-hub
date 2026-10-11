@@ -98,7 +98,7 @@ export function DetailPanel({
             href={metaTemplateUrl(wabaId, template.id)}
             target="_blank"
             rel="noopener noreferrer"
-            className="bg-ink hover:bg-ink/85 flex h-8 items-center rounded-lg px-2.5 text-xs font-medium text-white"
+            className="bg-accent text-on-accent flex h-8 items-center rounded-lg px-3 text-xs font-semibold shadow-[0_4px_14px_color-mix(in_oklab,var(--color-accent)_35%,transparent)] hover:brightness-95"
           >
             Abrir en Meta ↗
           </a>

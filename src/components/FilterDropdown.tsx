@@ -77,7 +77,7 @@ export function FilterDropdown({
         {label}
         {activeCount > 0 && (
           <span
-            className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${accentClass}`}
+            className={`text-on-accent flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ${accentClass}`}
           >
             {activeCount}
           </span>
@@ -141,7 +141,7 @@ export function FilterDropdown({
                   >
                     <span
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all duration-150 ${
-                        isActive ? "border-accent bg-accent text-white" : "border-line-strong bg-surface"
+                        isActive ? "border-accent bg-accent text-on-accent" : "border-line-strong bg-surface"
                       }`}
                     >
                       {isActive && (
