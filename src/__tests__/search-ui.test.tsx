@@ -58,16 +58,35 @@ describe("WhatsAppPreview", () => {
     expect(container.querySelector("strong mark")).toHaveTextContent("matrícula");
   });
 
-  it("reveals a button URL only when the search matched it", () => {
+  it("keeps the button URL out of the bubble but on hover and as a link", () => {
     const url = "https://oposicionesflou.com/contacto-gracias";
+    const { container } = withSearch("", <WhatsAppPreview components={components} mode="template" />);
+    const link = screen.getByRole("link", { name: /Ver curso/ });
 
-    const before = withSearch("", <WhatsAppPreview components={components} mode="template" />);
-    expect(before.container).not.toHaveTextContent(url);
-    before.unmount();
+    expect(container).not.toHaveTextContent(url);
+    expect(link).toHaveAttribute("href", url);
+    expect(link).toHaveAttribute("title", url);
+    expect(link).toHaveAttribute("target", "_blank");
+  });
 
-    const after = withSearch("contacto", <WhatsAppPreview components={components} mode="template" />);
-    expect(after.container).toHaveTextContent(url);
-    expect(marks(after.container)).toEqual(["contacto"]);
+  it("opens Meta's example URL when the template URL has variables", () => {
+    const withVariable: TemplateComponent[] = [
+      {
+        type: "BUTTONS",
+        buttons: [{ type: "URL", text: "Agendar", url: "https://x.es/e?id={{1}}", example: ["https://x.es/e?id=42"] }],
+      },
+    ];
+    withSearch("", <WhatsAppPreview components={withVariable} mode="template" />);
+
+    expect(screen.getByRole("link", { name: /Agendar/ })).toHaveAttribute("href", "https://x.es/e?id=42");
+  });
+
+  it("marks the button when the search matched its URL, without showing it", () => {
+    const { container } = withSearch("contacto", <WhatsAppPreview components={components} mode="template" />);
+    const link = screen.getByRole("link", { name: /Ver curso.*coincide con la búsqueda/ });
+
+    expect(link).toHaveClass("ring-amber-300");
+    expect(container).not.toHaveTextContent("oposicionesflou.com");
   });
 
   it("fills NAMED variables in example mode", () => {
