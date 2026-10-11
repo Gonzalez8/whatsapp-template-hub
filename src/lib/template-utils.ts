@@ -147,3 +147,8 @@ export function resolveComponentText(component: TemplateComponent | undefined, m
   if (mode === "template") return component.text;
   return replaceVariables(component.text, getExampleValues(component));
 }
+
+/** The template in Meta's WhatsApp Manager, where it can be edited. */
+export function metaTemplateUrl(wabaId: string, templateId: string): string {
+  return `https://business.facebook.com/wa/manage/message-templates/?waba_id=${encodeURIComponent(wabaId)}&id=${encodeURIComponent(templateId)}`;
+}

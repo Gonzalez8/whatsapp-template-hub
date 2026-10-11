@@ -2,7 +2,7 @@
 
 import { useState, type KeyboardEvent } from "react";
 import type { PreviewMode, Template } from "@/types/template";
-import { extractVariables, hasExamples } from "@/lib/template-utils";
+import { extractVariables, hasExamples, metaTemplateUrl } from "@/lib/template-utils";
 import { WhatsAppPreview } from "./WhatsAppPreview";
 import { Highlight } from "./Highlight";
 import { TemplateBadges } from "./TemplateBadges";
@@ -95,7 +95,7 @@ export function DetailPanel({
             {compared ? "En la comparación ✓" : "Comparar"}
           </button>
           <a
-            href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${encodeURIComponent(wabaId)}&id=${encodeURIComponent(template.id)}`}
+            href={metaTemplateUrl(wabaId, template.id)}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-ink hover:bg-ink/85 flex h-8 items-center rounded-lg px-2.5 text-xs font-medium text-white"

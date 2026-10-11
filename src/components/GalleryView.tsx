@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { PreviewMode, Template, Waba } from "@/types/template";
-import { CATEGORY_LABELS, label } from "@/lib/template-utils";
+import { CATEGORY_LABELS, label, metaTemplateUrl } from "@/lib/template-utils";
 import { WhatsAppPreview } from "./WhatsAppPreview";
 import { Highlight } from "./Highlight";
 
@@ -87,6 +87,15 @@ export function GalleryView({ wabas, onOpen, compareIds, compareFull, onToggleCo
                     >
                       Ver detalle →
                     </button>
+                    <a
+                      href={metaTemplateUrl(waba.waba_id, t.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Abrir ${t.name} (${t.language}) en Meta`}
+                      className="border-line text-ink hover:bg-subtle shrink-0 border-x px-4 py-2.5 text-xs font-medium"
+                    >
+                      Meta ↗
+                    </a>
                     <label
                       className={`text-muted flex shrink-0 items-center gap-1.5 px-4 py-2.5 text-xs ${compareFull && !compared ? "opacity-40" : "cursor-pointer"}`}
                     >

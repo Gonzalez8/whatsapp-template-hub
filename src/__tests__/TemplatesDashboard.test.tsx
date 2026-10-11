@@ -80,6 +80,11 @@ describe("TemplatesDashboard", () => {
     expect(screen.getAllByRole("article")).toHaveLength(3);
     expect(window.location.search).toBe("?waba=campus&view=gallery");
 
+    expect(screen.getByRole("link", { name: "Abrir entrevista_finde (pt_PT) en Meta" })).toHaveAttribute(
+      "href",
+      "https://business.facebook.com/wa/manage/message-templates/?waba_id=campus&id=c2",
+    );
+
     fireEvent.click(screen.getAllByRole("button", { name: "Ver detalle →" })[1]);
 
     expect(screen.getByRole("heading", { level: 1, name: "entrevista_finde" })).toBeInTheDocument();
