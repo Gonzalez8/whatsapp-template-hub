@@ -21,6 +21,9 @@
   --color-on-accent: #0b1a12;
   --color-accent-ink: #167f3d;
   --color-accent-soft: color-mix(in oklab, var(--color-accent) 14%, white);
+  /* The accent lightened for the dark bars (a dark brand color would disappear there). */
+  --color-accent-bright: #25d366;
+  --color-on-accent-bright: #0b1a12;
 
   /* Dark chrome: graphite top bar, deeper green-black WABA sidebar. */
   --color-chrome: #14181a;

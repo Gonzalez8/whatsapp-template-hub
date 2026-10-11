@@ -31,6 +31,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     "--color-accent": brand.color,
     "--color-on-accent": brand.onColor,
     "--color-accent-ink": brand.inkColor,
+    "--color-accent-bright": brand.brightColor,
+    "--color-on-accent-bright": brand.onBrightColor,
   } as CSSProperties;
 
   return (

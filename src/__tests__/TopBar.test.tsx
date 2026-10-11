@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { TopBar } from "@/components/TopBar";
 
-const renderTopBar = (brand: { name?: string; logoUrl?: string }) =>
+const renderTopBar = (brand: { name?: string; logoUrl?: string; logoOnWhite?: boolean }) =>
   render(
     <TopBar
       search=""
@@ -37,5 +37,14 @@ describe("TopBar branding", () => {
     renderTopBar({ name: "Northius" });
 
     expect(screen.getByText("Northius")).toBeInTheDocument();
+  });
+
+  it("puts the logo straight on the bar unless a white plate is configured", () => {
+    const { unmount } = renderTopBar({ name: "Northius", logoUrl: "/logo.svg" });
+    expect(screen.getByRole("img").parentElement).not.toHaveClass("bg-white");
+    unmount();
+
+    renderTopBar({ name: "Northius", logoUrl: "/logo.svg", logoOnWhite: true });
+    expect(screen.getByRole("img").parentElement).toHaveClass("bg-white");
   });
 });

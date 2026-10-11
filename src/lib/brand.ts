@@ -12,12 +12,20 @@ export interface Brand {
   onColor: string;
   /** The accent darkened until it reads as text on white (WCAG AA, 4.5:1). */
   inkColor: string;
+  /** The accent lightened until it stands out on the dark top bar and sidebar (4.5:1). */
+  brightColor: string;
+  /** Text color on top of `brightColor`. */
+  onBrightColor: string;
+  /** Show the logo on a white plate (for dark logos that would vanish on the dark bar). */
+  logoOnWhite: boolean;
 }
 
 type Env = Record<string, string | undefined>;
 
 const DARK_TEXT = "#0B1A12";
 const WHITE = "#FFFFFF";
+/** Darkest of the dark surfaces (top bar), matches --color-chrome. */
+const CHROME = "#14181A";
 
 function parseHex(value: string): [number, number, number] | null {
   const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());
@@ -50,6 +58,16 @@ function darkenUntilReadable(rgb: [number, number, number]): string {
   return DARK_TEXT;
 }
 
+function lightenUntilReadable(rgb: [number, number, number]): string {
+  for (let mix = 0; mix <= 1; mix += 0.05) {
+    const candidate = toHex(rgb.map((v) => v + (255 - v) * mix));
+    if (contrast(candidate, CHROME) >= 4.5) return candidate;
+  }
+  return WHITE;
+}
+
+const textOn = (color: string) => (contrast(color, DARK_TEXT) >= contrast(color, WHITE) ? DARK_TEXT : WHITE);
+
 function brandColor(raw: string | undefined): [number, number, number] {
   if (raw) {
     const rgb = parseHex(raw);
@@ -68,17 +86,22 @@ function logoUrl(raw: string | undefined): string | undefined {
 }
 
 /**
- * Company branding from the environment (BRAND_NAME, BRAND_LOGO_URL, BRAND_COLOR).
+ * Company branding from the environment (BRAND_NAME, BRAND_LOGO_URL, BRAND_COLOR,
+ * BRAND_LOGO_BACKGROUND).
  * Missing or invalid values fall back to the default look, with a warning in the logs.
  */
 export function getBrand(env: Env = process.env): Brand {
   const rgb = brandColor(env.BRAND_COLOR);
   const color = toHex(rgb);
+  const brightColor = lightenUntilReadable(rgb);
   return {
     name: env.BRAND_NAME?.trim().slice(0, 40) || undefined,
     logoUrl: logoUrl(env.BRAND_LOGO_URL),
     color,
-    onColor: contrast(color, DARK_TEXT) >= contrast(color, WHITE) ? DARK_TEXT : WHITE,
+    onColor: textOn(color),
     inkColor: darkenUntilReadable(rgb),
+    brightColor,
+    onBrightColor: textOn(brightColor),
+    logoOnWhite: env.BRAND_LOGO_BACKGROUND?.trim().toLowerCase() === "white",
   };
 }

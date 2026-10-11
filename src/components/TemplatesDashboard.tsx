@@ -20,7 +20,7 @@ import { EmptyState } from "./EmptyState";
 interface TemplatesDashboardProps {
   wabas: Waba[];
   fetchedAt: number;
-  brand?: { name?: string; logoUrl?: string };
+  brand?: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
 }
 
 /** A mobile overlay sliding up from the bottom; on desktop the same content lives inline. */
@@ -366,7 +366,7 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {} }: TemplatesDa
                       onClick={openCompare}
                       disabled={compareIds.length < 2}
                       title={compareIds.length < 2 ? "Añade al menos dos plantillas" : undefined}
-                      className="bg-accent text-on-accent h-8 rounded-lg px-3 text-[13px] font-semibold hover:brightness-95 disabled:opacity-50"
+                      className="bg-accent-bright text-on-accent-bright h-8 rounded-lg px-3 text-[13px] font-semibold hover:brightness-95 disabled:opacity-50"
                     >
                       Comparar →
                     </button>

@@ -50,4 +50,19 @@ describe("getBrand", () => {
       expect(contrast(getBrand({ BRAND_COLOR: color }).inkColor, "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
     }
   });
+
+  it("derives a variant that stands out on the dark bars, even for dark brand colors", () => {
+    for (const color of ["#0B1F4F", "#0017EC", "#25D366", "#000000"]) {
+      const brand = getBrand({ BRAND_COLOR: color });
+      expect(contrast(brand.brightColor, "#14181A")).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(brand.brightColor, brand.onBrightColor)).toBeGreaterThanOrEqual(4.5);
+    }
+    // A color that already stands out is kept as is.
+    expect(getBrand({ BRAND_COLOR: "#25D366" }).brightColor).toBe("#25D366");
+  });
+
+  it("puts the logo on a white plate only when asked", () => {
+    expect(getBrand({}).logoOnWhite).toBe(false);
+    expect(getBrand({ BRAND_LOGO_BACKGROUND: "white" }).logoOnWhite).toBe(true);
+  });
 });

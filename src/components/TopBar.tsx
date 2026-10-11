@@ -26,12 +26,14 @@ interface TopBarProps {
   view: "list" | "gallery" | null;
   onViewChange: (view: "list" | "gallery") => void;
   /** Company logo/name from the deployment config, shown before the WhatsApp mark. */
-  brand: { name?: string; logoUrl?: string };
+  brand: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
 }
 
 const segmented = (active: boolean) =>
   `flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] ${
-    active ? "bg-accent text-on-accent font-semibold" : "text-chrome-ink/80 hover:bg-white/10 hover:text-white"
+    active
+      ? "bg-accent-bright text-on-accent-bright font-semibold"
+      : "text-chrome-ink/80 hover:bg-white/10 hover:text-white"
   }`;
 
 export function TopBar({
@@ -67,13 +69,13 @@ export function TopBar({
     <header className="bg-chrome text-chrome-ink flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-5">
       <div className="flex min-w-0 items-center gap-3 lg:min-w-[252px]">
         {brand.logoUrl ? (
-          // On a white pill so dark company logos stay visible on the dark bar.
-          <span className="flex h-8 items-center rounded-md bg-white px-2">
+          // Straight on the dark bar; BRAND_LOGO_BACKGROUND=white adds a plate for dark logos.
+          <span className={`flex h-8 items-center ${brand.logoOnWhite ? "rounded-md bg-white px-2" : ""}`}>
             {/* eslint-disable-next-line @next/next/no-img-element -- any https URL from the deployment config */}
             <img
               src={brand.logoUrl}
               alt={brand.name ?? "Logo de la empresa"}
-              className="h-6 max-w-[120px] object-contain"
+              className="h-6 max-w-[140px] object-contain"
             />
           </span>
         ) : (
@@ -119,7 +121,7 @@ export function TopBar({
             if (search) onSearchChange("");
             else e.currentTarget.blur();
           }}
-          className="placeholder:text-chrome-muted focus:border-accent focus:ring-accent/25 h-10 w-full rounded-[10px] border border-white/10 bg-white/[0.07] pr-10 pl-9 text-sm outline-none focus:bg-white/10 focus:ring-2 [&::-webkit-search-cancel-button]:hidden"
+          className="placeholder:text-chrome-muted focus:border-accent-bright focus:ring-accent-bright/25 h-10 w-full rounded-[10px] border border-white/10 bg-white/[0.07] pr-10 pl-9 text-sm outline-none focus:bg-white/10 focus:ring-2 [&::-webkit-search-cancel-button]:hidden"
         />
         {search ? (
           <button
@@ -189,7 +191,7 @@ export function TopBar({
           onClick={onSync}
           disabled={syncing || coolingDown}
           title={coolingDown ? `Disponible en ${formatCountdown(cooldown)}` : "Traer los últimos cambios de Meta"}
-          className="hover:border-accent flex h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/15 disabled:hover:bg-transparent"
+          className="hover:border-accent-bright flex h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/15 disabled:hover:bg-transparent"
         >
           <svg
             aria-hidden="true"

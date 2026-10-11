@@ -96,20 +96,22 @@ Abrir [http://localhost:3000](http://localhost:3000).
 
 ## Variables de entorno
 
-| Variable            | Obligatoria | Descripción                                                                                |
-| ------------------- | ----------- | ------------------------------------------------------------------------------------------ |
-| `META_ACCESS_TOKEN` | Sí          | Token de System User con `whatsapp_business_management`                                    |
-| `META_BUSINESS_ID`  | Sí          | ID de la cuenta de Meta Business                                                           |
-| `REVALIDATE_SECRET` | No          | Secreto para `POST /api/revalidate`. Si no está definido, el endpoint devuelve siempre 401 |
-| `BRAND_NAME`        | No          | Nombre de la empresa junto a su logo y en el título de la pestaña                          |
-| `BRAND_LOGO_URL`    | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public` (p. ej. `/logo.png`)         |
-| `BRAND_COLOR`       | No          | Color de marca en hexadecimal (p. ej. `#0017EC`). Por defecto, el verde de WhatsApp        |
+| Variable                | Obligatoria | Descripción                                                                                               |
+| ----------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `META_ACCESS_TOKEN`     | Sí          | Token de System User con `whatsapp_business_management`                                                   |
+| `META_BUSINESS_ID`      | Sí          | ID de la cuenta de Meta Business                                                                          |
+| `REVALIDATE_SECRET`     | No          | Secreto para `POST /api/revalidate`. Si no está definido, el endpoint devuelve siempre 401                |
+| `BRAND_NAME`            | No          | Nombre de la empresa junto a su logo y en el título de la pestaña                                         |
+| `BRAND_LOGO_URL`        | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public` (p. ej. `/logo.png`)                        |
+| `BRAND_COLOR`           | No          | Color de marca en hexadecimal (p. ej. `#0017EC`). Por defecto, el verde de WhatsApp                       |
+| `BRAND_LOGO_BACKGROUND` | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros que no se verían sobre la barra oscura |
 
 ### Personalizar la marca
 
 Con `BRAND_NAME`, `BRAND_LOGO_URL` y `BRAND_COLOR` cada despliegue lleva el logo y el color de la empresa sin tocar código:
 
-- El logo aparece a la izquierda de la barra superior, sobre una pastilla blanca para que se vea bien sobre el fondo oscuro, seguido del logo de WhatsApp y "Template Hub".
+- El logo aparece a la izquierda de la barra superior, directamente sobre el fondo oscuro, seguido del logo de WhatsApp y "Template Hub". Si el logo es oscuro y no se ve, `BRAND_LOGO_BACKGROUND=white` lo pone sobre una pastilla blanca.
+- Sobre las barras oscuras se usa una versión aclarada del color de marca, calculada para que contraste (así un color de marca oscuro no desaparece).
 - El color de marca se usa como acento: botones principales, selección, casillas, chips y pestaña activa. El texto sobre el acento pasa a oscuro o a blanco según su contraste, y para los textos sobre blanco se oscurece el color hasta que se lea bien (WCAG AA).
 - Un valor no válido se ignora (con un aviso `brand_config_invalid` en los logs) y se usa el diseño por defecto.
 - Como la página es estática, un cambio en estas variables se aplica al **redesplegar** (Vercel → Deployments → Redeploy).
