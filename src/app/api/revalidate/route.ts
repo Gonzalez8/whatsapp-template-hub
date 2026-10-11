@@ -8,12 +8,15 @@ export async function POST(request: Request) {
 
   const result = await requestTemplatesSync();
 
-  if (!result.success) {
-    return Response.json(
-      { error: "Rate limited", retryAfterSeconds: result.retryAfterSeconds },
-      { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } },
-    );
+  switch (result.status) {
+    case "ok":
+      return Response.json({ revalidated: true, now: Date.now() });
+    case "cooldown":
+      return Response.json(
+        { error: "Rate limited", retryAfterSeconds: result.retryAfterSeconds },
+        { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } },
+      );
+    case "error":
+      return Response.json({ error: result.message }, { status: 502 });
   }
-
-  return Response.json({ revalidated: true, now: Date.now() });
 }

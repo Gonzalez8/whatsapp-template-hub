@@ -110,6 +110,15 @@ describe("fetchWabasWithTemplates", () => {
     await expect(fetchWabasWithTemplates()).rejects.toBeInstanceOf(MetaApiError);
   });
 
+  it("falls back to a generic reason when Meta returns no JSON and no statusText", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html>Bad gateway</html>", { status: 502 })),
+    );
+
+    await expect(fetchWabasWithTemplates()).rejects.toThrow("Listado de WABAs: error (HTTP 502)");
+  });
+
   it("throws when the WABA list cannot be fetched", async () => {
     mockMeta(() => ({ status: 401, body: { error: { message: "Invalid OAuth token" } } }));
 

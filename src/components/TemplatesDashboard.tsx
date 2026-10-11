@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import type { Waba, Template } from "@/types/template";
 import { useTemplateFilters } from "@/hooks/useTemplateFilters";
 import { syncTemplates } from "@/app/actions";
@@ -46,9 +45,9 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
     totalTemplates,
   } = useTemplateFilters(wabas);
 
-  const router = useRouter();
   const [syncing, setSyncing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedWabaId, setSelectedWabaId] = useState<string | null>(null);
@@ -70,20 +69,28 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
     return () => clearInterval(id);
   }, [isCoolingDown]);
 
+  // The action's response already carries the re-rendered page (revalidateTag),
+  // so no router.refresh() is needed after a successful sync.
   const handleSync = useCallback(async () => {
     setSyncing(true);
+    setSyncError(null);
     try {
       const result = await syncTemplates();
-      if (!result.success) {
+      if (result.status === "cooldown") {
         setCooldown(result.retryAfterSeconds);
       } else {
+        // Also back off after an error so retries don't hammer Meta.
         setCooldown(SYNC_COOLDOWN_S);
-        router.refresh();
+        if (result.status === "error") setSyncError(result.message);
       }
+    } catch {
+      // Network failure or the server action itself crashed.
+      setCooldown(SYNC_COOLDOWN_S);
+      setSyncError("No se pudo sincronizar. Revisa tu conexión e inténtalo de nuevo.");
     } finally {
       setSyncing(false);
     }
-  }, [router]);
+  }, []);
 
   const handleSelect = useCallback((templateId: string, wabaId: string) => {
     setSelectedId(templateId);
@@ -239,6 +246,12 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
           </span>
         </div>
       </div>
+
+      {syncError && (
+        <p role="alert" className="-mt-3 mb-6 text-right text-xs font-medium text-red-600">
+          {syncError}
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState />

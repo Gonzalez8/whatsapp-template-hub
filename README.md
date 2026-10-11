@@ -44,13 +44,23 @@ Navegador ──► CDN de Vercel ──► Página ISR (/, revalidate 5 min)
 - **Los errores no se cachean.** Si falla la lista de WABAs o fallan todas las WABAs, `fetchWabasWithTemplates()` lanza el error y Next sigue sirviendo el último snapshot bueno. Si falla solo una parte de las WABAs, se muestran las demás y las fallidas aparecen con su error.
 - Los mensajes de error que llegan a la UI son cortos (mensaje de Meta y código HTTP). El detalle completo (`code`, `fbtrace_id`…) solo va a los logs del servidor.
 - La única excepción es la falta de configuración (`META_ACCESS_TOKEN` / `META_BUSINESS_ID`): se muestra un aviso para que un build sin secretos (por ejemplo, en CI) no falle.
+- **Si Meta falla durante un deploy, el build falla.** Es intencionado: es preferible no desplegar a publicar una página de error cacheada. La versión anterior sigue en producción.
+- **Antigüedad máxima de los datos.** La página (ISR) y el snapshot (Data Cache) se regeneran cada 5 minutos de forma independiente, así que en el peor caso los datos tienen unos 10 minutos. El `revalidate` de `page.tsx` tiene que ser un literal (lo exige Next), por eso está duplicado respecto a `TEMPLATES_REVALIDATE_SECONDS`.
+
+#### Limitaciones conocidas
+
+- Tras una sincronización manual la entrada de caché se invalida. Si Meta falla justo en ese momento, no hay snapshot anterior que servir y se muestra `error.tsx` hasta la siguiente carga correcta. La regeneración automática cada 5 minutos no tiene este problema.
+- La comprobación del cooldown no es atómica: dos sincronizaciones en el mismo instante pueden regenerar las dos. Como mucho supone una llamada extra a Meta, así que no compensa un lock distribuido.
 
 ### Sincronización manual
 
 Tanto el botón **Sincronizar con Meta** (Server Action `syncTemplates`) como `POST /api/revalidate` usan `requestTemplatesSync()`:
 
-- Si el snapshot tiene menos de 2 minutos, se rechaza con `retryAfterSeconds`.
-- Si no, se hace `revalidateTag("meta-templates")` y la siguiente petición trae datos frescos.
+- Si el snapshot tiene menos de 2 minutos, devuelve `cooldown` con `retryAfterSeconds`.
+- Si no, hace `revalidateTag("meta-templates")` y devuelve `ok`. La respuesta de la Server Action ya incluye la página renderizada con los datos nuevos.
+- Si Meta no responde (caché vacía y Meta caído), devuelve `error` con un mensaje para el usuario. Nunca lanza una excepción.
+
+En el cliente, el botón respeta el cooldown al cargar la página (limitado a 2 minutos aunque el reloj del usuario esté desajustado) y también tras un error, para no insistir contra Meta.
 
 El cooldown se calcula a partir del `fetchedAt` del propio snapshot cacheado, no de una variable en memoria. Por eso funciona igual con varias instancias y tras un cold start, sin infraestructura extra.
 
@@ -99,6 +109,7 @@ curl -X POST https://<dominio>/api/revalidate -H "x-revalidate-secret: $REVALIDA
 | `200`     | `{ "revalidated": true }`                                        |
 | `401`     | Secreto ausente o incorrecto                                     |
 | `429`     | Datos de hace menos de 2 min; cabecera `Retry-After` en segundos |
+| `502`     | No se pudo contactar con Meta                                    |
 
 ## Estructura
 

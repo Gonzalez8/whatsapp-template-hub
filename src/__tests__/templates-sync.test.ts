@@ -5,13 +5,16 @@ const NOW = new Date("2026-10-11T12:00:00Z").getTime();
 
 const cache = vi.hoisted(() => ({
   revalidateTag: vi.fn(),
-  // What the Data Cache currently holds for the snapshot.
-  snapshot: { wabas: [], fetchedAt: 0 },
+  // What the Data Cache currently holds, or an Error when reading it hits a failing Meta.
+  snapshot: { wabas: [], fetchedAt: 0 } as { wabas: never[]; fetchedAt: number } | Error,
 }));
 
 vi.mock("next/cache", () => ({
   revalidateTag: cache.revalidateTag,
-  unstable_cache: () => async () => cache.snapshot,
+  unstable_cache: () => async () => {
+    if (cache.snapshot instanceof Error) throw cache.snapshot;
+    return cache.snapshot;
+  },
 }));
 
 const { requestTemplatesSync, TEMPLATES_TAG } = await import("@/lib/templates");
@@ -22,20 +25,30 @@ const minutesAgo = (m: number) => NOW - m * 60_000;
 beforeEach(() => {
   vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
   cache.revalidateTag.mockReset();
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 describe("requestTemplatesSync", () => {
   it("revalidates when the snapshot is older than the cooldown", async () => {
     cache.snapshot = { wabas: [], fetchedAt: minutesAgo(3) };
 
-    expect(await requestTemplatesSync()).toEqual({ success: true });
+    expect(await requestTemplatesSync()).toEqual({ status: "ok" });
     expect(cache.revalidateTag).toHaveBeenCalledWith(TEMPLATES_TAG);
   });
 
   it("rejects with retryAfterSeconds when the snapshot is fresh", async () => {
     cache.snapshot = { wabas: [], fetchedAt: minutesAgo(0.5) };
 
-    expect(await requestTemplatesSync()).toEqual({ success: false, retryAfterSeconds: 90 });
+    expect(await requestTemplatesSync()).toEqual({ status: "cooldown", retryAfterSeconds: 90 });
+    expect(cache.revalidateTag).not.toHaveBeenCalled();
+  });
+
+  it("returns an error result instead of throwing when Meta fails on an empty cache", async () => {
+    cache.snapshot = new Error("Listado de WABAs: Invalid OAuth token (HTTP 401)");
+
+    const result = await requestTemplatesSync();
+
+    expect(result.status).toBe("error");
     expect(cache.revalidateTag).not.toHaveBeenCalled();
   });
 });
@@ -78,5 +91,13 @@ describe("POST /api/revalidate", () => {
 
     expect(res.status).toBe(200);
     expect(cache.revalidateTag).toHaveBeenCalledWith(TEMPLATES_TAG);
+  });
+
+  it("returns 502 with a JSON body when Meta is unreachable", async () => {
+    cache.snapshot = new Error("boom");
+    const res = await call("s3cret");
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toHaveProperty("error");
   });
 });

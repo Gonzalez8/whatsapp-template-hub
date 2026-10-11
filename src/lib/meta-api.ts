@@ -51,7 +51,7 @@ async function metaGet<T>(url: string, token: string, context: string): Promise<
       }),
     );
     throw new MetaApiError(
-      `${context}: ${body.error?.message ?? res.statusText ?? "error"} (HTTP ${res.status})`,
+      `${context}: ${body.error?.message || res.statusText || "error"} (HTTP ${res.status})`,
       res.status,
       body.error?.code,
     );
