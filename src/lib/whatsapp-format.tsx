@@ -1,8 +1,12 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
+
+type Decorate = (text: string) => ReactNode;
 
 interface FormatRule {
   pattern: RegExp;
-  render: (text: string, key: string) => ReactNode;
+  render: (text: ReactNode, key: string) => ReactNode;
+  /** Whether the captured text is user content that may be decorated (e.g. highlighted). */
+  decorates?: boolean;
 }
 
 const FORMAT_RULES: FormatRule[] = [
@@ -14,6 +18,7 @@ const FORMAT_RULES: FormatRule[] = [
         {text}
       </code>
     ),
+    decorates: true,
   },
   {
     // *bold*
@@ -23,6 +28,7 @@ const FORMAT_RULES: FormatRule[] = [
         {text}
       </strong>
     ),
+    decorates: true,
   },
   {
     // _italic_
@@ -32,6 +38,7 @@ const FORMAT_RULES: FormatRule[] = [
         {text}
       </em>
     ),
+    decorates: true,
   },
   {
     // ~strikethrough~
@@ -41,20 +48,28 @@ const FORMAT_RULES: FormatRule[] = [
         {text}
       </s>
     ),
+    decorates: true,
   },
   {
     // {{1}}, {{nombre}}, {{rol}} variable placeholders
     pattern: /\{\{(\w+)\}\}/,
     render: (text, key) => (
       <span key={key} className="rounded bg-teal-50 px-1 py-0.5 text-[13px] font-medium text-teal-700">
-        {`{{${text}}}`}
+        {"{{"}
+        {text}
+        {"}}"}
       </span>
     ),
   },
 ];
 
-export function formatWhatsAppText(input: string): ReactNode[] {
+/**
+ * Renders WhatsApp markup (*bold*, _italic_…) and highlights {{variables}}.
+ * `decorate` is applied to every plain-text fragment, e.g. to highlight search matches.
+ */
+export function formatWhatsAppText(input: string, decorate?: Decorate): ReactNode[] {
   const result: ReactNode[] = [];
+  const plain = (text: string, key: string) => (decorate ? <Fragment key={key}>{decorate(text)}</Fragment> : text);
   let remaining = input;
   let keyCounter = 0;
 
@@ -72,7 +87,7 @@ export function formatWhatsAppText(input: string): ReactNode[] {
     }
 
     if (!earliestMatch) {
-      result.push(remaining);
+      result.push(plain(remaining, `txt-${keyCounter++}`));
       break;
     }
 
@@ -80,11 +95,12 @@ export function formatWhatsAppText(input: string): ReactNode[] {
 
     // Add text before the match
     if (match.index > 0) {
-      result.push(remaining.slice(0, match.index));
+      result.push(plain(remaining.slice(0, match.index), `txt-${keyCounter++}`));
     }
 
     // Add formatted element
-    result.push(rule.render(match[1], `fmt-${keyCounter++}`));
+    const inner = rule.decorates && decorate ? decorate(match[1]) : match[1];
+    result.push(rule.render(inner, `fmt-${keyCounter++}`));
 
     // Continue after the match
     remaining = remaining.slice(match.index + match[0].length);

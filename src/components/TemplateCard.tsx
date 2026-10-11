@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Template, PreviewMode } from "@/types/template";
 import { WhatsAppPreview } from "./WhatsAppPreview";
 import { STATUS_STYLES, hasExamples } from "@/lib/template-utils";
+import { Highlight } from "./Highlight";
 
 interface TemplateCardProps {
   template: Template;
@@ -22,7 +23,9 @@ export function TemplateCard({ template, wabaId, index = 0 }: TemplateCardProps)
     >
       <div className="px-4 pt-4 pb-3">
         <div className="mb-3 flex items-start justify-between gap-2">
-          <p className="font-display text-[13px] leading-snug font-bold break-words text-gray-900">{template.name}</p>
+          <p className="font-display text-[13px] leading-snug font-bold break-words text-gray-900">
+            <Highlight text={template.name} />
+          </p>
           {showToggle && (
             <button
               onClick={() => setMode((m) => (m === "template" ? "example" : "template"))}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Template, PreviewMode } from "@/types/template";
 import { WhatsAppPreview } from "./WhatsAppPreview";
 import { STATUS_STYLES, hasExamples } from "@/lib/template-utils";
+import { Highlight } from "./Highlight";
 
 interface DetailPanelProps {
   template: Template | null;
@@ -40,7 +41,9 @@ function PanelContent({ template, wabaId, wabaName }: { template: Template; waba
     <div className="flex flex-col">
       {/* Zone 1: Header */}
       <div className="shrink-0 border-b border-gray-100 px-5 py-4">
-        <p className="font-display text-[14px] leading-snug font-bold break-words text-gray-900">{template.name}</p>
+        <p className="font-display text-[14px] leading-snug font-bold break-words text-gray-900">
+          <Highlight text={template.name} />
+        </p>
         <p className="mt-1 text-[11px] font-medium text-gray-500">{wabaName}</p>
 
         <div className="mt-3 flex flex-wrap gap-1.5">

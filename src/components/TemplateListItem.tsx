@@ -1,5 +1,10 @@
+"use client";
+
+import { useEffect, useMemo, useRef } from "react";
 import type { Template } from "@/types/template";
 import { STATUS_DOT } from "@/lib/template-utils";
+import { buildSnippet, templateContentParts } from "@/lib/search";
+import { Highlight, renderHighlighted, useSearchTerms } from "./Highlight";
 
 interface TemplateListItemProps {
   template: Template;
@@ -8,9 +13,25 @@ interface TemplateListItemProps {
 }
 
 export function TemplateListItem({ template, selected, onSelect }: TemplateListItemProps) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const terms = useSearchTerms();
+
+  // Where in the content the search matched, so it's clear why the template is listed.
+  const snippet = useMemo(
+    () => (terms.length ? buildSnippet(templateContentParts(template).join(" · "), terms) : null),
+    [template, terms],
+  );
+
+  // Keep the selection visible when moving through the list with the keyboard.
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
+
   return (
     <button
+      ref={ref}
       onClick={onSelect}
+      aria-current={selected || undefined}
       className={`group flex min-h-[44px] w-full items-center gap-3 border-b border-gray-100/80 px-4 py-3 text-left transition-all duration-150 last:border-b-0 active:bg-gray-100 ${
         selected ? "border-l-2 border-l-teal-500 bg-teal-50/70 pl-[14px]" : "hover:bg-gray-50/70"
       }`}
@@ -21,13 +42,20 @@ export function TemplateListItem({ template, selected, onSelect }: TemplateListI
         title={template.status}
       />
 
-      {/* Name */}
-      <span
-        className={`min-w-0 flex-1 truncate text-sm transition-colors duration-150 sm:text-[13px] ${
-          selected ? "font-semibold text-teal-900" : "font-medium text-gray-700 group-hover:text-gray-900"
-        }`}
-      >
-        {template.name}
+      {/* Name + match snippet */}
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block truncate text-sm transition-colors duration-150 sm:text-[13px] ${
+            selected ? "font-semibold text-teal-900" : "font-medium text-gray-700 group-hover:text-gray-900"
+          }`}
+        >
+          <Highlight text={template.name} />
+        </span>
+        {snippet && (
+          <span className="mt-0.5 block truncate text-[11px] text-gray-500">
+            {renderHighlighted(snippet.text, snippet.ranges)}
+          </span>
+        )}
       </span>
 
       {/* Category */}

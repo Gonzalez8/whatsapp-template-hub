@@ -11,15 +11,24 @@ export interface TemplateButton {
   phone_number?: string;
 }
 
+export interface NamedParamExample {
+  param_name: string;
+  example: string;
+}
+
 export interface TemplateComponent {
   type: ComponentType;
   text?: string;
   format?: string;
   buttons?: TemplateButton[];
   example?: {
+    /** POSITIONAL templates: values for {{1}}, {{2}}… */
     body_text?: string[][];
     header_text?: string[];
     header_handle?: string[];
+    /** NAMED templates: values for {{first_name}}… */
+    body_text_named_params?: NamedParamExample[];
+    header_text_named_params?: NamedParamExample[];
   };
 }
 
