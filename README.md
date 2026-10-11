@@ -5,8 +5,13 @@ Dashboard para ver y buscar las plantillas de mensajes de WhatsApp Business de t
 ## Funcionalidades
 
 - **Multi-WABA**: carga las plantillas y los números de teléfono de todas las WABAs del negocio.
-- **Búsqueda y filtros**: por texto (nombre, cuerpo, idioma, categoría), WABA, estado, idioma, categoría y ocultar plantillas de ejemplo de Meta.
-- **Vista lista / grid** con panel de detalle y preview tipo burbuja de WhatsApp (formato, cabecera, pie y botones).
+- **Búsqueda en todo el contenido**: nombre, cabecera, cuerpo, pie, texto, URL y teléfono de los botones, WABA e ID. Sin distinguir acentos ni mayúsculas y con varias palabras en cualquier orden. Las coincidencias se resaltan y, en la lista, se muestra el fragmento donde aparecen.
+- **Filtros** por WABA, estado, idioma y categoría, y ocultar las plantillas de ejemplo de Meta.
+- **Enlaces compartibles**: búsqueda, filtros, vista y plantilla abierta se guardan en la URL.
+- **Atajos de teclado**: `/` o `Cmd+K` para buscar, `Esc` para limpiar y `↑`/`↓` para recorrer la lista.
+- **Vista lista / grid** con preview tipo burbuja de WhatsApp: formato, cabecera de texto, imagen, vídeo, documento o ubicación, pie y botones. Modo "Ejemplo" con los valores de ejemplo de las variables, numeradas o con nombre.
+- **Panel de detalle**: variables con su ejemplo, botones con su destino (URL, teléfono o Flow), formato de variables, subcategoría, aviso si Meta cambió la categoría y botones para copiar nombre, ID y texto.
+- **Solo lectura**: para editar una plantilla, el enlace "Ver en Meta" abre el Business Manager.
 - **Sincronización manual** con Meta, limitada a una cada 2 minutos.
 - **Degradación parcial**: si falla una WABA, el resto se sigue mostrando con el error indicado.
 - Responsive.

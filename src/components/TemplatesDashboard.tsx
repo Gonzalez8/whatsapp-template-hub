@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import type { Waba, Template } from "@/types/template";
+import type { Waba, Template, TemplateStatus } from "@/types/template";
 import { useTemplateFilters } from "@/hooks/useTemplateFilters";
 import { syncTemplates } from "@/app/actions";
 import { FiltersBar } from "./FiltersBar";
@@ -10,15 +10,16 @@ import { TemplateList } from "./TemplateList";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
 import { LastUpdated } from "./LastUpdated";
+import { SearchTermsProvider } from "./Highlight";
 import { SYNC_COOLDOWN_MS, getRetryAfterSeconds } from "@/lib/sync-config";
+import { parseUrlState, serializeUrlState, type ViewMode } from "@/lib/url-state";
 
 const SYNC_COOLDOWN_S = SYNC_COOLDOWN_MS / 1000;
+const KNOWN_STATUSES: TemplateStatus[] = ["APPROVED", "PENDING", "REJECTED"];
 
 function formatCountdown(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
-
-type ViewMode = "list" | "all";
 
 interface TemplatesDashboardProps {
   wabas: Waba[];
@@ -29,6 +30,9 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
   const {
     search,
     setSearch,
+    debouncedSearch,
+    searchTerms,
+    replaceFilters,
     selectedWabas,
     toggleWaba,
     selectedStatuses,
@@ -54,6 +58,58 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 
   const isCoolingDown = cooldown > 0;
+
+  // ── URL state: filters, view and selected template live in the query string so
+  // a search can be shared as a link. Read after mount (the page is prerendered
+  // without query params) and written back with replaceState (no navigation).
+  const [urlReady, setUrlReady] = useState(false);
+
+  useEffect(() => {
+    const url = parseUrlState(window.location.search);
+    replaceFilters({
+      search: url.search,
+      wabas: url.wabas,
+      statuses: url.statuses.filter((s): s is TemplateStatus => KNOWN_STATUSES.includes(s as TemplateStatus)),
+      languages: url.languages,
+      categories: url.categories,
+      hideSamples: url.hideSamples,
+    });
+    setViewMode(url.view);
+    const owner = url.template && wabas.find((w) => w.templates.some((t) => t.id === url.template));
+    if (owner) {
+      setSelectedId(url.template);
+      setSelectedWabaId(owner.waba_id);
+    }
+    setUrlReady(true);
+  }, [replaceFilters, wabas]);
+
+  useEffect(() => {
+    if (!urlReady) return;
+    const query = serializeUrlState({
+      search: debouncedSearch,
+      wabas: [...selectedWabas],
+      statuses: [...selectedStatuses],
+      languages: [...selectedLanguages],
+      categories: [...selectedCategories],
+      hideSamples,
+      view: viewMode,
+      template: selectedId,
+    });
+    const next = query ? `${window.location.pathname}?${query}` : window.location.pathname;
+    if (next !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, "", next);
+    }
+  }, [
+    urlReady,
+    debouncedSearch,
+    selectedWabas,
+    selectedStatuses,
+    selectedLanguages,
+    selectedCategories,
+    hideSamples,
+    viewMode,
+    selectedId,
+  ]);
 
   // The server rejects syncs while the snapshot is fresh; mirror that on load so
   // the button is already disabled right after anyone synced.
@@ -134,6 +190,34 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
     return wabas.find((w) => w.waba_id === selectedWabaId)?.waba_name ?? "";
   }, [selectedWabaId, wabas]);
 
+  // ↑/↓ move through the list view (also while typing in the search box).
+  useEffect(() => {
+    if (viewMode !== "list") return;
+    const flat = filtered.flatMap((w) => w.templates.map((t) => ({ id: t.id, wabaId: w.waba_id })));
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || e.altKey || e.metaKey || e.ctrlKey) return;
+      const target = e.target as HTMLElement | null;
+      const inOtherField =
+        target && target.id !== "template-search" && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+      if (inOtherField || flat.length === 0) return;
+
+      e.preventDefault();
+      const current = flat.findIndex((t) => t.id === selectedId);
+      const next =
+        current === -1
+          ? e.key === "ArrowDown"
+            ? 0
+            : flat.length - 1
+          : Math.min(flat.length - 1, Math.max(0, current + (e.key === "ArrowDown" ? 1 : -1)));
+      setSelectedId(flat[next].id);
+      setSelectedWabaId(flat[next].wabaId);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [viewMode, filtered, selectedId]);
+
   // Close selection if template is filtered out
   useEffect(() => {
     if (selectedId && !selectedTemplate) {
@@ -143,7 +227,7 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
   }, [selectedId, selectedTemplate]);
 
   return (
-    <>
+    <SearchTermsProvider value={searchTerms}>
       <FiltersBar
         search={search}
         onSearchChange={setSearch}
@@ -317,6 +401,6 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
           )}
         </div>
       )}
-    </>
+    </SearchTermsProvider>
   );
 }

@@ -1,5 +1,15 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import type { Waba, TemplateStatus } from "@/types/template";
+import { buildSearchText, matchesTerms, parseQuery } from "@/lib/search";
+
+export interface FilterState {
+  search: string;
+  wabas: string[];
+  statuses: TemplateStatus[];
+  languages: string[];
+  categories: string[];
+  hideSamples: boolean;
+}
 
 export function useTemplateFilters(wabas: Waba[]) {
   const [search, setSearch] = useState("");
@@ -16,6 +26,28 @@ export function useTemplateFilters(wabas: Waba[]) {
     const id = setTimeout(() => setDebouncedSearch(search), 150);
     return () => clearTimeout(id);
   }, [search]);
+
+  /** Replaces every filter at once (e.g. from the URL), skipping the search debounce. */
+  const replaceFilters = useCallback((state: FilterState) => {
+    setSearch(state.search);
+    setDebouncedSearch(state.search);
+    setSelectedWabas(new Set(state.wabas));
+    setSelectedStatuses(new Set(state.statuses));
+    setSelectedLanguages(new Set(state.languages));
+    setSelectedCategories(new Set(state.categories));
+    setHideSamples(state.hideSamples);
+  }, []);
+
+  // Built once per data load: normalized text of everything a template can be found by.
+  const searchIndex = useMemo(() => {
+    const index = new Map<string, string>();
+    for (const w of wabas) {
+      for (const t of w.templates) index.set(t.id, buildSearchText(t, w.waba_name));
+    }
+    return index;
+  }, [wabas]);
+
+  const searchTerms = useMemo(() => parseQuery(debouncedSearch), [debouncedSearch]);
 
   const allLanguages = useMemo(() => {
     const langs = new Set<string>();
@@ -74,8 +106,6 @@ export function useTemplateFilters(wabas: Waba[]) {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = debouncedSearch.toLowerCase().trim();
-
     return wabas
       .filter((w) => selectedWabas.size === 0 || selectedWabas.has(w.waba_id))
       .map((w) => {
@@ -84,26 +114,30 @@ export function useTemplateFilters(wabas: Waba[]) {
           if (selectedStatuses.size > 0 && !selectedStatuses.has(t.status)) return false;
           if (selectedLanguages.size > 0 && !selectedLanguages.has(t.language)) return false;
           if (selectedCategories.size > 0 && !selectedCategories.has(t.category)) return false;
-          if (!q) return true;
-          const bodyComp = t.components?.find((c) => c.type === "BODY");
-          const bodyText = bodyComp?.text ?? "";
-          return (
-            t.name.toLowerCase().includes(q) ||
-            bodyText.toLowerCase().includes(q) ||
-            t.language?.toLowerCase().includes(q) ||
-            t.category?.toLowerCase().includes(q)
-          );
+          return matchesTerms(searchIndex.get(t.id) ?? "", searchTerms);
         });
         return { ...w, templates };
       })
       .filter((w) => w.templates.length > 0);
-  }, [wabas, debouncedSearch, selectedWabas, selectedStatuses, selectedLanguages, selectedCategories, hideSamples]);
+  }, [
+    wabas,
+    searchIndex,
+    searchTerms,
+    selectedWabas,
+    selectedStatuses,
+    selectedLanguages,
+    selectedCategories,
+    hideSamples,
+  ]);
 
   const totalTemplates = useMemo(() => filtered.reduce((sum, w) => sum + w.templates.length, 0), [filtered]);
 
   return {
     search,
     setSearch,
+    debouncedSearch,
+    searchTerms,
+    replaceFilters,
     selectedWabas,
     toggleWaba,
     selectedStatuses,

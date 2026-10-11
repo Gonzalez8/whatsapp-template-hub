@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Waba, TemplateStatus } from "@/types/template";
 import { FilterDropdown } from "./FilterDropdown";
 
 const STATUSES: TemplateStatus[] = ["APPROVED", "PENDING", "REJECTED"];
+
+function isEditable(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+  );
+}
 
 const STATUS_COLORS: Record<TemplateStatus, { active: string; dot: string }> = {
   APPROVED: { active: "border-emerald-400 bg-emerald-50 text-emerald-700", dot: "bg-emerald-500" },
@@ -109,6 +116,20 @@ export function FiltersBar({
   onToggleHideSamples,
 }: FiltersBarProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // "/" or Cmd/Ctrl+K jumps to the search box from anywhere on the page.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const shortcut = (e.key === "/" && !isEditable(e.target)) || (e.key === "k" && (e.metaKey || e.ctrlKey));
+      if (!shortcut) return;
+      e.preventDefault();
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const activeFilterCount =
     selectedStatuses.size + selectedWabas.size + selectedCategories.size + selectedLanguages.size;
@@ -133,13 +154,43 @@ export function FiltersBar({
             <path d="m21 21-4.35-4.35" strokeWidth="2" strokeLinecap="round" />
           </svg>
           <input
+            ref={inputRef}
             id="template-search"
-            type="text"
-            placeholder="Buscar templates..."
+            type="search"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Buscar por nombre, texto, botón o URL…"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-11 w-full rounded-xl border border-gray-200/80 bg-gray-50/50 pr-3 pl-10 text-sm transition-all outline-none placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/10 sm:h-auto sm:py-2 sm:pl-9 sm:text-[13px]"
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              if (search) onSearchChange("");
+              else e.currentTarget.blur();
+            }}
+            className="h-11 w-full rounded-xl border border-gray-200/80 bg-gray-50/50 pr-9 pl-10 text-sm transition-all outline-none placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/10 sm:h-auto sm:py-2 sm:pl-9 sm:text-[13px] [&::-webkit-search-cancel-button]:hidden"
           />
+          {search ? (
+            <button
+              type="button"
+              onClick={() => {
+                onSearchChange("");
+                inputRef.current?.focus();
+              }}
+              aria-label="Limpiar búsqueda"
+              className="absolute top-1/2 right-1.5 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            >
+              <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          ) : (
+            <kbd
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 rounded-md border border-gray-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-semibold text-gray-400 sm:block"
+            >
+              /
+            </kbd>
+          )}
         </div>
 
         {/* Mobile filter toggle button */}

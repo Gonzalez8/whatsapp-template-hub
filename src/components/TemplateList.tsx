@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { Waba } from "@/types/template";
 import { TemplateListItem } from "./TemplateListItem";
+import { useSearchTerms } from "./Highlight";
 
 interface TemplateListProps {
   wabas: Waba[];
@@ -16,6 +17,23 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     const first = wabas[0]?.waba_id;
     return first ? new Set([first]) : new Set();
   });
+
+  // When the search changes, open every group once so no result stays hidden;
+  // the user can still collapse groups afterwards to narrow it down.
+  const searchKey = useSearchTerms().join(" ");
+  // Starts empty so a list mounted with an active search (shared link, switching view) opens too.
+  const [lastSearchKey, setLastSearchKey] = useState("");
+  if (searchKey !== lastSearchKey) {
+    setLastSearchKey(searchKey);
+    if (searchKey) setExpanded(new Set(wabas.map((w) => w.waba_id)));
+  }
+
+  // Open the group of the selected template (keyboard navigation, links with ?t=).
+  useEffect(() => {
+    if (!selectedId) return;
+    const owner = wabas.find((w) => w.templates.some((t) => t.id === selectedId));
+    if (owner) setExpanded((prev) => (prev.has(owner.waba_id) ? prev : new Set(prev).add(owner.waba_id)));
+  }, [selectedId, wabas]);
 
   const toggle = useCallback((wabaId: string) => {
     setExpanded((prev) => {
@@ -34,7 +52,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     setExpanded(new Set());
   }, []);
 
-  const allExpanded = expanded.size === wabas.length;
+  const allExpanded = wabas.every((w) => expanded.has(w.waba_id));
 
   return (
     <div className="flex h-full flex-col">

@@ -3,7 +3,10 @@
 import { useState } from "react";
 import type { Template, PreviewMode } from "@/types/template";
 import { WhatsAppPreview } from "./WhatsAppPreview";
-import { STATUS_STYLES, hasExamples } from "@/lib/template-utils";
+import { hasExamples } from "@/lib/template-utils";
+import { Highlight } from "./Highlight";
+import { TemplateBadges } from "./TemplateBadges";
+import { TemplateDetails } from "./TemplateDetails";
 
 interface DetailPanelProps {
   template: Template | null;
@@ -40,21 +43,13 @@ function PanelContent({ template, wabaId, wabaName }: { template: Template; waba
     <div className="flex flex-col">
       {/* Zone 1: Header */}
       <div className="shrink-0 border-b border-gray-100 px-5 py-4">
-        <p className="font-display text-[14px] leading-snug font-bold break-words text-gray-900">{template.name}</p>
+        <p className="font-display text-[14px] leading-snug font-bold break-words text-gray-900">
+          <Highlight text={template.name} />
+        </p>
         <p className="mt-1 text-[11px] font-medium text-gray-500">{wabaName}</p>
 
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span
-            className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[template.status] ?? "bg-gray-100 text-gray-500"}`}
-          >
-            {template.status}
-          </span>
-          <span className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 ring-1 ring-indigo-600/10">
-            {template.category}
-          </span>
-          <span className="inline-block rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-semibold text-gray-500 ring-1 ring-gray-900/[0.06]">
-            {template.language}
-          </span>
+        <div className="mt-3">
+          <TemplateBadges template={template} />
         </div>
 
         {showToggle && (
@@ -86,7 +81,10 @@ function PanelContent({ template, wabaId, wabaName }: { template: Template; waba
         <WhatsAppPreview components={template.components ?? []} mode={mode} />
       </div>
 
-      {/* Zone 3: Actions */}
+      {/* Zone 3: Details */}
+      <TemplateDetails template={template} wabaName={wabaName} />
+
+      {/* Zone 4: Actions */}
       <div className="border-t border-gray-100 px-5 py-3.5">
         <a
           href={`https://business.facebook.com/wa/manage/message-templates/?waba_id=${encodeURIComponent(wabaId)}&id=${encodeURIComponent(template.id)}`}

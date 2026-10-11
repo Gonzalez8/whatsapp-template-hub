@@ -75,7 +75,7 @@ async function fetchAllPages<T>(firstUrl: string, token: string, context: string
 
 function fetchTemplates(wabaId: string, token: string): Promise<Template[]> {
   return fetchAllPages(
-    `${META_API}/${wabaId}/message_templates?fields=id,name,status,category,language,components,quality_score&limit=500`,
+    `${META_API}/${wabaId}/message_templates?fields=id,name,status,category,language,components,quality_score,previous_category,sub_category,parameter_format,rejected_reason&limit=500`,
     token,
     `Templates de la WABA ${wabaId}`,
   );
