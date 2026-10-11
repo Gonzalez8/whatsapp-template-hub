@@ -87,6 +87,17 @@ describe("TemplatesDashboard", () => {
     expect(within(languages).getByRole("button", { name: "pt_PT", pressed: true })).toBeInTheDocument();
   });
 
+  it("keeps the view switch in the top bar in every view", () => {
+    renderDashboard();
+    const topBar = screen.getByRole("banner");
+
+    fireEvent.click(within(topBar).getByRole("button", { name: "Galería" }));
+    expect(within(topBar).getByRole("button", { name: "Galería", pressed: true })).toBeInTheDocument();
+
+    fireEvent.click(within(topBar).getByRole("button", { name: "Lista" }));
+    expect(within(topBar).getByRole("button", { name: "Lista", pressed: true })).toBeInTheDocument();
+  });
+
   it("restores the comparison from a shared link", () => {
     window.history.replaceState(null, "", "/?view=compare&cmp=c1,f1");
     renderDashboard();

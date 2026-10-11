@@ -269,6 +269,8 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
           cooldown={sync.cooldown}
           syncError={sync.error}
           onSync={sync.sync}
+          view={view === "compare" ? null : view}
+          onViewChange={setView}
         />
 
         <div className="flex min-h-0 flex-1">
@@ -317,8 +319,6 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
                   onToggleHideSamples={() => filters.setHideSamples((h) => !h)}
                   totalTemplates={filters.totalTemplates}
                   totalWabas={filtered.length}
-                  view={view}
-                  onViewChange={setView}
                 />
 
                 <div className="min-h-0 flex-1">

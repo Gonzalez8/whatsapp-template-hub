@@ -22,9 +22,25 @@ interface TopBarProps {
   cooldown: number;
   syncError: string | null;
   onSync: () => void;
+  /** null while comparing: neither view is active. */
+  view: "list" | "gallery" | null;
+  onViewChange: (view: "list" | "gallery") => void;
 }
 
-export function TopBar({ search, onSearchChange, fetchedAt, syncing, cooldown, syncError, onSync }: TopBarProps) {
+const segmented = (active: boolean) =>
+  `flex h-9 items-center gap-1.5 px-3 text-[13px] ${active ? "bg-ink font-medium text-white" : "bg-surface text-ink/80 hover:bg-canvas"}`;
+
+export function TopBar({
+  search,
+  onSearchChange,
+  fetchedAt,
+  syncing,
+  cooldown,
+  syncError,
+  onSync,
+  view,
+  onViewChange,
+}: TopBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // "/" or Cmd/Ctrl+K jumps to the search box from anywhere on the page.
@@ -114,6 +130,35 @@ export function TopBar({ search, onSearchChange, fetchedAt, syncing, cooldown, s
             /
           </kbd>
         )}
+      </div>
+
+      {/* Always in the same place, whatever the view below looks like. */}
+      <div role="group" aria-label="Vista" className="border-line-strong flex overflow-hidden rounded-lg border">
+        <button
+          type="button"
+          onClick={() => onViewChange("list")}
+          aria-pressed={view === "list"}
+          className={segmented(view === "list")}
+        >
+          <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          Lista
+        </button>
+        <button
+          type="button"
+          onClick={() => onViewChange("gallery")}
+          aria-pressed={view === "gallery"}
+          className={`${segmented(view === "gallery")} border-line-strong border-l`}
+        >
+          <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="4" y="4" width="7" height="7" rx="1.5" strokeWidth="2" />
+            <rect x="13" y="4" width="7" height="7" rx="1.5" strokeWidth="2" />
+            <rect x="4" y="13" width="7" height="7" rx="1.5" strokeWidth="2" />
+            <rect x="13" y="13" width="7" height="7" rx="1.5" strokeWidth="2" />
+          </svg>
+          Galería
+        </button>
       </div>
 
       <div className="ml-auto flex items-center gap-3">

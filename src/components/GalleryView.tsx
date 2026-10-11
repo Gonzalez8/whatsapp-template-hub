@@ -69,17 +69,26 @@ export function GalleryView({ wabas, onOpen, compareIds, compareFull, onToggleCo
                   // Off-screen cards skip layout and paint, so long galleries scroll smoothly.
                   className="border-line bg-surface overflow-hidden rounded-2xl border [contain-intrinsic-size:auto_360px] [content-visibility:auto]"
                 >
-                  <div className="flex items-start gap-2 px-4 pt-3 pb-2.5">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate font-mono text-[13px] font-medium" title={t.name}>
-                        <Highlight text={t.name} />
-                      </h3>
-                      <p className="text-muted mt-0.5 text-xs">
-                        <span className="font-mono">{t.language}</span> · {label(CATEGORY_LABELS, t.category)}
-                      </p>
-                    </div>
+                  <div className="px-4 pt-3 pb-2.5">
+                    {/* Names often share a long prefix; the end is what tells them apart, so never truncate. */}
+                    <h3 className="font-mono text-[13px] leading-snug font-medium break-all">
+                      <Highlight text={t.name} />
+                    </h3>
+                    <p className="text-muted mt-0.5 text-xs">
+                      <span className="font-mono">{t.language}</span> · {label(CATEGORY_LABELS, t.category)}
+                    </p>
+                  </div>
+                  <WhatsAppPreview components={t.components ?? []} mode={mode} />
+                  <div className="border-line flex items-center border-t">
+                    <button
+                      type="button"
+                      onClick={() => onOpen(t)}
+                      className="text-accent-ink hover:bg-subtle flex-1 px-4 py-2.5 text-left text-xs font-medium"
+                    >
+                      Ver detalle →
+                    </button>
                     <label
-                      className={`text-muted flex shrink-0 items-center gap-1 text-[11px] ${compareFull && !compared ? "opacity-40" : "cursor-pointer"}`}
+                      className={`text-muted flex shrink-0 items-center gap-1.5 px-4 py-2.5 text-xs ${compareFull && !compared ? "opacity-40" : "cursor-pointer"}`}
                     >
                       <input
                         type="checkbox"
@@ -92,14 +101,6 @@ export function GalleryView({ wabas, onOpen, compareIds, compareFull, onToggleCo
                       Comparar
                     </label>
                   </div>
-                  <WhatsAppPreview components={t.components ?? []} mode={mode} />
-                  <button
-                    type="button"
-                    onClick={() => onOpen(t)}
-                    className="border-line text-accent-ink hover:bg-subtle w-full border-t px-4 py-2.5 text-left text-xs font-medium"
-                  >
-                    Ver detalle →
-                  </button>
                 </article>
               );
             })}
