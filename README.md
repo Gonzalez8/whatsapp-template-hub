@@ -11,7 +11,7 @@ Dashboard para ver y buscar las plantillas de mensajes de WhatsApp Business de t
 - **Más filtros**: estado (solo si hay más de uno), categoría, idioma e incluir las plantillas de ejemplo de Meta.
 - **Detalle con pestañas**: vista previa tipo burbuja de WhatsApp (formato, cabecera de texto, imagen, vídeo, documento o ubicación, pie y botones; modo "Con ejemplo" con los valores de las variables, numeradas o con nombre), variables, botones con su destino (URL, teléfono o Flow) e información. Selector de idioma, aviso si Meta cambió la categoría y botones para copiar.
 - **Galería**: todas las plantillas filtradas como burbujas de WhatsApp, agrupadas por WABA, para recorrerlas haciendo scroll (por ejemplo, todas las de una WABA). Desde cada tarjeta se abre el detalle o se marca para comparar. Solo se pinta al elegirla, y las tarjetas fuera de pantalla no se dibujan.
-- **Comparar**: marca de 2 a 4 plantillas y míralas en columnas. "Resaltar diferencias" marca las palabras del cuerpo que cambian y los datos (idioma, categoría, cabecera, pie, botones) que no coinciden. "Comparar idiomas" abre todas las variantes de idioma de una plantilla.
+- **Comparar**: marca de 2 a 4 plantillas y míralas en columnas. "Resaltar diferencias" (desmarcado al empezar) marca las palabras del cuerpo que cambian y los datos (idioma, categoría, cabecera, pie, botones) que no coinciden. "Comparar idiomas" abre todas las variantes de idioma de una plantilla.
 - **Enlaces compartibles**: búsqueda, filtros, vista, plantilla abierta y comparación se guardan en la URL.
 - **Atajos de teclado**: `/` o `Cmd+K` para buscar, `Esc` para limpiar y `↑`/`↓` para recorrer la lista.
 - **Solo lectura**: para editar una plantilla, "Abrir en Meta" abre el Business Manager.

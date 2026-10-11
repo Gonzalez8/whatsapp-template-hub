@@ -48,7 +48,7 @@ function facts(t: Template, mode: PreviewMode): [string, string][] {
 
 export function CompareView({ items, onRemove, onClear, onBack }: CompareViewProps) {
   const [mode, setMode] = useState<PreviewMode>("template");
-  const [highlight, setHighlight] = useState(true);
+  const [highlight, setHighlight] = useState(false);
 
   const bodyDiffs = useMemo(() => {
     if (!highlight || items.length < 2) return undefined;

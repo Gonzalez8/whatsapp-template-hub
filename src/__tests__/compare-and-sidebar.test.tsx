@@ -26,28 +26,29 @@ describe("CompareView", () => {
     { template: tpl("2", "entrevista_semana", "Hola, el lunes te llamamos. Reserva abajo."), wabaName: "Campus" },
   ];
 
-  it("shows the templates side by side and highlights what differs", () => {
+  it("starts without highlighting", () => {
     const { container } = render(
       <CompareView items={items} onRemove={() => {}} onClear={() => {}} onBack={() => {}} />,
     );
 
     expect(screen.getAllByRole("article")).toHaveLength(2);
-    const marked = Array.from(container.querySelectorAll("mark")).map((m) => m.textContent?.trim());
-    expect(marked).toEqual(["este fin de semana no hay equipo.", "el lunes te llamamos."]);
-    // Same category in both: not highlighted. Different button URL: highlighted.
-    const [first] = screen.getAllByRole("article");
-    expect(within(first).getByText("Marketing")).not.toHaveClass("bg-amber-200/60");
-    expect(within(first).getByText(/https:\/\/x\.es\/1/)).toHaveClass("bg-amber-200/60");
+    expect(screen.getByRole("checkbox", { name: "Resaltar diferencias" })).not.toBeChecked();
+    expect(container.querySelector("mark")).toBeNull();
   });
 
-  it("can turn the highlighting off", () => {
+  it("highlights what differs when turned on", () => {
     const { container } = render(
       <CompareView items={items} onRemove={() => {}} onClear={() => {}} onBack={() => {}} />,
     );
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Resaltar diferencias" }));
 
-    expect(container.querySelector("mark")).toBeNull();
+    const marked = Array.from(container.querySelectorAll("mark")).map((m) => m.textContent?.trim());
+    expect(marked).toEqual(["este fin de semana no hay equipo.", "el lunes te llamamos."]);
+    // Same category in both: not highlighted. Different button URL: highlighted.
+    const [first] = screen.getAllByRole("article");
+    expect(within(first).getByText("Marketing")).not.toHaveClass("bg-amber-200/60");
+    expect(within(first).getByText(/https:\/\/x\.es\/1/)).toHaveClass("bg-amber-200/60");
   });
 
   it("removes a template and goes back to the list", () => {
