@@ -138,23 +138,39 @@ export function WhatsAppPreview({ components, mode }: WhatsAppPreviewProps) {
         <div className="mt-1.5 max-w-[95%] overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
           {buttons.buttons.map((btn, i) => {
             const target = btn.url ?? btn.phone_number;
-            // Only reveal the destination when the search matched it, so it's clear why the template appears.
+            // The search may have matched the hidden destination: mark the button instead of
+            // showing the URL, so the bubble keeps looking like the real message.
             const targetMatched = !!target && findMatchRanges(target, terms).length > 0;
+            const className = `flex items-center justify-center gap-1.5 border-b border-[#e9edef] px-3 py-2.5 text-[13px] font-medium text-[#00a5f4] last:border-b-0 ${
+              targetMatched ? "bg-amber-50 ring-2 ring-amber-300 ring-inset" : ""
+            }`;
+            const content = (
+              <>
+                <span className="inline-flex text-[13px]">{BUTTON_ICONS[btn.type] ?? "\u21A9\uFE0F"}</span>
+                <Highlight text={btn.text} />
+                {targetMatched && <span className="sr-only"> (el destino coincide con la búsqueda)</span>}
+              </>
+            );
+
+            // The template URL may contain {{1}}; Meta's example is the one that actually opens.
+            const href = btn.url ? (btn.example?.[0] ?? btn.url) : undefined;
+            if (href) {
+              return (
+                <a
+                  key={i}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={btn.url}
+                  className={`${className} transition-colors hover:bg-[#f5f6f6]`}
+                >
+                  {content}
+                </a>
+              );
+            }
             return (
-              <div
-                key={i}
-                title={target}
-                className="border-b border-[#e9edef] px-3 py-2.5 text-center text-[13px] font-medium text-[#00a5f4] last:border-b-0"
-              >
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="inline-flex text-[13px]">{BUTTON_ICONS[btn.type] ?? "\u21A9\uFE0F"}</span>
-                  <Highlight text={btn.text} />
-                </div>
-                {targetMatched && (
-                  <p className="mt-1 text-[11px] font-normal break-all text-[#667781]">
-                    <Highlight text={target} />
-                  </p>
-                )}
+              <div key={i} title={target} className={className}>
+                {content}
               </div>
             );
           })}
