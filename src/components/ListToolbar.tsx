@@ -23,7 +23,12 @@ interface ListToolbarProps {
   onToggleHideSamples: () => void;
   totalTemplates: number;
   totalWabas: number;
+  view: "list" | "gallery";
+  onViewChange: (view: "list" | "gallery") => void;
 }
+
+const segmented = (active: boolean) =>
+  `h-8 px-2.5 text-xs ${active ? "bg-ink font-medium text-white" : "bg-surface text-ink/80 hover:bg-canvas"}`;
 
 export function ListToolbar(props: ListToolbarProps) {
   const selectedWabaList = props.wabas.filter((w) => props.selectedWabas.has(w.waba_id));
@@ -113,6 +118,24 @@ export function ListToolbar(props: ListToolbarProps) {
           <strong className="text-ink font-semibold">{props.totalTemplates}</strong> plantillas · {props.totalWabas}{" "}
           WABAs
         </span>
+        <div role="group" aria-label="Vista" className="border-line-strong flex overflow-hidden rounded-lg border">
+          <button
+            type="button"
+            onClick={() => props.onViewChange("list")}
+            aria-pressed={props.view === "list"}
+            className={segmented(props.view === "list")}
+          >
+            Lista
+          </button>
+          <button
+            type="button"
+            onClick={() => props.onViewChange("gallery")}
+            aria-pressed={props.view === "gallery"}
+            className={`${segmented(props.view === "gallery")} border-line-strong border-l`}
+          >
+            Galería
+          </button>
+        </div>
       </div>
     </div>
   );

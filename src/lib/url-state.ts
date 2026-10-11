@@ -1,4 +1,4 @@
-export type ViewMode = "list" | "compare";
+export type ViewMode = "list" | "gallery" | "compare";
 
 /** At most this many templates side by side. */
 export const MAX_COMPARE = 4;
@@ -29,6 +29,9 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   compare: [],
 };
 
+// Old links with view=all (the previous gallery) open the new one.
+const VIEW_PARAM: Record<string, ViewMode> = { gallery: "gallery", all: "gallery", compare: "compare" };
+
 const list = (value: string | null) => (value ? value.split(",").filter(Boolean) : []);
 
 export function parseUrlState(search: string): DashboardUrlState {
@@ -40,8 +43,7 @@ export function parseUrlState(search: string): DashboardUrlState {
     languages: list(p.get("lang")),
     categories: list(p.get("cat")),
     hideSamples: p.get("samples") !== "1",
-    // Old links with view=all (the removed gallery) fall back to the list.
-    view: p.get("view") === "compare" ? "compare" : "list",
+    view: VIEW_PARAM[p.get("view") ?? ""] ?? "list",
     template: p.get("t") || null,
     compare: list(p.get("cmp")).slice(0, MAX_COMPARE),
   };
@@ -56,7 +58,7 @@ export function serializeUrlState(state: DashboardUrlState): string {
   if (state.languages.length) p.set("lang", state.languages.join(","));
   if (state.categories.length) p.set("cat", state.categories.join(","));
   if (!state.hideSamples) p.set("samples", "1");
-  if (state.view === "compare") p.set("view", "compare");
+  if (state.view !== "list") p.set("view", state.view);
   if (state.template) p.set("t", state.template);
   if (state.compare.length) p.set("cmp", state.compare.join(","));
   return p.toString();

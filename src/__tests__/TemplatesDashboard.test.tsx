@@ -70,6 +70,23 @@ describe("TemplatesDashboard", () => {
     expect(window.location.search).toContain("cmp=c2%2Cc3");
   });
 
+  it("shows every filtered template in the gallery and opens one in the detail", () => {
+    renderDashboard();
+    fireEvent.click(within(sidebar()).getByRole("checkbox", { name: /Campus Training/ }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Galería" }));
+
+    // One card per template, every language included.
+    expect(screen.getAllByRole("article")).toHaveLength(3);
+    expect(window.location.search).toBe("?waba=campus&view=gallery");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Ver detalle →" })[1]);
+
+    expect(screen.getByRole("heading", { level: 1, name: "entrevista_finde" })).toBeInTheDocument();
+    const languages = screen.getByRole("group", { name: "Idioma" });
+    expect(within(languages).getByRole("button", { name: "pt_PT", pressed: true })).toBeInTheDocument();
+  });
+
   it("restores the comparison from a shared link", () => {
     window.history.replaceState(null, "", "/?view=compare&cmp=c1,f1");
     renderDashboard();

@@ -23,8 +23,10 @@ describe("url state", () => {
     expect(parseUrlState(serializeUrlState(state))).toEqual(state);
   });
 
-  it("opens old gallery links (view=all) in the list", () => {
-    expect(parseUrlState("?view=all").view).toBe("list");
+  it("opens the gallery, also from old links (view=all)", () => {
+    expect(parseUrlState("?view=gallery").view).toBe("gallery");
+    expect(parseUrlState("?view=all").view).toBe("gallery");
+    expect(serializeUrlState({ ...DEFAULT_URL_STATE, view: "gallery" })).toBe("view=gallery");
   });
 
   it("caps the comparison and ignores empty values", () => {

@@ -14,6 +14,7 @@ import { ListToolbar } from "./ListToolbar";
 import { TemplateList } from "./TemplateList";
 import { DetailPanel } from "./DetailPanel";
 import { CompareView } from "./CompareView";
+import { GalleryView } from "./GalleryView";
 import { EmptyState } from "./EmptyState";
 
 interface TemplatesDashboardProps {
@@ -293,7 +294,9 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
             <>
               <section
                 aria-label="Plantillas"
-                className="border-line bg-surface flex min-w-0 flex-1 flex-col border-r lg:max-w-[500px] xl:max-w-[560px]"
+                className={`bg-surface flex min-w-0 flex-1 flex-col ${
+                  view === "list" ? "border-line border-r lg:max-w-[500px] xl:max-w-[560px]" : ""
+                }`}
               >
                 <ListToolbar
                   wabas={wabas}
@@ -314,11 +317,24 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
                   onToggleHideSamples={() => filters.setHideSamples((h) => !h)}
                   totalTemplates={filters.totalTemplates}
                   totalWabas={filtered.length}
+                  view={view}
+                  onViewChange={setView}
                 />
 
                 <div className="min-h-0 flex-1">
                   {filtered.length === 0 ? (
                     <EmptyState />
+                  ) : view === "gallery" ? (
+                    <GalleryView
+                      wabas={filtered}
+                      onOpen={(t) => {
+                        setView("list");
+                        select(t);
+                      }}
+                      compareIds={compareSet}
+                      compareFull={compareFull}
+                      onToggleCompare={toggleCompareTemplate}
+                    />
                   ) : (
                     <TemplateList
                       wabas={filtered}
@@ -359,7 +375,9 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
                 )}
               </section>
 
-              {isDesktop && <main className="hidden min-w-0 flex-1 overflow-y-auto lg:block">{detail}</main>}
+              {isDesktop && view === "list" && (
+                <main className="hidden min-w-0 flex-1 overflow-y-auto lg:block">{detail}</main>
+              )}
             </>
           )}
         </div>
