@@ -18,9 +18,15 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     return first ? new Set([first]) : new Set();
   });
 
-  const terms = useSearchTerms();
-  // While searching, every group is open: a hidden result is a missing result.
-  const searching = terms.length > 0;
+  // When the search changes, open every group once so no result stays hidden;
+  // the user can still collapse groups afterwards to narrow it down.
+  const searchKey = useSearchTerms().join(" ");
+  // Starts empty so a list mounted with an active search (shared link, switching view) opens too.
+  const [lastSearchKey, setLastSearchKey] = useState("");
+  if (searchKey !== lastSearchKey) {
+    setLastSearchKey(searchKey);
+    if (searchKey) setExpanded(new Set(wabas.map((w) => w.waba_id)));
+  }
 
   // Open the group of the selected template (keyboard navigation, links with ?t=).
   useEffect(() => {
@@ -46,7 +52,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     setExpanded(new Set());
   }, []);
 
-  const allExpanded = searching || wabas.every((w) => expanded.has(w.waba_id));
+  const allExpanded = wabas.every((w) => expanded.has(w.waba_id));
 
   return (
     <div className="flex h-full flex-col">
@@ -55,9 +61,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
         <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase">Templates</span>
         <button
           onClick={allExpanded ? collapseAll : expandAll}
-          disabled={searching}
-          title={searching ? "Con una búsqueda activa se muestran todos los grupos" : undefined}
-          className="min-h-[44px] text-xs font-semibold text-gray-400 transition-colors hover:text-teal-600 disabled:cursor-default disabled:opacity-40 disabled:hover:text-gray-400 sm:min-h-0 sm:text-[10px]"
+          className="min-h-[44px] text-xs font-semibold text-gray-400 transition-colors hover:text-teal-600 sm:min-h-0 sm:text-[10px]"
         >
           {allExpanded ? "Contraer todos" : "Expandir todos"}
         </button>
@@ -66,7 +70,7 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
       {/* List */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {wabas.map((waba) => {
-          const isOpen = searching || expanded.has(waba.waba_id);
+          const isOpen = expanded.has(waba.waba_id);
           return (
             <div key={waba.waba_id}>
               {/* WABA header -- clickable */}
