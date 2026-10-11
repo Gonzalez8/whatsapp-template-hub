@@ -1,42 +1,31 @@
-function SkeletonCard() {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200/60 bg-white shadow-sm ring-1 ring-gray-900/[0.03]">
-      <div className="px-4 pt-4 pb-3">
-        <div className="shimmer mb-3 h-4 w-3/4 rounded-md" />
-        <div className="flex gap-1.5">
-          <div className="shimmer h-5 w-16 rounded-md" />
-          <div className="shimmer h-5 w-20 rounded-md" />
-          <div className="shimmer h-5 w-10 rounded-md" />
-        </div>
-      </div>
-      <div className="bg-[#efeae2] p-4">
-        <div className="space-y-2 rounded-lg bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
-          <div className="shimmer h-3 w-full rounded" />
-          <div className="shimmer h-3 w-5/6 rounded" />
-          <div className="shimmer h-3 w-2/3 rounded" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
+/** Same shell as the dashboard (top bar, sidebar, list, detail) so nothing jumps when data arrives. */
 export function SkeletonLoader() {
   return (
-    <div className="space-y-12">
-      {[1, 2].map((section) => (
-        <div key={section}>
-          <div className="mb-6 flex items-center gap-3.5">
-            <div className="shimmer h-9 w-9 rounded-xl" />
-            <div className="shimmer h-4 w-40 rounded-md" />
-            <div className="shimmer ml-auto h-6 w-24 rounded-full" />
-          </div>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {[1, 2, 3].map((card) => (
-              <SkeletonCard key={card} />
-            ))}
-          </div>
+    <div className="flex h-dvh flex-col" aria-busy="true" aria-label="Cargando plantillas">
+      <div className="bg-chrome flex h-[61px] shrink-0 items-center gap-4 px-4 sm:px-5">
+        <div className="h-8 w-8 rounded-lg bg-[#25D366]" />
+        <div className="h-4 w-28 rounded bg-white/10" />
+        <div className="hidden h-10 max-w-[680px] flex-1 rounded-[10px] bg-white/[0.07] sm:block" />
+        <div className="ml-auto h-9 w-28 rounded-lg bg-white/10" />
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="bg-side hidden w-[272px] shrink-0 space-y-3 p-4 lg:block">
+          {Array.from({ length: 11 }, (_, i) => (
+            <div key={i} className="h-9 animate-pulse rounded-lg bg-white/[0.06] motion-reduce:animate-none" />
+          ))}
         </div>
-      ))}
+        <div className="border-line bg-surface flex-1 space-y-2 border-r p-4 lg:max-w-[500px] xl:max-w-[560px]">
+          <div className="shimmer mb-4 h-8 w-2/3 rounded-lg" />
+          {Array.from({ length: 12 }, (_, i) => (
+            <div key={i} className="shimmer h-11 rounded-md" />
+          ))}
+        </div>
+        <div className="hidden flex-1 space-y-4 p-7 lg:block">
+          <div className="shimmer h-5 w-1/2 rounded" />
+          <div className="shimmer h-4 w-1/4 rounded" />
+          <div className="shimmer mt-6 h-72 max-w-[460px] rounded-2xl" />
+        </div>
+      </div>
     </div>
   );
 }

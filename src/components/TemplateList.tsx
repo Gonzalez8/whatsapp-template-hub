@@ -1,31 +1,46 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import type { Waba } from "@/types/template";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Template, Waba } from "@/types/template";
+import { groupByName, type TemplateFamily } from "@/lib/template-groups";
 import { TemplateListItem } from "./TemplateListItem";
-import { useSearchTerms } from "./Highlight";
 
 interface TemplateListProps {
   wabas: Waba[];
   selectedId: string | null;
-  onSelect: (templateId: string, wabaId: string) => void;
+  preferredLanguage?: string;
+  onSelect: (template: Template) => void;
+  compareIds: Set<string>;
+  compareFull: boolean;
+  onToggleCompare: (family: TemplateFamily) => void;
+  /**
+   * Opens every group whenever it changes to a non-empty value (a new search or WABA
+   * selection), so no result stays hidden; groups can still be collapsed afterwards.
+   */
+  openAllKey: string;
 }
 
-export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps) {
+export function TemplateList({
+  wabas,
+  selectedId,
+  preferredLanguage,
+  onSelect,
+  compareIds,
+  compareFull,
+  onToggleCompare,
+  openAllKey,
+}: TemplateListProps) {
   // First WABA open by default
   const [expanded, setExpanded] = useState<Set<string>>(() => {
     const first = wabas[0]?.waba_id;
     return first ? new Set([first]) : new Set();
   });
 
-  // When the search changes, open every group once so no result stays hidden;
-  // the user can still collapse groups afterwards to narrow it down.
-  const searchKey = useSearchTerms().join(" ");
-  // Starts empty so a list mounted with an active search (shared link, switching view) opens too.
-  const [lastSearchKey, setLastSearchKey] = useState("");
-  if (searchKey !== lastSearchKey) {
-    setLastSearchKey(searchKey);
-    if (searchKey) setExpanded(new Set(wabas.map((w) => w.waba_id)));
+  // Starts empty so a list mounted with an active filter (shared link) opens too.
+  const [lastOpenAllKey, setLastOpenAllKey] = useState("");
+  if (openAllKey !== lastOpenAllKey) {
+    setLastOpenAllKey(openAllKey);
+    if (openAllKey) setExpanded(new Set(wabas.map((w) => w.waba_id)));
   }
 
   // Open the group of the selected template (keyboard navigation, links with ?t=).
@@ -34,6 +49,8 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     const owner = wabas.find((w) => w.templates.some((t) => t.id === selectedId));
     if (owner) setExpanded((prev) => (prev.has(owner.waba_id) ? prev : new Set(prev).add(owner.waba_id)));
   }, [selectedId, wabas]);
+
+  const families = useMemo(() => new Map(wabas.map((w) => [w.waba_id, groupByName(w.templates)])), [wabas]);
 
   const toggle = useCallback((wabaId: string) => {
     setExpanded((prev) => {
@@ -44,81 +61,76 @@ export function TemplateList({ wabas, selectedId, onSelect }: TemplateListProps)
     });
   }, []);
 
-  const expandAll = useCallback(() => {
-    setExpanded(new Set(wabas.map((w) => w.waba_id)));
-  }, [wabas]);
-
-  const collapseAll = useCallback(() => {
-    setExpanded(new Set());
-  }, []);
-
   const allExpanded = wabas.every((w) => expanded.has(w.waba_id));
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-4 py-2 sm:py-2">
-        <span className="text-[10px] font-medium tracking-wider text-gray-500 uppercase">Templates</span>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="border-line flex items-center justify-between border-b px-4 py-1.5">
+        <span className="text-muted text-[11px] font-semibold tracking-wider uppercase">Plantillas</span>
         <button
-          onClick={allExpanded ? collapseAll : expandAll}
-          className="min-h-[44px] text-xs font-semibold text-gray-400 transition-colors hover:text-teal-600 sm:min-h-0 sm:text-[10px]"
+          type="button"
+          onClick={() => setExpanded(allExpanded ? new Set() : new Set(wabas.map((w) => w.waba_id)))}
+          className="text-accent-ink min-h-[36px] text-xs font-medium hover:underline"
         >
           {allExpanded ? "Contraer todos" : "Expandir todos"}
         </button>
       </div>
 
-      {/* List */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {wabas.map((waba) => {
           const isOpen = expanded.has(waba.waba_id);
+          const rows = families.get(waba.waba_id) ?? [];
           return (
-            <div key={waba.waba_id}>
-              {/* WABA header -- clickable */}
+            <section key={waba.waba_id} aria-label={waba.waba_name}>
               <button
+                type="button"
                 onClick={() => toggle(waba.waba_id)}
                 aria-expanded={isOpen}
-                className="sticky top-0 z-10 flex min-h-[48px] w-full items-center gap-2.5 border-b border-gray-200/80 bg-white/95 px-4 py-3 text-left backdrop-blur-sm transition-colors duration-150 hover:bg-gray-50 active:bg-gray-100 sm:min-h-0 sm:py-2.5"
+                className="border-line bg-subtle/95 hover:bg-canvas sticky top-0 z-10 flex min-h-[44px] w-full items-center gap-2 border-b px-4 py-2 text-left backdrop-blur-sm"
               >
                 <svg
-                  className={`h-3 w-3 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+                  aria-hidden="true"
+                  className={`text-muted h-3 w-3 shrink-0 transition-transform duration-150 ${isOpen ? "rotate-90" : ""}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="m9 5 7 7-7 7" />
                 </svg>
-                <div className="flex h-5 w-5 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 text-[8px] font-bold text-white shadow-sm shadow-teal-600/20">
-                  {waba.waba_name.charAt(0)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="font-display text-[11px] font-bold text-gray-700">{waba.waba_name}</span>
-                  {waba.phone_numbers.length > 0 && (
-                    <div className="mt-0.5 truncate text-[10px] text-gray-500">
-                      {waba.phone_numbers.map((pn, i) => (
-                        <span key={pn.id}>
-                          {i > 0 && " · "}
-                          {pn.display_phone_number} ({pn.verified_name})
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
-                  {waba.templates.length}
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{waba.waba_name}</span>
+                {waba.phone_numbers[0] && (
+                  <span className="text-faint hidden truncate font-mono text-[11px] sm:inline">
+                    {waba.phone_numbers[0].display_phone_number}
+                  </span>
+                )}
+                <span className="bg-line text-ink/80 min-w-6 rounded-full px-1.5 text-center text-[11px]">
+                  {rows.length}
                 </span>
               </button>
 
-              {/* Templates -- collapsible */}
+              {isOpen && waba.error && (
+                <p className="border-line border-b bg-amber-50 px-8 py-2 text-xs text-amber-800">
+                  No se pudieron cargar las plantillas de esta WABA: {waba.error}
+                </p>
+              )}
+
               {isOpen &&
-                waba.templates.map((t) => (
-                  <TemplateListItem
-                    key={t.id}
-                    template={t}
-                    selected={selectedId === t.id}
-                    onSelect={() => onSelect(t.id, waba.waba_id)}
-                  />
-                ))}
-            </div>
+                rows.map((family) => {
+                  const compared = family.variants.some((v) => compareIds.has(v.id));
+                  return (
+                    <TemplateListItem
+                      key={family.name}
+                      family={family}
+                      selectedId={selectedId}
+                      preferredLanguage={preferredLanguage}
+                      onSelect={onSelect}
+                      compared={compared}
+                      compareDisabled={compareFull && !compared}
+                      onToggleCompare={() => onToggleCompare(family)}
+                    />
+                  );
+                })}
+            </section>
           );
         })}
       </div>

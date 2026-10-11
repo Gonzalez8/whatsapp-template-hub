@@ -1,16 +1,42 @@
-import type { Template, TemplateComponent } from "@/types/template";
+import type { PreviewMode, Template, TemplateComponent } from "@/types/template";
 
 export const STATUS_STYLES: Record<string, string> = {
-  APPROVED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/10",
-  PENDING: "bg-amber-50 text-amber-700 ring-1 ring-amber-600/10",
-  REJECTED: "bg-red-50 text-red-700 ring-1 ring-red-600/10",
+  APPROVED: "bg-emerald-50 text-emerald-800",
+  PENDING: "bg-amber-50 text-amber-800",
+  REJECTED: "bg-red-50 text-red-700",
+  PAUSED: "bg-amber-50 text-amber-800",
+  DISABLED: "bg-gray-100 text-gray-700",
 };
 
-export const STATUS_DOT: Record<string, string> = {
-  APPROVED: "bg-emerald-500",
-  PENDING: "bg-amber-500",
-  REJECTED: "bg-red-500",
+export const STATUS_LABELS: Record<string, string> = {
+  APPROVED: "Aprobada",
+  PENDING: "Pendiente",
+  REJECTED: "Rechazada",
+  PAUSED: "Pausada",
+  DISABLED: "Deshabilitada",
+  IN_APPEAL: "En apelación",
 };
+
+export const CATEGORY_LABELS: Record<string, string> = {
+  MARKETING: "Marketing",
+  UTILITY: "Utilidad",
+  AUTHENTICATION: "Autenticación",
+};
+
+export const label = (labels: Record<string, string>, value: string) => labels[value] ?? value;
+
+export const HEADER_FORMAT_LABELS: Record<string, string> = {
+  IMAGE: "Imagen",
+  VIDEO: "Vídeo",
+  DOCUMENT: "Documento",
+  LOCATION: "Ubicación",
+};
+
+/** "Imagen", "Vídeo"… for media headers; undefined for text or no header. */
+export function headerKind(template: Template): string | undefined {
+  const format = template.components?.find((c) => c.type === "HEADER")?.format;
+  return format ? HEADER_FORMAT_LABELS[format] : undefined;
+}
 
 /** Positional values ({{1}}, {{2}}…) or named values ({{first_name}}…). */
 export type ExampleValues = string[] | Record<string, string>;
@@ -113,4 +139,16 @@ export function extractVariables(template: Template): TemplateVariable[] {
   }
 
   return vars;
+}
+
+/** A component's text as the preview shows it: raw, or with the example values filled in. */
+export function resolveComponentText(component: TemplateComponent | undefined, mode: PreviewMode): string | undefined {
+  if (!component?.text) return undefined;
+  if (mode === "template") return component.text;
+  return replaceVariables(component.text, getExampleValues(component));
+}
+
+/** The template in Meta's WhatsApp Manager, where it can be edited. */
+export function metaTemplateUrl(wabaId: string, templateId: string): string {
+  return `https://business.facebook.com/wa/manage/message-templates/?waba_id=${encodeURIComponent(wabaId)}&id=${encodeURIComponent(templateId)}`;
 }

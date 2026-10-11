@@ -1,4 +1,7 @@
-export type ViewMode = "list" | "all";
+export type ViewMode = "list" | "gallery" | "compare";
+
+/** At most this many templates side by side. */
+export const MAX_COMPARE = 4;
 
 export interface DashboardUrlState {
   search: string;
@@ -8,8 +11,10 @@ export interface DashboardUrlState {
   categories: string[];
   hideSamples: boolean;
   view: ViewMode;
-  /** Selected template id (list view). */
+  /** Selected template id. */
   template: string | null;
+  /** Template ids being compared. */
+  compare: string[];
 }
 
 export const DEFAULT_URL_STATE: DashboardUrlState = {
@@ -19,9 +24,13 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   languages: [],
   categories: [],
   hideSamples: true,
-  view: "all",
+  view: "list",
   template: null,
+  compare: [],
 };
+
+// Old links with view=all (the previous gallery) open the new one.
+const VIEW_PARAM: Record<string, ViewMode> = { gallery: "gallery", all: "gallery", compare: "compare" };
 
 const list = (value: string | null) => (value ? value.split(",").filter(Boolean) : []);
 
@@ -34,8 +43,9 @@ export function parseUrlState(search: string): DashboardUrlState {
     languages: list(p.get("lang")),
     categories: list(p.get("cat")),
     hideSamples: p.get("samples") !== "1",
-    view: p.get("view") === "list" ? "list" : "all",
+    view: VIEW_PARAM[p.get("view") ?? ""] ?? "list",
     template: p.get("t") || null,
+    compare: list(p.get("cmp")).slice(0, MAX_COMPARE),
   };
 }
 
@@ -48,7 +58,8 @@ export function serializeUrlState(state: DashboardUrlState): string {
   if (state.languages.length) p.set("lang", state.languages.join(","));
   if (state.categories.length) p.set("cat", state.categories.join(","));
   if (!state.hideSamples) p.set("samples", "1");
-  if (state.view === "list") p.set("view", "list");
-  if (state.view === "list" && state.template) p.set("t", state.template);
+  if (state.view !== "list") p.set("view", state.view);
+  if (state.template) p.set("t", state.template);
+  if (state.compare.length) p.set("cmp", state.compare.join(","));
   return p.toString();
 }

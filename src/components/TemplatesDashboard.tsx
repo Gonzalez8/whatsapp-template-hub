@@ -1,66 +1,81 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
-import type { Waba, Template, TemplateStatus } from "@/types/template";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Template, Waba } from "@/types/template";
 import { useTemplateFilters } from "@/hooks/useTemplateFilters";
-import { syncTemplates } from "@/app/actions";
-import { FiltersBar } from "./FiltersBar";
-import { WabaSection } from "./WabaSection";
+import { useTemplatesSync } from "@/hooks/useTemplatesSync";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { groupByName, pickVariant, type TemplateFamily } from "@/lib/template-groups";
+import { MAX_COMPARE, parseUrlState, serializeUrlState, type ViewMode } from "@/lib/url-state";
+import { SearchTermsProvider } from "./Highlight";
+import { TopBar } from "./TopBar";
+import { WabaSidebar } from "./WabaSidebar";
+import { ListToolbar } from "./ListToolbar";
 import { TemplateList } from "./TemplateList";
 import { DetailPanel } from "./DetailPanel";
+import { CompareView } from "./CompareView";
+import { GalleryView } from "./GalleryView";
 import { EmptyState } from "./EmptyState";
-import { LastUpdated } from "./LastUpdated";
-import { SearchTermsProvider } from "./Highlight";
-import { SYNC_COOLDOWN_MS, getRetryAfterSeconds } from "@/lib/sync-config";
-import { parseUrlState, serializeUrlState, type ViewMode } from "@/lib/url-state";
-
-const SYNC_COOLDOWN_S = SYNC_COOLDOWN_MS / 1000;
-const KNOWN_STATUSES: TemplateStatus[] = ["APPROVED", "PENDING", "REJECTED"];
-
-function formatCountdown(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
 
 interface TemplatesDashboardProps {
   wabas: Waba[];
   fetchedAt: number;
+  brand?: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
 }
 
-export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps) {
-  const {
-    search,
-    setSearch,
-    debouncedSearch,
-    searchTerms,
-    replaceFilters,
-    selectedWabas,
-    toggleWaba,
-    selectedStatuses,
-    toggleStatus,
-    allLanguages,
-    selectedLanguages,
-    toggleLanguage,
-    allCategories,
-    selectedCategories,
-    toggleCategory,
-    hideSamples,
-    setHideSamples,
-    filtered,
-    totalTemplates,
-  } = useTemplateFilters(wabas);
+/** A mobile overlay sliding up from the bottom; on desktop the same content lives inline. */
+function MobileSheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      className="fixed inset-0 z-50 lg:hidden"
+    >
+      <div className="fade-in-enter bg-ink/40 absolute inset-0" onClick={onClose} />
+      <div className="slide-up-enter bg-surface absolute inset-x-0 top-10 bottom-0 flex flex-col overflow-hidden rounded-t-2xl shadow-2xl">
+        <div className="border-line flex shrink-0 items-center justify-between border-b px-3 py-1.5">
+          <span className="pl-1 text-sm font-semibold">{title}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-accent-ink flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium"
+          >
+            Cerrar
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  );
+}
 
-  const [syncing, setSyncing] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("all");
+export function TemplatesDashboard({ wabas, fetchedAt, brand = {} }: TemplatesDashboardProps) {
+  const filters = useTemplateFilters(wabas);
+  const { filtered, searchTerms, debouncedSearch, selectedWabas, replaceFilters } = filters;
+  const sync = useTemplatesSync(fetchedAt);
+  // Detail and WABA filter are mounted once: inline on desktop, as a sheet on mobile.
+  // The prerendered HTML is the desktop layout; its lg: classes hide it on mobile until hydration.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+  const [view, setView] = useState<ViewMode>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedWabaId, setSelectedWabaId] = useState<string | null>(null);
+  // Language of the last template opened: moving to another template keeps it when possible.
+  const [language, setLanguage] = useState<string | undefined>(undefined);
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [wabaSheetOpen, setWabaSheetOpen] = useState(false);
 
-  const isCoolingDown = cooldown > 0;
+  // Every template by id, regardless of filters (comparisons survive filter changes).
+  const index = useMemo(() => {
+    const map = new Map<string, { template: Template; waba: Waba }>();
+    for (const waba of wabas) for (const template of waba.templates) map.set(template.id, { template, waba });
+    return map;
+  }, [wabas]);
 
-  // ── URL state: filters, view and selected template live in the query string so
-  // a search can be shared as a link. Read after mount (the page is prerendered
+  // ── URL state: filters, view, selection and comparison live in the query string so
+  // any screen can be shared as a link. Read after mount (the page is prerendered
   // without query params) and written back with replaceState (no navigation).
   const [urlReady, setUrlReady] = useState(false);
 
@@ -69,31 +84,33 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
     replaceFilters({
       search: url.search,
       wabas: url.wabas,
-      statuses: url.statuses.filter((s): s is TemplateStatus => KNOWN_STATUSES.includes(s as TemplateStatus)),
+      statuses: url.statuses.filter((s) => filters.allStatuses.includes(s)),
       languages: url.languages,
       categories: url.categories,
       hideSamples: url.hideSamples,
     });
-    setViewMode(url.view);
-    const owner = url.template && wabas.find((w) => w.templates.some((t) => t.id === url.template));
-    if (owner) {
-      setSelectedId(url.template);
-      setSelectedWabaId(owner.waba_id);
+    setView(url.view);
+    const selected = url.template ? index.get(url.template) : undefined;
+    if (selected) {
+      setSelectedId(selected.template.id);
+      setLanguage(selected.template.language);
     }
+    setCompareIds(url.compare.filter((id) => index.has(id)));
     setUrlReady(true);
-  }, [replaceFilters, wabas]);
+  }, [replaceFilters, index, filters.allStatuses]);
 
   useEffect(() => {
     if (!urlReady) return;
     const query = serializeUrlState({
       search: debouncedSearch,
       wabas: [...selectedWabas],
-      statuses: [...selectedStatuses],
-      languages: [...selectedLanguages],
-      categories: [...selectedCategories],
-      hideSamples,
-      view: viewMode,
+      statuses: [...filters.selectedStatuses],
+      languages: [...filters.selectedLanguages],
+      categories: [...filters.selectedCategories],
+      hideSamples: filters.hideSamples,
+      view,
       template: selectedId,
+      compare: compareIds,
     });
     const next = query ? `${window.location.pathname}?${query}` : window.location.pathname;
     if (next !== window.location.pathname + window.location.search) {
@@ -103,303 +120,278 @@ export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps
     urlReady,
     debouncedSearch,
     selectedWabas,
-    selectedStatuses,
-    selectedLanguages,
-    selectedCategories,
-    hideSamples,
-    viewMode,
+    filters.selectedStatuses,
+    filters.selectedLanguages,
+    filters.selectedCategories,
+    filters.hideSamples,
+    view,
     selectedId,
+    compareIds,
   ]);
 
-  // The server rejects syncs while the snapshot is fresh; mirror that on load so
-  // the button is already disabled right after anyone synced.
+  // ── Selection
+  const visibleWabaByTemplate = useMemo(() => {
+    const map = new Map<string, Waba>();
+    for (const w of filtered) for (const t of w.templates) map.set(t.id, w);
+    return map;
+  }, [filtered]);
+
+  const selected = selectedId ? index.get(selectedId) : undefined;
+  const selectedWaba = selectedId ? visibleWabaByTemplate.get(selectedId) : undefined;
+
+  // Close the selection when the filters hide it.
   useEffect(() => {
-    setCooldown(getRetryAfterSeconds(fetchedAt, Date.now()));
-  }, [fetchedAt]);
-
-  useEffect(() => {
-    if (!isCoolingDown) return;
-    const id = setInterval(() => {
-      setCooldown((c) => (c <= 1 ? 0 : c - 1));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isCoolingDown]);
-
-  // The action's response already carries the re-rendered page (revalidateTag),
-  // so no router.refresh() is needed after a successful sync.
-  const handleSync = useCallback(async () => {
-    setSyncing(true);
-    setSyncError(null);
-    try {
-      const result = await syncTemplates();
-      if (result.status === "cooldown") {
-        setCooldown(result.retryAfterSeconds);
-      } else {
-        // Also back off after an error so retries don't hammer Meta.
-        setCooldown(SYNC_COOLDOWN_S);
-        if (result.status === "error") setSyncError(result.message);
-      }
-    } catch {
-      // Network failure or the server action itself crashed.
-      setCooldown(SYNC_COOLDOWN_S);
-      setSyncError("No se pudo sincronizar. Revisa tu conexión e inténtalo de nuevo.");
-    } finally {
-      setSyncing(false);
-    }
-  }, []);
-
-  const handleSelect = useCallback((templateId: string, wabaId: string) => {
-    setSelectedId(templateId);
-    setSelectedWabaId(wabaId);
-    // Open mobile detail overlay when selecting in list mode
-    setMobileDetailOpen(true);
-  }, []);
-
-  const handleMobileDetailClose = useCallback(() => {
-    setMobileDetailOpen(false);
-  }, []);
-
-  // Reset mobile overlay when switching away from list view
-  useEffect(() => {
-    if (viewMode !== "list") {
+    if (selectedId && urlReady && !visibleWabaByTemplate.has(selectedId)) {
+      setSelectedId(null);
       setMobileDetailOpen(false);
     }
-  }, [viewMode]);
+  }, [selectedId, urlReady, visibleWabaByTemplate]);
 
-  // Lock body scroll only on mobile (< lg) when overlay is open
+  const variants = useMemo(
+    () =>
+      selected && selectedWaba
+        ? selectedWaba.templates
+            .filter((t) => t.name === selected.template.name)
+            .sort((a, b) => a.language.localeCompare(b.language))
+        : [],
+    [selected, selectedWaba],
+  );
+
+  const select = useCallback((template: Template, openOnMobile = true) => {
+    setSelectedId(template.id);
+    setLanguage(template.language);
+    if (openOnMobile) setMobileDetailOpen(true);
+  }, []);
+
+  // Families in the same order the list shows them, for keyboard navigation.
+  const families = useMemo(() => filtered.flatMap((w) => groupByName(w.templates)), [filtered]);
+
+  // ↑/↓ move through the list (also while typing in the search box).
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    const shouldLock = mobileDetailOpen && !mq.matches;
-    document.body.style.overflow = shouldLock ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [mobileDetailOpen]);
-
-  const selectedTemplate = useMemo((): Template | null => {
-    if (!selectedId) return null;
-    for (const w of filtered) {
-      const t = w.templates.find((t) => t.id === selectedId);
-      if (t) return t;
-    }
-    return null;
-  }, [selectedId, filtered]);
-
-  const selectedWabaName = useMemo(() => {
-    if (!selectedWabaId) return "";
-    return wabas.find((w) => w.waba_id === selectedWabaId)?.waba_name ?? "";
-  }, [selectedWabaId, wabas]);
-
-  // ↑/↓ move through the list view (also while typing in the search box).
-  useEffect(() => {
-    if (viewMode !== "list") return;
-    const flat = filtered.flatMap((w) => w.templates.map((t) => ({ id: t.id, wabaId: w.waba_id })));
-
+    if (view !== "list") return;
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || e.altKey || e.metaKey || e.ctrlKey) return;
       const target = e.target as HTMLElement | null;
       const inOtherField =
         target && target.id !== "template-search" && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-      if (inOtherField || flat.length === 0) return;
+      if (inOtherField || families.length === 0) return;
 
       e.preventDefault();
-      const current = flat.findIndex((t) => t.id === selectedId);
+      const current = families.findIndex((f) => f.variants.some((v) => v.id === selectedId));
+      const step = e.key === "ArrowDown" ? 1 : -1;
       const next =
         current === -1
-          ? e.key === "ArrowDown"
+          ? step === 1
             ? 0
-            : flat.length - 1
-          : Math.min(flat.length - 1, Math.max(0, current + (e.key === "ArrowDown" ? 1 : -1)));
-      setSelectedId(flat[next].id);
-      setSelectedWabaId(flat[next].wabaId);
+            : families.length - 1
+          : Math.min(families.length - 1, Math.max(0, current + step));
+      select(pickVariant(families[next], language), false);
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [viewMode, filtered, selectedId]);
+  }, [view, families, selectedId, language, select]);
 
-  // Close selection if template is filtered out
-  useEffect(() => {
-    if (selectedId && !selectedTemplate) {
-      setSelectedId(null);
-      setMobileDetailOpen(false);
-    }
-  }, [selectedId, selectedTemplate]);
+  // ── Comparison
+  const compareSet = useMemo(() => new Set(compareIds), [compareIds]);
+  const compareFull = compareIds.length >= MAX_COMPARE;
+
+  const toggleCompareFamily = useCallback(
+    (family: TemplateFamily) => {
+      setCompareIds((prev) => {
+        if (family.variants.some((v) => prev.includes(v.id))) {
+          return prev.filter((id) => !family.variants.some((v) => v.id === id));
+        }
+        if (prev.length >= MAX_COMPARE) return prev;
+        const variant = family.variants.find((v) => v.id === selectedId) ?? pickVariant(family, language);
+        return [...prev, variant.id];
+      });
+    },
+    [selectedId, language],
+  );
+
+  const toggleCompareTemplate = useCallback((id: string) => {
+    setCompareIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < MAX_COMPARE ? [...prev, id] : prev,
+    );
+  }, []);
+
+  const compareItems = useMemo(
+    () =>
+      compareIds.flatMap((id) => {
+        const entry = index.get(id);
+        return entry ? [{ template: entry.template, wabaName: entry.waba.waba_name }] : [];
+      }),
+    [compareIds, index],
+  );
+
+  const openCompare = useCallback(() => {
+    setView("compare");
+    setMobileDetailOpen(false);
+  }, []);
+
+  const openAllKey = [debouncedSearch.trim(), [...selectedWabas].sort().join(",")].filter(Boolean).join("|");
+
+  const detail = (
+    <DetailPanel
+      template={selected && selectedWaba ? selected.template : null}
+      wabaId={selectedWaba?.waba_id ?? null}
+      wabaName={selectedWaba?.waba_name ?? ""}
+      variants={variants}
+      onSelectVariant={(t) => select(t, false)}
+      compared={!!selectedId && compareSet.has(selectedId)}
+      compareDisabled={compareFull && !(selectedId && compareSet.has(selectedId))}
+      onToggleCompare={() => selectedId && toggleCompareTemplate(selectedId)}
+      onCompareLanguages={() => {
+        setCompareIds(variants.slice(0, MAX_COMPARE).map((v) => v.id));
+        openCompare();
+      }}
+    />
+  );
+
+  const sidebar = (
+    <WabaSidebar
+      wabas={wabas}
+      counts={filters.countsByWaba}
+      selected={selectedWabas}
+      onToggle={filters.toggleWaba}
+      onOnly={filters.selectOnlyWaba}
+      onClear={filters.clearWabas}
+    />
+  );
 
   return (
     <SearchTermsProvider value={searchTerms}>
-      <FiltersBar
-        search={search}
-        onSearchChange={setSearch}
-        wabas={wabas}
-        selectedWabas={selectedWabas}
-        onToggleWaba={toggleWaba}
-        selectedStatuses={selectedStatuses}
-        onToggleStatus={toggleStatus}
-        allLanguages={allLanguages}
-        selectedLanguages={selectedLanguages}
-        onToggleLanguage={toggleLanguage}
-        allCategories={allCategories}
-        selectedCategories={selectedCategories}
-        onToggleCategory={toggleCategory}
-        hideSamples={hideSamples}
-        onToggleHideSamples={() => setHideSamples((h) => !h)}
-      />
+      <div className="flex h-dvh flex-col">
+        <TopBar
+          search={filters.search}
+          onSearchChange={filters.setSearch}
+          fetchedAt={fetchedAt}
+          syncing={sync.syncing}
+          cooldown={sync.cooldown}
+          syncError={sync.error}
+          onSync={sync.sync}
+          view={view === "compare" ? null : view}
+          brand={brand}
+          onViewChange={setView}
+        />
 
-      <div className="mt-6 mb-6 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-        <p className="text-xs font-medium text-gray-500 sm:text-[13px]">
-          Mostrando <strong className="font-display font-bold text-gray-900">{totalTemplates}</strong> templates en{" "}
-          <strong className="font-display font-bold text-gray-900">{filtered.length}</strong> WABAs{" "}
-          <LastUpdated fetchedAt={fetchedAt} />
-        </p>
-        <div className="flex items-center gap-2.5">
-          {/* View mode toggle */}
-          <div className="flex overflow-hidden rounded-xl border border-gray-200/80 bg-white shadow-sm ring-1 ring-gray-900/[0.03]">
-            <button
-              onClick={() => setViewMode("list")}
-              aria-pressed={viewMode === "list"}
-              className={`flex min-h-[44px] items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 sm:min-h-0 ${
-                viewMode === "list"
-                  ? "bg-gray-900 text-white shadow-inner"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-              }`}
-            >
-              <svg className="h-4 w-4 sm:h-3.5 sm:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-                />
-              </svg>
-              Lista
-            </button>
-            <button
-              onClick={() => setViewMode("all")}
-              aria-pressed={viewMode === "all"}
-              className={`flex min-h-[44px] items-center gap-1.5 border-l border-gray-200/80 px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 sm:min-h-0 ${
-                viewMode === "all"
-                  ? "bg-gray-900 text-white shadow-inner"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-              }`}
-            >
-              <svg className="h-4 w-4 sm:h-3.5 sm:w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
-                />
-              </svg>
-              <span className="hidden sm:inline">Ver todo</span>
-              <span className="sm:hidden">Grid</span>
-            </button>
-          </div>
+        <div className="flex min-h-0 flex-1">
+          {isDesktop && (
+            <aside aria-label="Filtrar por WABA" className="bg-side hidden w-[272px] shrink-0 lg:block">
+              {sidebar}
+            </aside>
+          )}
 
-          {/* Sync button */}
-          <button
-            onClick={handleSync}
-            disabled={syncing || isCoolingDown}
-            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200/80 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 shadow-sm ring-1 ring-gray-900/[0.03] transition-all duration-200 hover:border-teal-500 hover:bg-teal-50 hover:text-teal-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-gray-200/80 disabled:hover:bg-white disabled:hover:text-gray-600 disabled:hover:shadow-sm sm:min-h-0 sm:px-4"
-          >
-            <svg
-              aria-hidden="true"
-              className={`h-4 w-4 sm:h-3.5 sm:w-3.5 ${syncing ? "animate-spin" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          {view === "compare" ? (
+            <main className="min-w-0 flex-1">
+              <CompareView
+                items={compareItems}
+                onRemove={toggleCompareTemplate}
+                onClear={() => setCompareIds([])}
+                onBack={() => setView("list")}
               />
-            </svg>
-            <span className="hidden sm:inline">
-              {syncing
-                ? "Sincronizando..."
-                : cooldown > 0
-                  ? `Espera ${formatCountdown(cooldown)}`
-                  : "Sincronizar con Meta"}
-            </span>
-            <span className="sm:hidden">{syncing ? "Sync..." : cooldown > 0 ? formatCountdown(cooldown) : "Sync"}</span>
-          </button>
-          <span aria-live="polite" aria-atomic="true" className="sr-only">
-            {syncing ? "Sincronizando" : cooldown > 0 ? `Sincronizar disponible en ${formatCountdown(cooldown)}` : ""}
-          </span>
+            </main>
+          ) : (
+            <>
+              <section
+                aria-label="Plantillas"
+                className={`bg-surface flex min-w-0 flex-1 flex-col ${
+                  view === "list" ? "border-line border-r lg:max-w-[500px] xl:max-w-[560px]" : ""
+                }`}
+              >
+                <ListToolbar
+                  wabas={wabas}
+                  selectedWabas={selectedWabas}
+                  onToggleWaba={filters.toggleWaba}
+                  onClearWabas={filters.clearWabas}
+                  onOpenWabas={() => setWabaSheetOpen(true)}
+                  allStatuses={filters.allStatuses}
+                  selectedStatuses={filters.selectedStatuses}
+                  onToggleStatus={filters.toggleStatus}
+                  allCategories={filters.allCategories}
+                  selectedCategories={filters.selectedCategories}
+                  onToggleCategory={filters.toggleCategory}
+                  allLanguages={filters.allLanguages}
+                  selectedLanguages={filters.selectedLanguages}
+                  onToggleLanguage={filters.toggleLanguage}
+                  hideSamples={filters.hideSamples}
+                  onToggleHideSamples={() => filters.setHideSamples((h) => !h)}
+                  totalTemplates={filters.totalTemplates}
+                  totalWabas={filtered.length}
+                />
+
+                <div className="min-h-0 flex-1">
+                  {filtered.length === 0 ? (
+                    <EmptyState />
+                  ) : view === "gallery" ? (
+                    <GalleryView
+                      wabas={filtered}
+                      onOpen={(t) => {
+                        setView("list");
+                        select(t);
+                      }}
+                      compareIds={compareSet}
+                      compareFull={compareFull}
+                      onToggleCompare={toggleCompareTemplate}
+                    />
+                  ) : (
+                    <TemplateList
+                      wabas={filtered}
+                      selectedId={selectedId}
+                      preferredLanguage={language}
+                      onSelect={select}
+                      compareIds={compareSet}
+                      compareFull={compareFull}
+                      onToggleCompare={toggleCompareFamily}
+                      openAllKey={openAllKey}
+                    />
+                  )}
+                </div>
+
+                {compareIds.length > 0 && (
+                  <div className="bg-chrome text-chrome-ink flex shrink-0 items-center gap-3 px-4 py-2.5">
+                    <span className="flex-1 text-[13px]">
+                      {compareIds.length} {compareIds.length === 1 ? "plantilla" : "plantillas"} para comparar
+                      {compareFull && <span className="text-white/60"> · máximo {MAX_COMPARE}</span>}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCompareIds([])}
+                      className="text-xs text-white/80 hover:text-white hover:underline"
+                    >
+                      Vaciar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openCompare}
+                      disabled={compareIds.length < 2}
+                      title={compareIds.length < 2 ? "Añade al menos dos plantillas" : undefined}
+                      className="bg-accent-bright text-on-accent-bright h-8 rounded-lg px-3 text-[13px] font-semibold hover:brightness-95 disabled:opacity-50"
+                    >
+                      Comparar →
+                    </button>
+                  </div>
+                )}
+              </section>
+
+              {isDesktop && view === "list" && (
+                <main className="hidden min-w-0 flex-1 overflow-y-auto lg:block">{detail}</main>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      {syncError && (
-        <p role="alert" className="-mt-3 mb-6 text-right text-xs font-medium text-red-600">
-          {syncError}
-        </p>
+      {!isDesktop && view === "list" && mobileDetailOpen && selected && selectedWaba && (
+        <MobileSheet title="Detalle de la plantilla" onClose={() => setMobileDetailOpen(false)}>
+          {detail}
+        </MobileSheet>
       )}
 
-      {filtered.length === 0 ? (
-        <EmptyState />
-      ) : viewMode === "all" ? (
-        /* ── Mode: Ver todo ── */
-        <div className="space-y-12">
-          {filtered.map((waba) => (
-            <WabaSection key={waba.waba_id} waba={waba} />
-          ))}
-        </div>
-      ) : (
-        /* ── Mode: Lista ── */
-        <div className="flex items-start gap-6">
-          {/* Left: list — full width on mobile, partial on desktop */}
-          <div
-            className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm ring-1 ring-gray-900/[0.03] lg:w-[55%] xl:w-[60%]"
-            style={{ height: "calc(100vh - 13rem)" }}
-          >
-            <TemplateList wabas={filtered} selectedId={selectedId} onSelect={handleSelect} />
-          </div>
-
-          {/* Right: detail panel — desktop only (inline) */}
-          <div className="sticky top-20 hidden lg:block lg:w-[45%] xl:w-[40%]">
-            <DetailPanel template={selectedTemplate} wabaId={selectedWabaId} wabaName={selectedWabaName} />
-          </div>
-
-          {/* Mobile detail overlay — slides up from bottom */}
-          {mobileDetailOpen && selectedTemplate && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Detalle del template"
-              onKeyDown={(e) => {
-                if (e.key === "Escape") handleMobileDetailClose();
-              }}
-              className="fixed inset-0 z-50 lg:hidden"
-            >
-              {/* Backdrop */}
-              <div
-                className="fade-in-enter absolute inset-0 bg-black/40 backdrop-blur-sm"
-                onClick={handleMobileDetailClose}
-              />
-              {/* Panel */}
-              <div className="slide-up-enter absolute inset-x-0 top-12 bottom-0 flex flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl">
-                {/* Close bar */}
-                <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-4 py-3">
-                  <button
-                    onClick={handleMobileDetailClose}
-                    className="flex min-h-[44px] min-w-[44px] items-center gap-2 rounded-xl text-sm font-semibold text-gray-600 transition-colors active:bg-gray-100"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Volver a la lista
-                  </button>
-                </div>
-                {/* Scrollable detail content */}
-                <div className="flex-1 overflow-y-auto">
-                  <DetailPanel template={selectedTemplate} wabaId={selectedWabaId} wabaName={selectedWabaName} />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+      {!isDesktop && wabaSheetOpen && (
+        <MobileSheet title="Filtrar por WABA" onClose={() => setWabaSheetOpen(false)}>
+          {sidebar}
+        </MobileSheet>
       )}
     </SearchTermsProvider>
   );

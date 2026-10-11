@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
+import type { DiffSegment } from "@/lib/diff";
 import type { TemplateComponent, PreviewMode } from "@/types/template";
 import { formatWhatsAppText } from "@/lib/whatsapp-format";
-import { getExampleValues, replaceVariables } from "@/lib/template-utils";
+import { resolveComponentText as resolveText } from "@/lib/template-utils";
 import { findMatchRanges } from "@/lib/search";
 import { Highlight, renderHighlighted, useSearchTerms } from "./Highlight";
 
 interface WhatsAppPreviewProps {
   components: TemplateComponent[];
   mode: PreviewMode;
+  /** Body split into segments to highlight what changes against other templates (compare view). */
+  bodyDiff?: DiffSegment[];
 }
 
 const BUTTON_ICONS: Record<string, string> = {
@@ -95,13 +98,7 @@ function MediaHeader({ component }: { component: TemplateComponent }) {
   }
 }
 
-function resolveText(component: TemplateComponent | undefined, mode: PreviewMode): string | undefined {
-  if (!component?.text) return undefined;
-  if (mode === "template") return component.text;
-  return replaceVariables(component.text, getExampleValues(component));
-}
-
-export function WhatsAppPreview({ components, mode }: WhatsAppPreviewProps) {
+export function WhatsAppPreview({ components, mode, bodyDiff }: WhatsAppPreviewProps) {
   const header = components?.find((c) => c.type === "HEADER");
   const body = components?.find((c) => c.type === "BODY");
   const footer = components?.find((c) => c.type === "FOOTER");
@@ -127,7 +124,17 @@ export function WhatsAppPreview({ components, mode }: WhatsAppPreviewProps) {
         {headerText && <p className="mb-1 text-[13.5px] leading-snug font-bold text-[#111b21]">{format(headerText)}</p>}
         {bodyText && (
           <p className="overflow-y-auto text-[13.5px] leading-[1.45] break-words whitespace-pre-wrap text-[#111b21] [scrollbar-width:thin]">
-            {format(bodyText)}
+            {bodyDiff
+              ? bodyDiff.map((segment, i) =>
+                  segment.changed ? (
+                    <mark key={i} className="rounded-sm bg-amber-200/80 text-inherit">
+                      {format(segment.text)}
+                    </mark>
+                  ) : (
+                    <Fragment key={i}>{format(segment.text)}</Fragment>
+                  ),
+                )
+              : format(bodyText)}
           </p>
         )}
         {footerText && <p className="mt-1.5 text-[11px] text-[#8696a0]">{format(footerText)}</p>}

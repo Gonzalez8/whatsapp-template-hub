@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_URL_STATE, parseUrlState, serializeUrlState } from "@/lib/url-state";
+import { DEFAULT_URL_STATE, MAX_COMPARE, parseUrlState, serializeUrlState } from "@/lib/url-state";
 
 describe("url state", () => {
   it("serializes defaults to an empty query string", () => {
@@ -7,7 +7,7 @@ describe("url state", () => {
     expect(parseUrlState("")).toEqual(DEFAULT_URL_STATE);
   });
 
-  it("round-trips every filter", () => {
+  it("round-trips every filter, the selection and the comparison", () => {
     const state = {
       search: "curso madrid",
       wabas: ["1", "2"],
@@ -15,19 +15,22 @@ describe("url state", () => {
       languages: ["es", "pt_PT"],
       categories: ["MARKETING"],
       hideSamples: false,
-      view: "list" as const,
+      view: "compare" as const,
       template: "999",
+      compare: ["999", "1000"],
     };
 
     expect(parseUrlState(serializeUrlState(state))).toEqual(state);
   });
 
-  it("only keeps the selected template in list view", () => {
-    const query = serializeUrlState({ ...DEFAULT_URL_STATE, view: "all", template: "999" });
-    expect(query).toBe("");
+  it("opens the gallery, also from old links (view=all)", () => {
+    expect(parseUrlState("?view=gallery").view).toBe("gallery");
+    expect(parseUrlState("?view=all").view).toBe("gallery");
+    expect(serializeUrlState({ ...DEFAULT_URL_STATE, view: "gallery" })).toBe("view=gallery");
   });
 
-  it("ignores unknown or empty values", () => {
-    expect(parseUrlState("?view=grid&waba=,&t=")).toEqual(DEFAULT_URL_STATE);
+  it("caps the comparison and ignores empty values", () => {
+    expect(parseUrlState("?cmp=1,2,3,4,5,6").compare).toHaveLength(MAX_COMPARE);
+    expect(parseUrlState("?view=grid&waba=,&t=&cmp=")).toEqual(DEFAULT_URL_STATE);
   });
 });

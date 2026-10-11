@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { WhatsAppPreview } from "@/components/WhatsAppPreview";
-import { TemplateDetails } from "@/components/TemplateDetails";
+import { ButtonsTab, InfoTab, VariablesTab } from "@/components/TemplateDetails";
 import { TemplateBadges } from "@/components/TemplateBadges";
 import type { Template, TemplateComponent } from "@/types/template";
 
@@ -66,36 +66,56 @@ describe("media headers", () => {
   });
 });
 
-describe("TemplateDetails", () => {
+describe("detail tabs", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("lists variables, button targets and metadata", () => {
-    render(<TemplateDetails template={template} wabaName="Flou MKT" />);
+  it("lists variables with their examples", () => {
+    render(<VariablesTab template={template} />);
 
-    expect(screen.getByText("Variables (2)")).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(3); // header + 2 variables
     expect(screen.getByText("Ana")).toBeInTheDocument();
+    expect(screen.getByText("https://pay.example.com/abc")).toBeInTheDocument();
+  });
+
+  it("lists button targets, including Flow screens", () => {
+    render(<ButtonsTab template={template} />);
+
     expect(screen.getByText("https://pay.example.com/{{1}}")).toBeInTheDocument();
     expect(screen.getByText(/pantalla APPOINTMENT/)).toBeInTheDocument();
+  });
+
+  it("shows metadata and the recategorization", () => {
+    render(<InfoTab template={template} wabaName="Flou MKT" />);
+
     expect(screen.getByText("Flou MKT")).toBeInTheDocument();
     expect(screen.getByText(/cambiada por Meta/)).toBeInTheDocument();
   });
 
-  it("copies the template name to the clipboard", async () => {
+  it("says so when there is nothing to list", () => {
+    const plain = { ...template, components: [{ type: "BODY" as const, text: "Hola" }] };
+    render(<VariablesTab template={plain} />);
+    render(<ButtonsTab template={plain} />);
+
+    expect(screen.getByText("Esta plantilla no tiene variables.")).toBeInTheDocument();
+    expect(screen.getByText("Esta plantilla no tiene botones.")).toBeInTheDocument();
+  });
+
+  it("copies the template id to the clipboard", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    render(<TemplateDetails template={template} wabaName="Flou MKT" />);
+    render(<InfoTab template={template} wabaName="Flou MKT" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Nombre" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copiar ID" }));
 
-    expect(writeText).toHaveBeenCalledWith("checkout_url");
+    expect(writeText).toHaveBeenCalledWith("987");
     expect(await screen.findByText("¡Copiado!")).toBeInTheDocument();
   });
 
   it("tells the user when the clipboard is not available", async () => {
     vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) } });
-    render(<TemplateDetails template={template} wabaName="Flou MKT" />);
+    render(<InfoTab template={template} wabaName="Flou MKT" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "ID" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copiar ID" }));
 
     expect(await screen.findByText("No se pudo copiar")).toBeInTheDocument();
   });
@@ -104,6 +124,6 @@ describe("TemplateDetails", () => {
 describe("TemplateBadges", () => {
   it("warns when Meta changed the category", () => {
     render(<TemplateBadges template={template} />);
-    expect(screen.getByText("Antes UTILITY")).toHaveAttribute("title", expect.stringContaining("coste"));
+    expect(screen.getByText("Antes Utilidad")).toHaveAttribute("title", expect.stringContaining("coste"));
   });
 });

@@ -1,4 +1,5 @@
-export type TemplateStatus = "APPROVED" | "PENDING" | "REJECTED";
+// Known statuses get autocompletion; Meta has more (IN_APPEAL, PENDING_DELETION…), so any string is accepted.
+export type TemplateStatus = "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED" | (string & {});
 
 // Known types get autocompletion; Meta adds new ones over time, so any string is accepted.
 export type ButtonType = "URL" | "PHONE_NUMBER" | "QUICK_REPLY" | "FLOW" | "COPY_CODE" | "OTP" | (string & {});

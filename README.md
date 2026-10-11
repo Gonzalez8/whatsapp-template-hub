@@ -5,16 +5,19 @@ Dashboard para ver y buscar las plantillas de mensajes de WhatsApp Business de t
 ## Funcionalidades
 
 - **Multi-WABA**: carga las plantillas y los números de teléfono de todas las WABAs del negocio.
+- **Filtro por WABA**: barra lateral con casillas para ver varias a la vez (por ejemplo, Campus, Flou y humains), botón "Solo" para quedarse con una, buscador de WABAs y número de plantillas que coinciden en cada una. El teléfono distingue las WABAs con el mismo nombre.
 - **Búsqueda en todo el contenido**: nombre, cabecera, cuerpo, pie, texto, URL y teléfono de los botones, WABA e ID. Sin distinguir acentos ni mayúsculas y con varias palabras en cualquier orden. Las coincidencias se resaltan y, en la lista, se muestra el fragmento donde aparecen.
-- **Filtros** por WABA, estado, idioma y categoría, y ocultar las plantillas de ejemplo de Meta.
-- **Enlaces compartibles**: búsqueda, filtros, vista y plantilla abierta se guardan en la URL.
+- **Lista agrupada por WABA**, con grupos que se expanden y contraen. Cada fila es un nombre de plantilla con una etiqueta por idioma (`es`, `pt_PT`…), en lugar de una fila repetida por idioma.
+- **Más filtros**: estado (solo si hay más de uno), categoría, idioma e incluir las plantillas de ejemplo de Meta.
+- **Detalle con pestañas**: vista previa tipo burbuja de WhatsApp (formato, cabecera de texto, imagen, vídeo, documento o ubicación, pie y botones; modo "Con ejemplo" con los valores de las variables, numeradas o con nombre), variables, botones con su destino (URL, teléfono o Flow) e información. Selector de idioma, aviso si Meta cambió la categoría y botones para copiar.
+- **Galería**: todas las plantillas filtradas como burbujas de WhatsApp, agrupadas por WABA, para recorrerlas haciendo scroll (por ejemplo, todas las de una WABA). Desde cada tarjeta se abre el detalle o se marca para comparar. Solo se pinta al elegirla, y las tarjetas fuera de pantalla no se dibujan.
+- **Comparar**: marca de 2 a 4 plantillas y míralas en columnas. "Resaltar diferencias" (desmarcado al empezar) marca las palabras del cuerpo que cambian y los datos (idioma, categoría, cabecera, pie, botones) que no coinciden. "Comparar idiomas" abre todas las variantes de idioma de una plantilla.
+- **Enlaces compartibles**: búsqueda, filtros, vista, plantilla abierta y comparación se guardan en la URL.
 - **Atajos de teclado**: `/` o `Cmd+K` para buscar, `Esc` para limpiar y `↑`/`↓` para recorrer la lista.
-- **Vista lista / grid** con preview tipo burbuja de WhatsApp: formato, cabecera de texto, imagen, vídeo, documento o ubicación, pie y botones. Modo "Ejemplo" con los valores de ejemplo de las variables, numeradas o con nombre.
-- **Panel de detalle**: variables con su ejemplo, botones con su destino (URL, teléfono o Flow), formato de variables, subcategoría, aviso si Meta cambió la categoría y botones para copiar nombre, ID y texto.
-- **Solo lectura**: para editar una plantilla, el enlace "Ver en Meta" abre el Business Manager.
+- **Solo lectura**: para editar una plantilla, "Abrir en Meta" abre el Business Manager.
 - **Sincronización manual** con Meta, limitada a una cada 2 minutos.
-- **Degradación parcial**: si falla una WABA, el resto se sigue mostrando con el error indicado.
-- Responsive.
+- **Degradación parcial**: si falla una WABA, el resto se sigue mostrando y la WABA fallida se marca en la barra lateral.
+- **Responsive**: en móvil, el filtro de WABAs y el detalle se abren como paneles desde abajo.
 
 ## Stack
 
@@ -93,11 +96,25 @@ Abrir [http://localhost:3000](http://localhost:3000).
 
 ## Variables de entorno
 
-| Variable            | Obligatoria | Descripción                                                                                |
-| ------------------- | ----------- | ------------------------------------------------------------------------------------------ |
-| `META_ACCESS_TOKEN` | Sí          | Token de System User con `whatsapp_business_management`                                    |
-| `META_BUSINESS_ID`  | Sí          | ID de la cuenta de Meta Business                                                           |
-| `REVALIDATE_SECRET` | No          | Secreto para `POST /api/revalidate`. Si no está definido, el endpoint devuelve siempre 401 |
+| Variable                | Obligatoria | Descripción                                                                                               |
+| ----------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `META_ACCESS_TOKEN`     | Sí          | Token de System User con `whatsapp_business_management`                                                   |
+| `META_BUSINESS_ID`      | Sí          | ID de la cuenta de Meta Business                                                                          |
+| `REVALIDATE_SECRET`     | No          | Secreto para `POST /api/revalidate`. Si no está definido, el endpoint devuelve siempre 401                |
+| `BRAND_NAME`            | No          | Nombre de la empresa junto a su logo y en el título de la pestaña                                         |
+| `BRAND_LOGO_URL`        | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public` (p. ej. `/logo.png`)                        |
+| `BRAND_COLOR`           | No          | Color de marca en hexadecimal (p. ej. `#0017EC`). Por defecto, el verde de WhatsApp                       |
+| `BRAND_LOGO_BACKGROUND` | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros que no se verían sobre la barra oscura |
+
+### Personalizar la marca
+
+Con `BRAND_NAME`, `BRAND_LOGO_URL` y `BRAND_COLOR` cada despliegue lleva el logo y el color de la empresa sin tocar código:
+
+- El logo aparece a la izquierda de la barra superior, directamente sobre el fondo oscuro, seguido del icono de WhatsApp en gris y "Plantillas de WhatsApp" (sin logo de empresa, el icono va en su insignia verde). Si el logo es oscuro y no se ve, `BRAND_LOGO_BACKGROUND=white` lo pone sobre una pastilla blanca.
+- Sobre las barras oscuras se usa una versión aclarada del color de marca, calculada para que contraste (así un color de marca oscuro no desaparece).
+- El color de marca se usa como acento: botones principales, selección, casillas, chips y pestaña activa. El texto sobre el acento pasa a oscuro o a blanco según su contraste, y para los textos sobre blanco se oscurece el color hasta que se lea bien (WCAG AA).
+- Un valor no válido se ignora (con un aviso `brand_config_invalid` en los logs) y se usa el diseño por defecto.
+- Como la página es estática, un cambio en estas variables se aplica al **redesplegar** (Vercel → Deployments → Redeploy).
 
 ## API
 
@@ -126,9 +143,20 @@ src/
     error.tsx              # Error boundary
     actions.ts             # Server Action de sincronización
     api/revalidate/route.ts
-  components/              # UI (Client Components para la parte interactiva)
+  components/
+    TemplatesDashboard.tsx # Layout, selección, comparación, URL y teclado
+    TopBar.tsx             # Buscador y sincronización
+    WabaSidebar.tsx        # Filtro de WABAs
+    ListToolbar.tsx        # Chips y filtros de la lista
+    TemplateList.tsx       # Lista agrupada por WABA y por nombre
+    DetailPanel.tsx        # Detalle con pestañas
+    GalleryView.tsx        # Galería de burbujas por WABA
+    CompareView.tsx        # Comparación en columnas
+    WhatsAppPreview.tsx    # Burbuja de WhatsApp
   hooks/
     useTemplateFilters.ts  # Filtrado en cliente
+    useTemplatesSync.ts    # Botón de sincronizar
+    useMediaQuery.ts
   lib/
     meta-api.ts            # Cliente de Meta Graph API
     templates.ts           # Snapshot cacheado + lógica de sincronización
@@ -136,7 +164,11 @@ src/
     concurrency.ts         # allSettled con límite de concurrencia
     secret.ts              # Comparación de secretos en tiempo constante
     whatsapp-format.tsx    # Formato de texto de WhatsApp (negrita, cursiva…)
-    template-utils.ts
+    template-utils.ts      # Etiquetas, ejemplos y variables
+    template-groups.ts     # Variantes de idioma de una plantilla
+    search.ts              # Normalización, coincidencias y fragmentos
+    diff.ts                # Diferencias por palabras para comparar
+    url-state.ts           # Estado de la pantalla en la URL
   types/
     template.ts
   __tests__/
