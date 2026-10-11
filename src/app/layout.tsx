@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 export function generateMetadata(): Metadata {
   const { name } = getBrand();
   return {
-    title: name ? `Template Hub · ${name}` : "WhatsApp Template Hub",
+    title: name ? `Plantillas de WhatsApp · ${name}` : "Plantillas de WhatsApp",
     description: "Consulta las plantillas de WhatsApp Business de todas las WABAs",
   };
 }

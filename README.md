@@ -110,7 +110,7 @@ Abrir [http://localhost:3000](http://localhost:3000).
 
 Con `BRAND_NAME`, `BRAND_LOGO_URL` y `BRAND_COLOR` cada despliegue lleva el logo y el color de la empresa sin tocar código:
 
-- El logo aparece a la izquierda de la barra superior, directamente sobre el fondo oscuro, seguido del logo de WhatsApp y "Template Hub". Si el logo es oscuro y no se ve, `BRAND_LOGO_BACKGROUND=white` lo pone sobre una pastilla blanca.
+- El logo aparece a la izquierda de la barra superior, directamente sobre el fondo oscuro, seguido del icono de WhatsApp en gris y "Plantillas de WhatsApp" (sin logo de empresa, el icono va en su insignia verde). Si el logo es oscuro y no se ve, `BRAND_LOGO_BACKGROUND=white` lo pone sobre una pastilla blanca.
 - Sobre las barras oscuras se usa una versión aclarada del color de marca, calculada para que contraste (así un color de marca oscuro no desaparece).
 - El color de marca se usa como acento: botones principales, selección, casillas, chips y pestaña activa. El texto sobre el acento pasa a oscuro o a blanco según su contraste, y para los textos sobre blanco se oscurece el color hasta que se lea bien (WCAG AA).
 - Un valor no válido se ignora (con un aviso `brand_config_invalid` en los logs) y se usa el diseño por defecto.

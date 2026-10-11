@@ -22,7 +22,7 @@ describe("TopBar branding", () => {
   it("shows only the WhatsApp mark and product name by default", () => {
     renderTopBar({});
 
-    expect(screen.getByText("Template Hub")).toBeInTheDocument();
+    expect(screen.getByText("Plantillas de WhatsApp")).toBeInTheDocument();
     expect(screen.queryByRole("img")).toBeNull();
   });
 
@@ -30,7 +30,7 @@ describe("TopBar branding", () => {
     renderTopBar({ name: "Northius", logoUrl: "https://cdn.example.com/logo.svg" });
 
     expect(screen.getByRole("img", { name: "Northius" })).toHaveAttribute("src", "https://cdn.example.com/logo.svg");
-    expect(screen.getByText("Template Hub")).toBeInTheDocument();
+    expect(screen.getByText("Plantillas de WhatsApp")).toBeInTheDocument();
   });
 
   it("shows the company name as text when there is no logo", () => {
@@ -46,5 +46,17 @@ describe("TopBar branding", () => {
 
     renderTopBar({ name: "Northius", logoUrl: "/logo.svg", logoOnWhite: true });
     expect(screen.getByRole("img").parentElement).toHaveClass("bg-white");
+  });
+
+  it("shows WhatsApp's green badge only when there is no company brand", () => {
+    const greenBadge = (container: HTMLElement) => container.querySelector(".bg-\\[\\#25D366\\]");
+
+    const { container, unmount } = renderTopBar({});
+    expect(greenBadge(container)).not.toBeNull();
+    unmount();
+
+    const branded = renderTopBar({ name: "Northius", logoUrl: "/logo.svg" });
+    expect(greenBadge(branded.container)).toBeNull();
+    expect(screen.getByText("Plantillas de WhatsApp")).toBeInTheDocument();
   });
 });
