@@ -16,6 +16,7 @@ Aplicación web interna para consultar las plantillas de mensajes de WhatsApp Bu
   - [Observabilidad](#observabilidad)
 - [Puesta en marcha](#puesta-en-marcha)
 - [Variables de entorno](#variables-de-entorno)
+- [Inicio de sesión (Microsoft Entra ID)](#inicio-de-sesión-microsoft-entra-id)
 - [Personalización de marca](#personalización-de-marca)
 - [Despliegue en Vercel](#despliegue-en-vercel)
 - [API](#api)
@@ -229,7 +230,7 @@ flowchart TD
 - El token de Meta solo se usa en el servidor y nunca llega al navegador.
 - `POST /api/revalidate` exige el secreto `REVALIDATE_SECRET` en la cabecera `x-revalidate-secret`, comparado en tiempo constante. Sin secreto configurado, el endpoint responde siempre 401.
 - Las URLs de logo de la marca solo admiten `https://` o rutas de `/public`.
-- La aplicación no tiene inicio de sesión propio. Para restringir el acceso se puede activar la **Deployment Protection** de Vercel; la integración con Microsoft Entra ID está pendiente.
+- El acceso se protege con [inicio de sesión de Microsoft Entra ID](#inicio-de-sesión-microsoft-entra-id), que se activa por configuración. La **Deployment Protection** de Vercel es una alternativa para restringir el acceso sin tocar la app.
 
 ### Observabilidad
 
@@ -272,17 +273,74 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 ## Variables de entorno
 
-| Variable                | Obligatoria | Descripción                                                                 | Ejemplo                |
-| ----------------------- | ----------- | --------------------------------------------------------------------------- | ---------------------- |
-| `META_ACCESS_TOKEN`     | Sí          | Token de System User con `whatsapp_business_management`                     | `EAAG…`                |
-| `META_BUSINESS_ID`      | Sí          | ID de la cuenta de Meta Business                                            | `1234567890`           |
-| `REVALIDATE_SECRET`     | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401 | cadena aleatoria larga |
-| `BRAND_NAME`            | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)           | `Acme`                 |
-| `BRAND_LOGO_URL`        | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`               | `https://…/logo.svg`   |
-| `BRAND_COLOR`           | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                       | `#F02B58`              |
-| `BRAND_LOGO_BACKGROUND` | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros          | `white`                |
+| Variable                         | Obligatoria | Descripción                                                                                   | Ejemplo                            |
+| -------------------------------- | ----------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `META_ACCESS_TOKEN`              | Sí          | Token de System User con `whatsapp_business_management`                                       | `EAAG…`                            |
+| `META_BUSINESS_ID`               | Sí          | ID de la cuenta de Meta Business                                                              | `1234567890`                       |
+| `REVALIDATE_SECRET`              | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401                   | cadena aleatoria larga             |
+| `BRAND_NAME`                     | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)                             | `Acme`                             |
+| `BRAND_LOGO_URL`                 | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`                                 | `https://…/logo.svg`               |
+| `BRAND_COLOR`                    | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                                         | `#F02B58`                          |
+| `BRAND_LOGO_BACKGROUND`          | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros                            | `white`                            |
+| `AUTH_MICROSOFT_ENTRA_ID_ID`     | No          | ID de la aplicación (cliente) registrada en Entra. Activa el inicio de sesión                 | `00000000-…`                       |
+| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No          | Secreto de cliente de esa aplicación                                                          | —                                  |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No          | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                          | —                                  |
+| `AUTH_SECRET`                    | Con login   | Clave para cifrar la sesión. Se genera con `npx auth secret`                                  | —                                  |
+| `AUTH_ALLOWED_EMAILS`            | No          | Lista de correos con acceso, separados por comas. Sin ella, entra cualquier cuenta del tenant | `ana@empresa.com,luis@empresa.com` |
 
 `.env.example` contiene la plantilla completa.
+
+## Inicio de sesión (Microsoft Entra ID)
+
+El inicio de sesión se activa **por configuración**:
+
+| Variables `AUTH_MICROSOFT_ENTRA_ID_*`    | Comportamiento                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| Ninguna definida                         | Sin inicio de sesión: la app es accesible para cualquiera con la URL |
+| Todas definidas, junto con `AUTH_SECRET` | Toda la app exige iniciar sesión con una cuenta Microsoft del tenant |
+| Solo algunas                             | La app no se abre: `/login` indica qué variables faltan              |
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant N as Navegador
+    participant MW as Middleware
+    participant L as /login
+    participant A as Auth.js (/api/auth/*)
+    participant E as Microsoft Entra ID
+
+    N->>MW: GET /?view=gallery
+    MW-->>N: Sin sesión → 307 /login?callbackUrl=/?view=gallery
+    N->>L: "Iniciar sesión con Microsoft"
+    L->>A: signIn("microsoft-entra-id")
+    A-->>N: Redirección a login.microsoftonline.com
+    N->>E: Inicio de sesión con la cuenta de la empresa
+    E-->>A: /api/auth/callback/microsoft-entra-id
+    A->>A: ¿Tenant correcto? ¿Correo en AUTH_ALLOWED_EMAILS?
+    A-->>N: Cookie de sesión (JWT, 8 h) y vuelta a /?view=gallery
+```
+
+- **Qué protege:** el middleware (`src/middleware.ts`) exige sesión en todas las rutas salvo `/login`, `/api/auth/*`, `/api/revalidate` (que tiene su propio secreto) y los recursos estáticos. La Server Action de sincronizar comprueba la sesión por su cuenta.
+- **La página sigue siendo estática:** la sesión se comprueba antes de servirla. El nombre del usuario y el botón **Salir** se cargan en el navegador (`/api/auth/session`).
+- **Cuentas admitidas:** solo las del tenant indicado en `AUTH_MICROSOFT_ENTRA_ID_ISSUER`. Con `AUTH_ALLOWED_EMAILS`, solo los correos de la lista.
+- **Implementación:** [Auth.js](https://authjs.dev) v5 (`next-auth@5.0.0-beta.32`, versión fijada) con el proveedor de Microsoft Entra ID. La configuración vive en `src/auth.ts` y `src/lib/auth-config.ts`.
+
+### Registro de la aplicación en Entra
+
+Lo hace un administrador de Entra (o cualquier usuario, si el tenant lo permite) en _portal.azure.com → Registros de aplicaciones → Nuevo registro_:
+
+| Ajuste                   | Valor                                                                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Tipos de cuenta          | Solo las cuentas de este directorio organizativo (un solo inquilino)                                                                      |
+| URI de redirección (Web) | `https://<dominio>/api/auth/callback/microsoft-entra-id` (y `http://localhost:3000/api/auth/callback/microsoft-entra-id` para desarrollo) |
+| Permisos delegados       | `openid`, `profile`, `email`, `User.Read` (con consentimiento de administrador)                                                           |
+| Secreto de cliente       | _Certificados y secretos → Nuevo secreto de cliente_                                                                                      |
+
+Del registro salen el **ID de aplicación (cliente)** → `AUTH_MICROSOFT_ENTRA_ID_ID`, el **ID de directorio (inquilino)** → `AUTH_MICROSOFT_ENTRA_ID_ISSUER` y el **secreto** → `AUTH_MICROSOFT_ENTRA_ID_SECRET`.
+
+Cada dominio desde el que se use la app (producción y, si se quiere, la URL fija de una rama de preview) necesita su URI de redirección en el registro. Las URLs aleatorias de cada preview no sirven para iniciar sesión.
+
+Para probar el flujo completo sin el tenant de la empresa, basta una cuenta gratuita de Azure: crea un directorio propio donde registrar una aplicación de prueba.
 
 ## Personalización de marca
 
@@ -326,11 +384,15 @@ curl -X POST https://<dominio>/api/revalidate -H "x-revalidate-secret: $REVALIDA
 
 ```
 src/
+  auth.ts                    # Configuración de Auth.js (Microsoft Entra ID)
+  middleware.ts              # Exige sesión cuando el inicio de sesión está activo
   app/
     page.tsx                 # Página (Server Component, ISR); lee la marca y el snapshot
     layout.tsx               # Layout raíz: fuentes, metadatos y colores de marca
     error.tsx                # Error boundary
     actions.ts               # Server Action de sincronización
+    login/page.tsx           # Página de inicio de sesión
+    api/auth/[...nextauth]/  # Endpoints de Auth.js
     api/revalidate/route.ts  # POST /api/revalidate
     globals.css              # Tokens de diseño (Tailwind 4 @theme)
   components/
@@ -346,6 +408,7 @@ src/
     CompareView.tsx          # Comparación en columnas
     WhatsAppPreview.tsx      # Burbuja de WhatsApp
     Highlight.tsx            # Resaltado de coincidencias
+    UserMenu.tsx             # Usuario con sesión y botón Salir
   hooks/
     useTemplateFilters.ts    # Índice de búsqueda y filtros
     useTemplatesSync.ts      # Botón de sincronizar
@@ -355,6 +418,7 @@ src/
     templates.ts             # Snapshot cacheado y sincronización
     sync-config.ts           # Tiempos de caché y cooldown
     brand.ts                 # Marca y contraste de colores
+    auth-config.ts           # Estado del inicio de sesión según el entorno
     search.ts                # Normalización, coincidencias y fragmentos
     template-groups.ts       # Variantes de idioma
     template-utils.ts        # Etiquetas, ejemplos y variables

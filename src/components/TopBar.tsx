@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { LastUpdated } from "./LastUpdated";
+import { UserMenu } from "./UserMenu";
 
 function isEditable(target: EventTarget | null): boolean {
   return (
@@ -35,6 +36,7 @@ interface TopBarProps {
   onViewChange: (view: "list" | "gallery") => void;
   /** Company logo/name from the deployment config, shown before the WhatsApp mark. */
   brand: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
+  authEnabled?: boolean;
 }
 
 const segmented = (active: boolean) =>
@@ -55,6 +57,7 @@ export function TopBar({
   view,
   onViewChange,
   brand,
+  authEnabled = false,
 }: TopBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -216,6 +219,7 @@ export function TopBar({
           </svg>
           {syncing ? "Sincronizando…" : coolingDown ? formatCountdown(cooldown) : "Sincronizar"}
         </button>
+        {authEnabled && <UserMenu />}
         <span aria-live="polite" className="sr-only">
           {syncing ? "Sincronizando" : coolingDown ? `Sincronizar disponible en ${formatCountdown(cooldown)}` : ""}
         </span>
