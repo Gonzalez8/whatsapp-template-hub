@@ -51,8 +51,10 @@ export interface Waba {
   error?: string;
 }
 
-export interface TemplatesResponse {
+export interface TemplatesSnapshot {
   wabas: Waba[];
+  /** Epoch ms of when the data was fetched from Meta. */
+  fetchedAt: number;
 }
 
 export interface MetaWaba {
