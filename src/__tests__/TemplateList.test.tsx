@@ -1,61 +1,77 @@
 import { describe, it, expect } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { SearchTermsProvider } from "@/components/Highlight";
 import { TemplateList } from "@/components/TemplateList";
-import { parseQuery } from "@/lib/search";
-import type { Waba } from "@/types/template";
+import type { Template, Waba } from "@/types/template";
 
-const waba = (id: string, templateName: string): Waba => ({
+const tpl = (id: string, name: string, language = "es"): Template => ({
+  id,
+  name,
+  language,
+  status: "APPROVED",
+  category: "UTILITY",
+});
+
+const waba = (id: string, templates: Template[]): Waba => ({
   waba_id: id,
   waba_name: `WABA ${id}`,
   phone_numbers: [],
-  templates: [{ id: `t-${id}`, name: templateName, status: "APPROVED", category: "UTILITY", language: "es" }],
+  templates,
 });
 
-const wabas = [waba("a", "plantilla_a"), waba("b", "plantilla_b")];
+const wabas = [
+  waba("a", [tpl("a1", "plantilla_a"), tpl("a2", "plantilla_a", "pt_PT")]),
+  waba("b", [tpl("b1", "plantilla_b")]),
+];
 
-const renderList = (query: string) => (
-  <SearchTermsProvider value={parseQuery(query)}>
-    <TemplateList wabas={wabas} selectedId={null} onSelect={() => {}} />
-  </SearchTermsProvider>
+const renderList = (openAllKey = "") => (
+  <TemplateList
+    wabas={wabas}
+    selectedId={null}
+    onSelect={() => {}}
+    compareIds={new Set()}
+    compareFull={false}
+    onToggleCompare={() => {}}
+    openAllKey={openAllKey}
+  />
 );
 
-describe("TemplateList", () => {
-  it("opens only the first group without a search", () => {
-    render(renderList(""));
+const rows = () => screen.queryAllByRole("button", { name: /^plantilla_/ });
 
-    expect(screen.getByText("plantilla_a")).toBeInTheDocument();
-    expect(screen.queryByText("plantilla_b")).toBeNull();
+describe("TemplateList", () => {
+  it("opens only the first group, with one row per name and a tag per language", () => {
+    render(renderList());
+
+    expect(rows().map((r) => r.textContent)).toEqual([expect.stringContaining("plantilla_a")]);
+    expect(screen.getByRole("button", { name: "es" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "pt_PT" })).toBeInTheDocument();
   });
 
-  it("opens every group when a search starts, but lets the user collapse them", () => {
-    const { rerender } = render(renderList(""));
+  it("opens every group when a search or WABA selection starts, but lets the user collapse them", () => {
+    const { rerender } = render(renderList());
     rerender(renderList("plantilla"));
-
-    expect(screen.getAllByRole("button", { name: /plantilla/ })).toHaveLength(2);
+    expect(rows()).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: /WABA b/ }));
-    expect(screen.getAllByRole("button", { name: /plantilla/ })).toHaveLength(1);
+    expect(rows()).toHaveLength(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Expandir todos" }));
-    expect(screen.getAllByRole("button", { name: /plantilla/ })).toHaveLength(2);
+    expect(rows()).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "Contraer todos" }));
-    expect(screen.queryAllByRole("button", { name: /plantilla/ })).toHaveLength(0);
+    expect(rows()).toHaveLength(0);
   });
 
-  it("opens every group when mounted with an active search", () => {
+  it("opens every group when mounted with an active filter", () => {
     render(renderList("plantilla"));
-
-    expect(screen.getAllByRole("button", { name: /plantilla/ })).toHaveLength(2);
+    expect(rows()).toHaveLength(2);
   });
 
-  it("re-opens every group when the search changes", () => {
+  it("re-opens every group when the filter changes", () => {
     const { rerender } = render(renderList("plantilla"));
     fireEvent.click(screen.getByRole("button", { name: "Contraer todos" }));
 
-    rerender(renderList("plantilla b"));
+    rerender(renderList("plantilla|a,b"));
 
-    expect(screen.getAllByRole("button", { name: /plantilla/ })).toHaveLength(2);
+    expect(rows()).toHaveLength(2);
   });
 });

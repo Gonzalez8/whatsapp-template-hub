@@ -36,12 +36,12 @@ export function CopyButton({ value, label, className = "" }: CopyButtonProps) {
     <button
       type="button"
       onClick={copy}
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors duration-150 ${
+      className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors duration-150 ${
         state === "copied"
-          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
           : state === "error"
-            ? "border-red-200 bg-red-50 text-red-600"
-            : "border-gray-200/80 bg-white text-gray-600 hover:border-teal-500 hover:text-teal-700"
+            ? "border-red-200 bg-red-50 text-red-700"
+            : "border-line-strong bg-surface text-ink hover:border-accent hover:text-accent-ink"
       } ${className}`}
     >
       <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

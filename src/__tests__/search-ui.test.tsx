@@ -33,21 +33,58 @@ const template: Template = {
   components,
 };
 
+const row = (overrides: Partial<Parameters<typeof TemplateListItem>[0]> = {}) => (
+  <TemplateListItem
+    family={{ name: template.name, variants: [template] }}
+    selectedId={null}
+    onSelect={() => {}}
+    compared={false}
+    compareDisabled={false}
+    onToggleCompare={() => {}}
+    {...overrides}
+  />
+);
+
 describe("TemplateListItem", () => {
   it("highlights the name and shows where the content matched", () => {
-    const { container } = withSearch(
-      "matricula",
-      <TemplateListItem template={template} selected={false} onSelect={() => {}} />,
-    );
+    const { container } = withSearch("matricula", row());
 
     expect(marks(container)).toEqual(["matricula", "matrícula"]);
   });
 
-  it("shows no snippet without a search", () => {
-    const { container } = withSearch("", <TemplateListItem template={template} selected={false} onSelect={() => {}} />);
+  it("shows the category instead of a snippet without a search", () => {
+    const { container } = withSearch("", row());
 
-    expect(container).toHaveTextContent(/^confirmacion_matricula/);
+    expect(container).toHaveTextContent("Utilidad");
     expect(container.querySelector("mark")).toBeNull();
+  });
+
+  it("shows one tag per language and opens the clicked variant", () => {
+    const pt = { ...template, id: "2", language: "pt_PT" };
+    let opened = "";
+    withSearch(
+      "",
+      row({ family: { name: template.name, variants: [template, pt] }, onSelect: (t) => (opened = t.id) }),
+    );
+
+    screen.getByRole("button", { name: "pt_PT" }).click();
+    expect(opened).toBe("2");
+  });
+
+  it("opens the variant in the language being browsed", () => {
+    const pt = { ...template, id: "2", language: "pt_PT" };
+    let opened = "";
+    withSearch(
+      "",
+      row({
+        family: { name: template.name, variants: [template, pt] },
+        preferredLanguage: "pt_PT",
+        onSelect: (t) => (opened = t.id),
+      }),
+    );
+
+    screen.getByRole("button", { name: /confirmacion_matricula/ }).click();
+    expect(opened).toBe("2");
   });
 });
 

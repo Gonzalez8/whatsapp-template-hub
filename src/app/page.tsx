@@ -1,6 +1,5 @@
 import { getTemplatesSnapshot } from "@/lib/templates";
 import { MetaConfigError } from "@/lib/meta-api";
-import { Header } from "@/components/Header";
 import { TemplatesDashboard } from "@/components/TemplatesDashboard";
 import { SkeletonLoader } from "@/components/SkeletonLoader";
 import { Suspense } from "react";
@@ -17,7 +16,11 @@ async function TemplatesContent() {
     // Any other error is rethrown so ISR keeps serving the last good page instead of
     // caching an error page, and the request falls back to error.tsx.
     if (e instanceof MetaConfigError) {
-      return <div className="py-10 text-center text-red-500">Configuración incompleta: {e.message}</div>;
+      return (
+        <div className="flex min-h-dvh items-center justify-center p-6 text-center text-sm text-red-600">
+          Configuración incompleta: {e.message}
+        </div>
+      );
     }
     throw e;
   }
@@ -25,11 +28,8 @@ async function TemplatesContent() {
 
 export default function Home() {
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
-      <Header />
-      <Suspense fallback={<SkeletonLoader />}>
-        <TemplatesContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<SkeletonLoader />}>
+      <TemplatesContent />
+    </Suspense>
   );
 }

@@ -105,30 +105,38 @@ export function useTemplateFilters(wabas: Waba[]) {
     });
   }, []);
 
-  const filtered = useMemo(() => {
-    return wabas
-      .filter((w) => selectedWabas.size === 0 || selectedWabas.has(w.waba_id))
-      .map((w) => {
-        const templates = w.templates.filter((t) => {
+  const clearWabas = useCallback(() => setSelectedWabas(new Set()), []);
+  const selectOnlyWaba = useCallback((id: string) => setSelectedWabas(new Set([id])), []);
+
+  const allStatuses = useMemo(() => {
+    const statuses = new Set<TemplateStatus>();
+    for (const w of wabas) for (const t of w.templates) statuses.add(t.status);
+    return Array.from(statuses).sort();
+  }, [wabas]);
+
+  // Every filter except the WABA one: the sidebar shows these counts for all WABAs,
+  // so you can see where the matches are before selecting them.
+  const matching = useMemo(
+    () =>
+      wabas.map((w) => ({
+        ...w,
+        templates: w.templates.filter((t) => {
           if (hideSamples && t.name.startsWith("sample_")) return false;
           if (selectedStatuses.size > 0 && !selectedStatuses.has(t.status)) return false;
           if (selectedLanguages.size > 0 && !selectedLanguages.has(t.language)) return false;
           if (selectedCategories.size > 0 && !selectedCategories.has(t.category)) return false;
           return matchesTerms(searchIndex.get(t.id) ?? "", searchTerms);
-        });
-        return { ...w, templates };
-      })
-      .filter((w) => w.templates.length > 0);
-  }, [
-    wabas,
-    searchIndex,
-    searchTerms,
-    selectedWabas,
-    selectedStatuses,
-    selectedLanguages,
-    selectedCategories,
-    hideSamples,
-  ]);
+        }),
+      })),
+    [wabas, searchIndex, searchTerms, selectedStatuses, selectedLanguages, selectedCategories, hideSamples],
+  );
+
+  const countsByWaba = useMemo(() => new Map(matching.map((w) => [w.waba_id, w.templates.length])), [matching]);
+
+  const filtered = useMemo(
+    () => matching.filter((w) => w.templates.length > 0 && (selectedWabas.size === 0 || selectedWabas.has(w.waba_id))),
+    [matching, selectedWabas],
+  );
 
   const totalTemplates = useMemo(() => filtered.reduce((sum, w) => sum + w.templates.length, 0), [filtered]);
 
@@ -140,6 +148,10 @@ export function useTemplateFilters(wabas: Waba[]) {
     replaceFilters,
     selectedWabas,
     toggleWaba,
+    clearWabas,
+    selectOnlyWaba,
+    countsByWaba,
+    allStatuses,
     selectedStatuses,
     toggleStatus,
     allLanguages,

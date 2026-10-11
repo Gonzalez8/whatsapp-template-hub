@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: var(--font-display);
-  --font-body: var(--font-body);
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Neutral surfaces with WhatsApp green kept as the only accent. */
+  --color-canvas: #f4f5f4;
+  --color-surface: #ffffff;
+  --color-subtle: #f8f9f8;
+  --color-line: #e3e6e4;
+  --color-line-strong: #d5dad7;
+  --color-ink: #17201d;
+  --color-muted: #5c6762;
+  --color-faint: #6b7671;
+  --color-accent: #0b8a74;
+  --color-accent-soft: #e8f4f1;
+  --color-accent-ink: #0b4f44;
+  --color-chat: #efeae2;
 }
 
 /* Shimmer animation for skeleton loading */
@@ -21,22 +35,6 @@
   animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* Staggered card entrance */
-@keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.card-enter {
-  animation: cardIn 0.35s ease-out both;
-}
-
 /* Dropdown entrance */
 @keyframes dropIn {
   from {
@@ -53,23 +51,20 @@
   animation: dropIn 0.15s ease-out both;
 }
 
-/* Mobile detail panel slide-up */
+/* Mobile sheets slide up */
 @keyframes slideUp {
   from {
-    opacity: 0;
     transform: translateY(100%);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
 
 .slide-up-enter {
-  animation: slideUp 0.3s ease-out both;
+  animation: slideUp 0.25s ease-out both;
 }
 
-/* Mobile backdrop fade-in */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -83,19 +78,18 @@
   animation: fadeIn 0.2s ease-out both;
 }
 
-/* Subtle noise overlay for page background */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  opacity: 0.3;
-  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='20' cy='20' r='0.6' fill='%23c0c4cc' fill-opacity='0.4'/%3E%3C/svg%3E");
-  pointer-events: none;
+@media (prefers-reduced-motion: reduce) {
+  .shimmer,
+  .dropdown-enter,
+  .slide-up-enter,
+  .fade-in-enter {
+    animation: none;
+  }
 }
 
-/* Scrollbar styling for list panels */
-.overflow-y-auto {
+/* Scrollbars for the independent panes */
+.overflow-y-auto,
+.overflow-auto {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.14) transparent;
 }
