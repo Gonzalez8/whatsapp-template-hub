@@ -1,6 +1,7 @@
 import { getTemplatesSnapshot } from "@/lib/templates";
 import { getBrand } from "@/lib/brand";
 import { getAuthConfig } from "@/lib/auth-config";
+import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { MetaConfigError } from "@/lib/meta-api";
 import { TemplatesDashboard } from "@/components/TemplatesDashboard";
 import { SkeletonLoader } from "@/components/SkeletonLoader";
@@ -20,6 +21,7 @@ async function TemplatesContent() {
         fetchedAt={fetchedAt}
         brand={{ name, logoUrl, logoOnWhite }}
         authEnabled={authEnabled}
+        analyticsEnabled={getAnalyticsConfig().status === "enabled"}
       />
     );
   } catch (e) {

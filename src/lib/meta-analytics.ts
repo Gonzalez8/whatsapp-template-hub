@@ -1,0 +1,54 @@
+import { settleWithConcurrency } from "./concurrency";
+import type { MetaVolume } from "./analytics/types";
+
+const META_API = "https://graph.facebook.com/v23.0";
+const FETCH_TIMEOUT_MS = 15_000;
+const WABA_CONCURRENCY = 16;
+const DAY = 86_400;
+
+interface PricingPoint {
+  volume?: number;
+  pricing_category?: string;
+  pricing_type?: string;
+}
+
+async function wabaPricing(wabaId: string, start: number, end: number, token: string): Promise<PricingPoint[]> {
+  const fields = `pricing_analytics.start(${start}).end(${end}).granularity(DAILY).dimensions(["PRICING_CATEGORY","PRICING_TYPE"])`;
+  const res = await fetch(`${META_API}/${wabaId}?fields=${encodeURIComponent(fields)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`pricing_analytics HTTP ${res.status}`);
+  const body = await res.json();
+  return body.pricing_analytics?.data?.[0]?.data_points ?? [];
+}
+
+/**
+ * Messages Meta counted for the given WABAs over the last `days` days, by pricing
+ * category and paid/free. Counts every source, not only Salesforce. Returns null if
+ * Meta can't be reached; WABAs that fail individually are left out.
+ */
+export async function fetchMetaVolume(wabaIds: string[], days: number): Promise<MetaVolume | null> {
+  const token = process.env.META_ACCESS_TOKEN;
+  if (!token || wabaIds.length === 0) return null;
+
+  const end = Math.floor(Date.now() / 1000 / DAY) * DAY;
+  const start = end - days * DAY;
+  const settled = await settleWithConcurrency(wabaIds, WABA_CONCURRENCY, (id) => wabaPricing(id, start, end, token));
+  if (settled.every((r) => r.status === "rejected")) return null;
+
+  const volume: MetaVolume = { total: 0, paid: 0, free: 0, byCategory: {} };
+  for (const result of settled) {
+    if (result.status !== "fulfilled") continue;
+    for (const point of result.value) {
+      const n = point.volume ?? 0;
+      volume.total += n;
+      if (point.pricing_type?.startsWith("FREE")) volume.free += n;
+      else volume.paid += n;
+      const category = point.pricing_category ?? "OTHER";
+      volume.byCategory[category] = (volume.byCategory[category] ?? 0) + n;
+    }
+  }
+  return volume;
+}

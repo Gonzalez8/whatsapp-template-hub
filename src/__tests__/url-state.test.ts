@@ -15,9 +15,11 @@ describe("url state", () => {
       languages: ["es", "pt_PT"],
       categories: ["MARKETING"],
       hideSamples: false,
-      view: "compare" as const,
+      view: "analytics" as const,
       template: "999",
       compare: ["999", "1000"],
+      range: "90d" as const,
+      tab: "analytics" as const,
     };
 
     expect(parseUrlState(serializeUrlState(state))).toEqual(state);

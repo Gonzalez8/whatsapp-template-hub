@@ -15,6 +15,9 @@ import { TemplateList } from "./TemplateList";
 import { DetailPanel } from "./DetailPanel";
 import { CompareView } from "./CompareView";
 import { GalleryView } from "./GalleryView";
+import { AnalyticsView } from "./analytics/AnalyticsView";
+import type { DetailTab } from "./DetailPanel";
+import type { AnalyticsRange } from "@/lib/analytics/types";
 import { EmptyState } from "./EmptyState";
 
 interface TemplatesDashboardProps {
@@ -23,6 +26,8 @@ interface TemplatesDashboardProps {
   brand?: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
   /** Login is on for this deployment: show the signed-in user. */
   authEnabled?: boolean;
+  /** Data Cloud analytics is configured and allowed for this deployment. */
+  analyticsEnabled?: boolean;
 }
 
 /** A mobile overlay sliding up from the bottom; on desktop the same content lives inline. */
@@ -53,7 +58,13 @@ function MobileSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
-export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled = false }: TemplatesDashboardProps) {
+export function TemplatesDashboard({
+  wabas,
+  fetchedAt,
+  brand = {},
+  authEnabled = false,
+  analyticsEnabled = false,
+}: TemplatesDashboardProps) {
   const filters = useTemplateFilters(wabas);
   const { filtered, searchTerms, debouncedSearch, selectedWabas, replaceFilters } = filters;
   const sync = useTemplatesSync(fetchedAt);
@@ -66,6 +77,8 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
   // Language of the last template opened: moving to another template keeps it when possible.
   const [language, setLanguage] = useState<string | undefined>(undefined);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [detailTab, setDetailTab] = useState<DetailTab>("preview");
+  const [range, setRange] = useState<AnalyticsRange>("30d");
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [wabaSheetOpen, setWabaSheetOpen] = useState(false);
 
@@ -91,7 +104,10 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
       categories: url.categories,
       hideSamples: url.hideSamples,
     });
-    setView(url.view);
+    // A shared analytics link opened where analytics is off falls back to the list.
+    setView(url.view === "analytics" && !analyticsEnabled ? "list" : url.view);
+    setRange(url.range);
+    setDetailTab(url.tab);
     const selected = url.template ? index.get(url.template) : undefined;
     if (selected) {
       setSelectedId(selected.template.id);
@@ -99,7 +115,7 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
     }
     setCompareIds(url.compare.filter((id) => index.has(id)));
     setUrlReady(true);
-  }, [replaceFilters, index, filters.allStatuses]);
+  }, [replaceFilters, index, filters.allStatuses, analyticsEnabled]);
 
   useEffect(() => {
     if (!urlReady) return;
@@ -113,6 +129,8 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
       view,
       template: selectedId,
       compare: compareIds,
+      range,
+      tab: detailTab,
     });
     const next = query ? `${window.location.pathname}?${query}` : window.location.pathname;
     if (next !== window.location.pathname + window.location.search) {
@@ -129,6 +147,8 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
     view,
     selectedId,
     compareIds,
+    range,
+    detailTab,
   ]);
 
   // ── Selection
@@ -243,6 +263,9 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
       compared={!!selectedId && compareSet.has(selectedId)}
       compareDisabled={compareFull && !(selectedId && compareSet.has(selectedId))}
       onToggleCompare={() => selectedId && toggleCompareTemplate(selectedId)}
+      tab={detailTab}
+      onTabChange={setDetailTab}
+      analyticsEnabled={analyticsEnabled}
       onCompareLanguages={() => {
         setCompareIds(variants.slice(0, MAX_COMPARE).map((v) => v.id));
         openCompare();
@@ -275,6 +298,7 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
           view={view === "compare" ? null : view}
           brand={brand}
           authEnabled={authEnabled}
+          analyticsEnabled={analyticsEnabled}
           onViewChange={setView}
         />
 
@@ -285,7 +309,21 @@ export function TemplatesDashboard({ wabas, fetchedAt, brand = {}, authEnabled =
             </aside>
           )}
 
-          {view === "compare" ? (
+          {view === "analytics" ? (
+            <main className="min-w-0 flex-1">
+              <AnalyticsView
+                wabas={wabas}
+                selectedWabas={selectedWabas}
+                range={range}
+                onRangeChange={setRange}
+                onOpenTemplate={(t) => {
+                  setDetailTab("analytics");
+                  setView("list");
+                  select(t);
+                }}
+              />
+            </main>
+          ) : view === "compare" ? (
             <main className="min-w-0 flex-1">
               <CompareView
                 items={compareItems}
