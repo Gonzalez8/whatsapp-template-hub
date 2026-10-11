@@ -6,13 +6,15 @@ Thanks for your interest in contributing to WhatsApp Template Hub!
 
 1. Fork this repository
 2. Clone your fork: `git clone https://github.com/<your-user>/whatsapp-template-hub.git`
-3. Create a branch: `git checkout -b my-feature`
-4. Install dependencies: `npm install`
-5. Copy env file: `cp .env.example .env.local` and fill in your Meta credentials
-6. Start dev server: `npm run dev`
+3. Use the Node version in `.nvmrc` (`nvm use`)
+4. Create a branch: `git checkout -b my-feature`
+5. Install dependencies: `npm install`
+6. Copy env file: `cp .env.example .env.local` and fill in your Meta credentials
+7. Start dev server: `npm run dev`
 
 ## Before submitting a PR
 
+- Run `npm test` and make sure all tests pass
 - Run `npm run lint` and fix any warnings
 - Run `npm run build` to ensure the production build succeeds
 - Write a clear PR description explaining what changed and why
