@@ -10,16 +10,23 @@ import { WabaSection } from "./WabaSection";
 import { TemplateList } from "./TemplateList";
 import { DetailPanel } from "./DetailPanel";
 import { EmptyState } from "./EmptyState";
+import { LastUpdated } from "./LastUpdated";
+import { SYNC_COOLDOWN_MS, getRetryAfterSeconds } from "@/lib/sync-config";
 
-const SYNC_COOLDOWN_S = 120;
+const SYNC_COOLDOWN_S = SYNC_COOLDOWN_MS / 1000;
+
+function formatCountdown(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 
 type ViewMode = "list" | "all";
 
 interface TemplatesDashboardProps {
   wabas: Waba[];
+  fetchedAt: number;
 }
 
-export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
+export function TemplatesDashboard({ wabas, fetchedAt }: TemplatesDashboardProps) {
   const {
     search,
     setSearch,
@@ -49,6 +56,12 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
 
   const isCoolingDown = cooldown > 0;
 
+  // The server rejects syncs while the snapshot is fresh; mirror that on load so
+  // the button is already disabled right after anyone synced.
+  useEffect(() => {
+    setCooldown(getRetryAfterSeconds(fetchedAt, Date.now()));
+  }, [fetchedAt]);
+
   useEffect(() => {
     if (!isCoolingDown) return;
     const id = setInterval(() => {
@@ -62,7 +75,7 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
     try {
       const result = await syncTemplates();
       if (!result.success) {
-        setCooldown(result.retryAfterSeconds ?? SYNC_COOLDOWN_S);
+        setCooldown(result.retryAfterSeconds);
       } else {
         setCooldown(SYNC_COOLDOWN_S);
         router.refresh();
@@ -145,7 +158,8 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
       <div className="mt-6 mb-6 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <p className="text-xs font-medium text-gray-500 sm:text-[13px]">
           Mostrando <strong className="font-display font-bold text-gray-900">{totalTemplates}</strong> templates en{" "}
-          <strong className="font-display font-bold text-gray-900">{filtered.length}</strong> WABAs
+          <strong className="font-display font-bold text-gray-900">{filtered.length}</strong> WABAs{" "}
+          <LastUpdated fetchedAt={fetchedAt} />
         </p>
         <div className="flex items-center gap-2.5">
           {/* View mode toggle */}
@@ -194,7 +208,7 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
           {/* Sync button */}
           <button
             onClick={handleSync}
-            disabled={syncing || cooldown > 0}
+            disabled={syncing || isCoolingDown}
             className="flex min-h-[44px] items-center gap-2 rounded-xl border border-gray-200/80 bg-white px-3 py-2 text-[12px] font-semibold text-gray-600 shadow-sm ring-1 ring-gray-900/[0.03] transition-all duration-200 hover:border-teal-500 hover:bg-teal-50 hover:text-teal-700 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-gray-200/80 disabled:hover:bg-white disabled:hover:text-gray-600 disabled:hover:shadow-sm sm:min-h-0 sm:px-4"
           >
             <svg
@@ -215,23 +229,13 @@ export function TemplatesDashboard({ wabas }: TemplatesDashboardProps) {
               {syncing
                 ? "Sincronizando..."
                 : cooldown > 0
-                  ? `Espera ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
+                  ? `Espera ${formatCountdown(cooldown)}`
                   : "Sincronizar con Meta"}
             </span>
-            <span className="sm:hidden">
-              {syncing
-                ? "Sync..."
-                : cooldown > 0
-                  ? `${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
-                  : "Sync"}
-            </span>
+            <span className="sm:hidden">{syncing ? "Sync..." : cooldown > 0 ? formatCountdown(cooldown) : "Sync"}</span>
           </button>
           <span aria-live="polite" aria-atomic="true" className="sr-only">
-            {syncing
-              ? "Sincronizando"
-              : cooldown > 0
-                ? `Sincronizar disponible en ${Math.floor(cooldown / 60)}:${String(cooldown % 60).padStart(2, "0")}`
-                : ""}
+            {syncing ? "Sincronizando" : cooldown > 0 ? `Sincronizar disponible en ${formatCountdown(cooldown)}` : ""}
           </span>
         </div>
       </div>

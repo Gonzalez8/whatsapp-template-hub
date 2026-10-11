@@ -1,79 +1,144 @@
 import type { MetaWaba, MetaPaginatedResponse, Template, Waba, WabaPhoneNumber } from "@/types/template";
+import { settleWithConcurrency } from "./concurrency";
 
 const META_API = "https://graph.facebook.com/v23.0";
 const FETCH_TIMEOUT_MS = 15_000;
+/**
+ * WABAs fetched in parallel. Each one issues 2+ requests, so this caps concurrent
+ * calls to Meta. Measured with 73 WABAs: unlimited ~5s, 16 ~5s, 4 ~14s.
+ */
+const WABA_CONCURRENCY = 16;
 
-function metaFetch(url: string, token: string): Promise<Response> {
-  return fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    next: { revalidate: 300 },
-  });
+export class MetaConfigError extends Error {
+  name = "MetaConfigError";
 }
 
-async function fetchAllTemplates(wabaId: string, token: string): Promise<Template[]> {
-  const templates: Template[] = [];
-  let url: string | null =
-    `${META_API}/${wabaId}/message_templates?fields=id,name,status,category,language,components,quality_score&limit=500`;
+export class MetaApiError extends Error {
+  name = "MetaApiError";
 
-  while (url) {
-    const res = await metaFetch(url, token);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(`Failed to fetch templates for WABA ${wabaId}: ${JSON.stringify(err)}`);
-    }
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: number,
+  ) {
+    super(message);
+  }
+}
 
-    const data: MetaPaginatedResponse<Template> = await res.json();
-    templates.push(...(data.data ?? []));
-    url = data.paging?.next ?? null;
+interface MetaErrorBody {
+  error?: { message?: string; code?: number; fbtrace_id?: string };
+}
+
+async function metaGet<T>(url: string, token: string, context: string): Promise<T> {
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    // Caching happens once for the whole snapshot (see templates.ts), not per request.
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body: MetaErrorBody = await res.json().catch(() => ({}));
+    // Full details stay in the server logs; only a short message reaches the UI.
+    console.error(
+      JSON.stringify({
+        event: "meta_api_error",
+        context,
+        status: res.status,
+        code: body.error?.code,
+        message: body.error?.message,
+        fbtrace_id: body.error?.fbtrace_id,
+      }),
+    );
+    throw new MetaApiError(
+      `${context}: ${body.error?.message ?? res.statusText ?? "error"} (HTTP ${res.status})`,
+      res.status,
+      body.error?.code,
+    );
   }
 
-  return templates;
+  return res.json();
+}
+
+async function fetchAllPages<T>(firstUrl: string, token: string, context: string): Promise<T[]> {
+  const items: T[] = [];
+  let url: string | null = firstUrl;
+
+  while (url) {
+    const page: MetaPaginatedResponse<T> = await metaGet(url, token, context);
+    items.push(...(page.data ?? []));
+    url = page.paging?.next ?? null;
+  }
+
+  return items;
+}
+
+function fetchTemplates(wabaId: string, token: string): Promise<Template[]> {
+  return fetchAllPages(
+    `${META_API}/${wabaId}/message_templates?fields=id,name,status,category,language,components,quality_score&limit=500`,
+    token,
+    `Templates de la WABA ${wabaId}`,
+  );
 }
 
 async function fetchPhoneNumbers(wabaId: string, token: string): Promise<WabaPhoneNumber[]> {
-  const url = `${META_API}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,status`;
-  const res = await metaFetch(url, token);
-  if (!res.ok) return [];
-  const data: MetaPaginatedResponse<WabaPhoneNumber> = await res.json();
-  return data.data ?? [];
+  try {
+    return await fetchAllPages(
+      `${META_API}/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating,status`,
+      token,
+      `Teléfonos de la WABA ${wabaId}`,
+    );
+  } catch {
+    // Phone numbers are secondary info: a failure here must not hide the templates.
+    return [];
+  }
 }
 
+/**
+ * Fetches every WABA owned by the business with its templates and phone numbers.
+ *
+ * A failing WABA is returned with `error` set so the rest can still be shown,
+ * but if the WABA list or every single WABA fails, this throws: callers rely on
+ * that to keep serving the last good cached snapshot instead of an error.
+ */
 export async function fetchWabasWithTemplates(): Promise<Waba[]> {
   const token = process.env.META_ACCESS_TOKEN;
   const businessId = process.env.META_BUSINESS_ID;
 
   if (!token || !businessId) {
-    throw new Error("Missing META_ACCESS_TOKEN or META_BUSINESS_ID");
+    throw new MetaConfigError("Faltan las variables META_ACCESS_TOKEN o META_BUSINESS_ID");
   }
 
-  const wabasRes = await metaFetch(
+  const startedAt = Date.now();
+  const wabas = await fetchAllPages<MetaWaba>(
     `${META_API}/${businessId}/owned_whatsapp_business_accounts?fields=id,name&limit=100`,
     token,
+    "Listado de WABAs",
   );
 
-  if (!wabasRes.ok) {
-    const err = await wabasRes.json();
-    throw new Error(`Failed to fetch WABAs: ${JSON.stringify(err)}`);
-  }
+  const settled = await settleWithConcurrency(wabas, WABA_CONCURRENCY, async (waba): Promise<Waba> => {
+    const [templates, phone_numbers] = await Promise.all([
+      fetchTemplates(waba.id, token),
+      fetchPhoneNumbers(waba.id, token),
+    ]);
+    return { waba_id: waba.id, waba_name: waba.name, phone_numbers, templates };
+  });
 
-  const wabasData: MetaPaginatedResponse<MetaWaba> = await wabasRes.json();
-  const wabas = wabasData.data ?? [];
+  const failed = settled.filter((r) => r.status === "rejected").length;
 
-  const settled = await Promise.allSettled(
-    wabas.map(async (waba): Promise<Waba> => {
-      const [templates, phone_numbers] = await Promise.all([
-        fetchAllTemplates(waba.id, token),
-        fetchPhoneNumbers(waba.id, token),
-      ]);
-      return {
-        waba_id: waba.id,
-        waba_name: waba.name,
-        phone_numbers,
-        templates,
-      };
+  console.info(
+    JSON.stringify({
+      event: "meta_templates_fetched",
+      wabas: wabas.length,
+      failed,
+      durationMs: Date.now() - startedAt,
     }),
   );
+
+  if (wabas.length > 0 && failed === wabas.length) {
+    const firstError = (settled[0] as PromiseRejectedResult).reason;
+    throw firstError instanceof Error ? firstError : new Error("No se pudo cargar ninguna WABA");
+  }
 
   return settled.map((r, i) =>
     r.status === "fulfilled"
@@ -83,7 +148,7 @@ export async function fetchWabasWithTemplates(): Promise<Waba[]> {
           waba_name: wabas[i].name,
           phone_numbers: [],
           templates: [],
-          error: r.reason?.message ?? "Error desconocido",
+          error: r.reason instanceof Error ? r.reason.message : "Error desconocido",
         },
   );
 }
