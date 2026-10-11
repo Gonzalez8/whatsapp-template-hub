@@ -1,195 +1,393 @@
-# WhatsApp Template Hub
+# Plantillas de WhatsApp
 
-Dashboard para ver y buscar las plantillas de mensajes de WhatsApp Business de todas las WABAs (WhatsApp Business Accounts) de una cuenta de Meta Business.
+Aplicación web interna para consultar las plantillas de mensajes de WhatsApp Business de todas las WABAs (WhatsApp Business Accounts) de una cuenta de Meta Business. Permite buscarlas, filtrarlas por cuenta, ver cómo se muestran en WhatsApp, revisar sus variables y botones y compararlas entre sí. Es de solo lectura: la edición se hace en el WhatsApp Manager de Meta, al que la app enlaza desde cada plantilla.
+
+## Índice
+
+- [Funcionalidades](#funcionalidades)
+- [Arquitectura](#arquitectura)
+  - [Visión general](#visión-general)
+  - [Renderizado y caché](#renderizado-y-caché)
+  - [Obtención de datos de Meta](#obtención-de-datos-de-meta)
+  - [Sincronización manual](#sincronización-manual)
+  - [Cliente: componentes y estado](#cliente-componentes-y-estado)
+  - [Decisiones de diseño](#decisiones-de-diseño)
+  - [Seguridad](#seguridad)
+  - [Observabilidad](#observabilidad)
+- [Puesta en marcha](#puesta-en-marcha)
+- [Variables de entorno](#variables-de-entorno)
+- [Personalización de marca](#personalización-de-marca)
+- [Despliegue en Vercel](#despliegue-en-vercel)
+- [API](#api)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Scripts, tests y CI](#scripts-tests-y-ci)
+- [Límites conocidos](#límites-conocidos)
 
 ## Funcionalidades
 
-- **Multi-WABA**: carga las plantillas y los números de teléfono de todas las WABAs del negocio.
-- **Filtro por WABA**: barra lateral con casillas para ver varias a la vez (por ejemplo, Campus, Flou y humains), botón "Solo" para quedarse con una, buscador de WABAs y número de plantillas que coinciden en cada una. El teléfono distingue las WABAs con el mismo nombre.
-- **Búsqueda en todo el contenido**: nombre, cabecera, cuerpo, pie, texto, URL y teléfono de los botones, WABA e ID. Sin distinguir acentos ni mayúsculas y con varias palabras en cualquier orden. Las coincidencias se resaltan y, en la lista, se muestra el fragmento donde aparecen.
-- **Lista agrupada por WABA**, con grupos que se expanden y contraen. Cada fila es un nombre de plantilla con una etiqueta por idioma (`es`, `pt_PT`…), en lugar de una fila repetida por idioma.
-- **Más filtros**: estado (solo si hay más de uno), categoría, idioma e incluir las plantillas de ejemplo de Meta.
-- **Detalle con pestañas**: vista previa tipo burbuja de WhatsApp (formato, cabecera de texto, imagen, vídeo, documento o ubicación, pie y botones; modo "Con ejemplo" con los valores de las variables, numeradas o con nombre), variables, botones con su destino (URL, teléfono o Flow) e información. Selector de idioma, aviso si Meta cambió la categoría y botones para copiar.
-- **Galería**: todas las plantillas filtradas como burbujas de WhatsApp, agrupadas por WABA, para recorrerlas haciendo scroll (por ejemplo, todas las de una WABA). Desde cada tarjeta se abre el detalle o se marca para comparar. Solo se pinta al elegirla, y las tarjetas fuera de pantalla no se dibujan.
-- **Comparar**: marca de 2 a 4 plantillas y míralas en columnas. "Resaltar diferencias" (desmarcado al empezar) marca las palabras del cuerpo que cambian y los datos (idioma, categoría, cabecera, pie, botones) que no coinciden. "Comparar idiomas" abre todas las variantes de idioma de una plantilla.
-- **Enlaces compartibles**: búsqueda, filtros, vista, plantilla abierta y comparación se guardan en la URL.
-- **Atajos de teclado**: `/` o `Cmd+K` para buscar, `Esc` para limpiar y `↑`/`↓` para recorrer la lista.
-- **Solo lectura**: para editar una plantilla, "Abrir en Meta" abre el Business Manager.
-- **Sincronización manual** con Meta, limitada a una cada 2 minutos.
-- **Degradación parcial**: si falla una WABA, el resto se sigue mostrando y la WABA fallida se marca en la barra lateral.
-- **Responsive**: en móvil, el filtro de WABAs y el detalle se abren como paneles desde abajo.
-
-## Stack
-
-- [Next.js 15](https://nextjs.org/) (App Router, React Server Components, ISR)
-- [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS 4](https://tailwindcss.com/)
-- [Meta Graph API v23.0](https://developers.facebook.com/docs/graph-api)
-- [Vitest](https://vitest.dev/) + Testing Library
+| Área                     | Qué ofrece                                                                                                                                                                                                                                                                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Filtro por WABA**      | Barra lateral con casillas para ver una o varias WABAs, botón "Solo" para quedarse con una, buscador de WABAs y número de plantillas que coinciden en cada una. El teléfono distingue las WABAs con el mismo nombre. Las WABAs que fallan al cargar se marcan en rojo                                                              |
+| **Búsqueda**             | En nombre, cabecera, cuerpo, pie, texto, URL y teléfono de los botones, WABA e ID. Sin distinguir acentos ni mayúsculas, `_` equivale a espacio y varias palabras se buscan en cualquier orden. Las coincidencias se resaltan                                                                                                      |
+| **Lista**                | Agrupada por WABA (grupos plegables), una fila por nombre de plantilla con una etiqueta por idioma (`es`, `pt_PT`…) y el fragmento donde coincide la búsqueda                                                                                                                                                                      |
+| **Detalle**              | Pestañas _Vista previa_ (burbuja de WhatsApp con cabecera de texto, imagen, vídeo, documento o ubicación; modo "Con ejemplo"), _Variables_ (con su valor de ejemplo), _Botones_ (con su destino: URL, teléfono o Flow) e _Información_. Selector de idioma, aviso si Meta cambió la categoría, botones para copiar y enlace a Meta |
+| **Galería**              | Todas las plantillas filtradas como burbujas de WhatsApp, agrupadas por WABA, para recorrerlas haciendo scroll                                                                                                                                                                                                                     |
+| **Comparar**             | De 2 a 4 plantillas en columnas. "Resaltar diferencias" marca las palabras del cuerpo que cambian y los datos que no coinciden. "Comparar idiomas" abre todas las variantes de idioma de una plantilla                                                                                                                             |
+| **Enlaces compartibles** | Búsqueda, filtros, vista, plantilla abierta y comparación se guardan en la URL                                                                                                                                                                                                                                                     |
+| **Teclado**              | `/` o `Cmd+K` para buscar, `Esc` para limpiar, `↑`/`↓` para recorrer la lista                                                                                                                                                                                                                                                      |
+| **Sincronización**       | Botón para traer los últimos cambios de Meta, limitado a una vez cada 2 minutos                                                                                                                                                                                                                                                    |
+| **Marca**                | Logo, nombre y color de la empresa configurables por despliegue                                                                                                                                                                                                                                                                    |
+| **Responsive**           | En móvil, el filtro de WABAs y el detalle se abren como paneles desde abajo                                                                                                                                                                                                                                                        |
 
 ## Arquitectura
 
-No es una SPA: la página se renderiza en el servidor y se sirve como HTML estático regenerado con ISR. El servidor actúa como BFF: es el único que habla con Meta, el token nunca llega al navegador y los datos se entregan ya agregados.
+### Visión general
 
+Aplicación **Next.js 15 (App Router)** desplegada en **Vercel**. El servidor es el único que habla con la Meta Graph API: obtiene las WABAs y sus plantillas, las guarda en la Data Cache de Next.js y genera la página como HTML estático que Vercel sirve desde su CDN. El navegador recibe la página con todos los datos ya incluidos y hace la búsqueda, el filtrado y la navegación entre vistas en el propio cliente.
+
+```mermaid
+flowchart LR
+    U["Navegador"] -->|"GET /"| CDN["CDN de Vercel"]
+    CDN --> P["Página / (ISR, revalidate 5 min)"]
+    U -->|"Sincronizar (Server Action)"| SA["syncTemplates()"]
+    EXT["Webhook / cron"] -->|"POST /api/revalidate"| RH["Route Handler"]
+
+    subgraph Servidor["Servidor Next.js en Vercel"]
+        P --> SNAP["getTemplatesSnapshot()"]
+        SA --> SYNC["requestTemplatesSync()"]
+        RH --> SYNC
+        SYNC --> SNAP
+        SNAP <--> DC[("Data Cache<br/>tag meta-templates<br/>revalidate 5 min")]
+        SNAP --> API["fetchWabasWithTemplates()"]
+        ENV["Variables de entorno<br/>META_* · BRAND_* · REVALIDATE_SECRET"] -.-> API
+        ENV -.-> P
+    end
+
+    API -->|"Bearer token"| META["Meta Graph API v23.0"]
 ```
-Navegador ──► CDN de Vercel ──► Página ISR (/, revalidate 5 min)
-                                   │
-                                   ▼
-                          getTemplatesSnapshot()   ← Data Cache de Next (compartida entre instancias)
-                                   │                  tag "meta-templates", revalidate 5 min
-                                   ▼
-                          fetchWabasWithTemplates() ──► Meta Graph API
-                          (paginación, timeout 15 s,
-                           máx. 16 WABAs en paralelo)
+
+| Capa      | Tecnología                                                              |
+| --------- | ----------------------------------------------------------------------- |
+| Framework | Next.js 15.5 (App Router, React Server Components, ISR, Server Actions) |
+| UI        | React 19, Tailwind CSS 4, fuentes Geist y Geist Mono                    |
+| Lenguaje  | TypeScript                                                              |
+| Datos     | Meta Graph API v23.0 (WhatsApp Business Management)                     |
+| Hosting   | Vercel (Fluid Compute, CDN, Data Cache)                                 |
+| Tests     | Vitest + Testing Library (jsdom y node)                                 |
+| CI        | GitHub Actions (tests, lint y build en cada PR y push a `main`)         |
+
+### Renderizado y caché
+
+La página `/` es un Server Component con `revalidate = 300`. Next.js la genera como HTML estático (ISR) y la regenera en segundo plano como máximo cada 5 minutos. Los datos de Meta viven en un único **snapshot** (`{ wabas, fetchedAt }`) guardado en la Data Cache con `unstable_cache`, con el tag `meta-templates` y la misma revalidación de 5 minutos. En Vercel la Data Cache es compartida por todas las instancias, así que Meta recibe como mucho una regeneración cada 5 minutos, sea cual sea el tráfico.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant N as Navegador
+    participant CDN as CDN de Vercel
+    participant P as Página / (ISR)
+    participant DC as Data Cache
+    participant M as Meta Graph API
+
+    N->>CDN: GET /
+    CDN-->>N: HTML pre-renderizado (con los datos)
+    Note over CDN,P: Si la página tiene más de 5 min, se sirve igualmente<br/>y se regenera en segundo plano (stale-while-revalidate)
+    CDN->>P: Regeneración
+    P->>DC: getTemplatesSnapshot()
+    alt Snapshot vigente
+        DC-->>P: { wabas, fetchedAt }
+    else Snapshot caducado
+        DC->>M: fetchWabasWithTemplates()
+        M-->>DC: WABAs + plantillas + teléfonos
+        DC-->>P: Nuevo snapshot
+    end
+    P-->>CDN: Nuevo HTML
 ```
 
-1. `page.tsx` (Server Component) llama a `getTemplatesSnapshot()` (`src/lib/templates.ts`).
-2. El snapshot (`{ wabas, fetchedAt }`) vive en la **Data Cache** de Next.js mediante `unstable_cache`, con `revalidate` de 5 minutos y el tag `meta-templates`. En Vercel esta caché es compartida por todas las instancias, así que Meta recibe como mucho una regeneración cada 5 minutos, independientemente del tráfico.
-3. Al expirar se sigue sirviendo la versión anterior mientras se regenera en segundo plano (stale-while-revalidate).
-4. El cliente recibe todas las plantillas y filtra en memoria (`useTemplateFilters`), sin más llamadas al servidor.
+**Errores:** los errores nunca se cachean.
 
-### Caché y errores
+- Si falla la lista de WABAs o fallan todas las WABAs, `fetchWabasWithTemplates()` lanza el error y Next.js sigue sirviendo la última versión buena.
+- Si falla solo una parte de las WABAs, el snapshot se guarda con las demás y las fallidas llevan su mensaje de error, que la barra lateral muestra.
+- La falta de configuración (`META_ACCESS_TOKEN` / `META_BUSINESS_ID`) se muestra como aviso en la página, para que un build sin secretos (por ejemplo, en CI) termine bien.
+- Cualquier otro error durante el build hace fallar el despliegue y deja en producción la versión anterior.
 
-- **Los errores no se cachean.** Si falla la lista de WABAs o fallan todas las WABAs, `fetchWabasWithTemplates()` lanza el error y Next sigue sirviendo el último snapshot bueno. Si falla solo una parte de las WABAs, se muestran las demás y las fallidas aparecen con su error.
-- Los mensajes de error que llegan a la UI son cortos (mensaje de Meta y código HTTP). El detalle completo (`code`, `fbtrace_id`…) solo va a los logs del servidor.
-- La única excepción es la falta de configuración (`META_ACCESS_TOKEN` / `META_BUSINESS_ID`): se muestra un aviso para que un build sin secretos (por ejemplo, en CI) no falle.
-- **Si Meta falla durante un deploy, el build falla.** Es intencionado: es preferible no desplegar a publicar una página de error cacheada. La versión anterior sigue en producción.
-- **Antigüedad máxima de los datos.** La página (ISR) y el snapshot (Data Cache) se regeneran cada 5 minutos de forma independiente, así que en el peor caso los datos tienen unos 10 minutos. El `revalidate` de `page.tsx` tiene que ser un literal (lo exige Next), por eso está duplicado respecto a `TEMPLATES_REVALIDATE_SECONDS`.
+**Antigüedad máxima de los datos:** la página y el snapshot se regeneran cada 5 minutos de forma independiente, así que en el peor caso los datos tienen unos 10 minutos. El literal `revalidate = 300` de `page.tsx` debe coincidir con `TEMPLATES_REVALIDATE_SECONDS` (Next.js exige un literal en esa exportación).
 
-#### Limitaciones conocidas
+### Obtención de datos de Meta
 
-- Tras una sincronización manual la entrada de caché se invalida. Si Meta falla justo en ese momento, no hay snapshot anterior que servir y se muestra `error.tsx` hasta la siguiente carga correcta. La regeneración automática cada 5 minutos no tiene este problema.
-- La comprobación del cooldown no es atómica: dos sincronizaciones en el mismo instante pueden regenerar las dos. Como mucho supone una llamada extra a Meta, así que no compensa un lock distribuido.
+`src/lib/meta-api.ts` reúne todas las WABAs del negocio con sus plantillas y teléfonos:
+
+```mermaid
+flowchart TD
+    A["GET /{business_id}/owned_whatsapp_business_accounts"] --> B{"Por cada WABA<br/>hasta 16 en paralelo"}
+    B --> C["GET /{waba_id}/message_templates<br/>(paginado, limit 500)"]
+    B --> D["GET /{waba_id}/phone_numbers"]
+    C --> E["Waba { templates, phone_numbers }"]
+    D --> E
+    C -. "error" .-> F["Waba { error }"]
+    D -. "error" .-> G["phone_numbers = []"]
+```
+
+| Aspecto              | Valor                                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Versión de la API    | `v23.0`                                                                                                                               |
+| Autenticación        | Cabecera `Authorization: Bearer <META_ACCESS_TOKEN>`                                                                                  |
+| Timeout por petición | 15 s                                                                                                                                  |
+| Concurrencia         | 16 WABAs a la vez (con ~70 WABAs, unos 5 s por regeneración)                                                                          |
+| Paginación           | Se siguen todos los `paging.next`                                                                                                     |
+| Campos de plantilla  | `id, name, status, category, language, components, quality_score, previous_category, sub_category, parameter_format, rejected_reason` |
+| Campos de teléfono   | `id, display_phone_number, verified_name, quality_rating, status`                                                                     |
+| Fallo de teléfonos   | No invalida la WABA: se muestran sus plantillas sin teléfono                                                                          |
+| Mensajes de error    | Cortos en la UI (mensaje de Meta y código HTTP); el detalle (`code`, `fbtrace_id`) va a los logs                                      |
 
 ### Sincronización manual
 
-Tanto el botón **Sincronizar con Meta** (Server Action `syncTemplates`) como `POST /api/revalidate` usan `requestTemplatesSync()`:
+El botón **Sincronizar** (Server Action `syncTemplates`) y `POST /api/revalidate` usan la misma función, `requestTemplatesSync()`:
 
-- Si el snapshot tiene menos de 2 minutos, devuelve `cooldown` con `retryAfterSeconds`.
-- Si no, hace `revalidateTag("meta-templates")` y devuelve `ok`. La respuesta de la Server Action ya incluye la página renderizada con los datos nuevos.
-- Si Meta no responde (caché vacía y Meta caído), devuelve `error` con un mensaje para el usuario. Nunca lanza una excepción.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant N as Navegador
+    participant SA as Server Action syncTemplates
+    participant S as requestTemplatesSync()
+    participant DC as Data Cache
 
-En el cliente, el botón respeta el cooldown al cargar la página (limitado a 2 minutos aunque el reloj del usuario esté desajustado) y también tras un error, para no insistir contra Meta.
+    N->>SA: Clic en "Sincronizar"
+    SA->>S: requestTemplatesSync()
+    S->>DC: getTemplatesSnapshot()
+    alt fetchedAt hace menos de 2 min
+        S-->>N: { status: "cooldown", retryAfterSeconds }
+    else Meta no responde (caché vacía)
+        S-->>N: { status: "error", message }
+    else
+        S->>DC: revalidateTag("meta-templates")
+        S-->>N: { status: "ok" } + página re-renderizada con datos nuevos
+    end
+```
 
-El cooldown se calcula a partir del `fetchedAt` del propio snapshot cacheado, no de una variable en memoria. Por eso funciona igual con varias instancias y tras un cold start, sin infraestructura extra.
+- El cooldown se calcula con el `fetchedAt` del snapshot cacheado. Como esa caché es compartida, el límite es el mismo para todas las instancias y sobrevive a los cold starts sin infraestructura adicional.
+- `requestTemplatesSync()` nunca lanza excepciones: devuelve siempre `ok`, `cooldown` o `error`.
+- En el cliente, el botón muestra la cuenta atrás, respeta el cooldown al cargar la página (limitado a 2 minutos aunque el reloj del usuario esté desajustado) y también tras un error.
+- La respuesta de la Server Action incluye la página renderizada de nuevo, así que la interfaz se actualiza sin recargar.
+
+### Cliente: componentes y estado
+
+```mermaid
+flowchart TD
+    Page["page.tsx (Server Component)"] -->|"wabas, fetchedAt, brand"| Dash["TemplatesDashboard"]
+    Dash --> Top["TopBar<br/>buscador · Lista/Galería · Sincronizar"]
+    Dash --> Side["WabaSidebar<br/>casillas de WABAs"]
+    Dash --> Tool["ListToolbar<br/>chips y filtros"]
+    Dash --> View{"Vista"}
+    View -->|"list"| List["TemplateList → TemplateListItem"]
+    View -->|"list"| Detail["DetailPanel<br/>Vista previa · Variables · Botones · Información"]
+    View -->|"gallery"| Gal["GalleryView"]
+    View -->|"compare"| Cmp["CompareView"]
+    Detail --> Prev["WhatsAppPreview"]
+    Gal --> Prev
+    Cmp --> Prev
+    Dash -. "hooks" .-> H1["useTemplateFilters"]
+    Dash -. "hooks" .-> H2["useTemplatesSync"]
+    Dash -. "hooks" .-> H3["useMediaQuery"]
+```
+
+- **`TemplatesDashboard`** concentra el estado de la pantalla: vista, plantilla seleccionada, idioma preferido, comparación y paneles de móvil.
+- **`useTemplateFilters`** construye una vez por carga un índice de búsqueda normalizado (`lib/search.ts`), aplica los filtros y calcula el número de coincidencias por WABA. La búsqueda tiene un debounce de 150 ms.
+- **Resaltado:** los términos de búsqueda se reparten mediante un contexto de React (`SearchTermsProvider`), de modo que cualquier componente resalta coincidencias sin pasar props.
+- **Variantes de idioma:** `lib/template-groups.ts` agrupa las plantillas de una WABA por nombre. Al moverse por la lista se mantiene el idioma que se estaba mirando.
+- **Comparación:** `lib/diff.ts` calcula las diferencias por palabras (subsecuencia común más larga) entre los cuerpos de las plantillas comparadas.
+- **Escritorio y móvil:** el detalle y la barra lateral se montan una sola vez según el ancho (`useMediaQuery`): en línea en escritorio y como panel en móvil.
+
+**Estado en la URL** (`lib/url-state.ts`). Se lee al montar la página y se escribe con `history.replaceState`, sin navegación:
+
+| Parámetro               | Contenido                                     | Ejemplo                    |
+| ----------------------- | --------------------------------------------- | -------------------------- |
+| `q`                     | Búsqueda                                      | `q=matricula`              |
+| `waba`                  | WABAs seleccionadas                           | `waba=111111111,222222222` |
+| `status`, `lang`, `cat` | Filtros de estado, idioma y categoría         | `lang=es,pt_PT`            |
+| `samples`               | `1` incluye las plantillas de ejemplo de Meta | `samples=1`                |
+| `view`                  | `gallery` o `compare` (por defecto, lista)    | `view=compare`             |
+| `t`                     | Plantilla abierta                             | `t=333333333`              |
+| `cmp`                   | Plantillas en la comparación (máx. 4)         | `cmp=333333333,444444444`  |
+
+### Decisiones de diseño
+
+| Decisión                                                 | Motivo                                                                                                                |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Página estática con ISR y datos incluidos en el HTML     | Carga inmediata desde la CDN y un número de llamadas a Meta independiente del número de usuarios                      |
+| Un único snapshot en la Data Cache con tag               | Permite invalidarlo de golpe al sincronizar y compartirlo entre instancias                                            |
+| Cooldown basado en `fetchedAt` del snapshot              | Limita las sincronizaciones de forma global sin Redis ni base de datos                                                |
+| Errores fuera de la caché y "fallo total" como excepción | Un problema puntual de Meta no sustituye datos buenos por una página de error                                         |
+| Búsqueda y filtrado en el cliente                        | Respuesta instantánea; ~600 plantillas caben de sobra en memoria                                                      |
+| Estado de la pantalla en la URL                          | Cualquier búsqueda, plantilla o comparación se comparte con un enlace                                                 |
+| Galería y comparación renderizadas solo al elegirlas     | La página inicial pesa ~660 KB (67 KB comprimida); la galería usa `content-visibility` para que el scroll siga fluido |
+| Marca por variables de entorno                           | Cada despliegue lleva el logo y el color de su empresa sin tocar código                                               |
+| Solo lectura                                             | La fuente de verdad y los permisos de edición siguen en Meta                                                          |
+
+### Seguridad
+
+- El token de Meta solo se usa en el servidor y nunca llega al navegador.
+- `POST /api/revalidate` exige el secreto `REVALIDATE_SECRET` en la cabecera `x-revalidate-secret`, comparado en tiempo constante. Sin secreto configurado, el endpoint responde siempre 401.
+- Las URLs de logo de la marca solo admiten `https://` o rutas de `/public`.
+- La aplicación no tiene inicio de sesión propio. Para restringir el acceso se puede activar la **Deployment Protection** de Vercel; la integración con Microsoft Entra ID está pendiente.
 
 ### Observabilidad
 
-Cada regeneración escribe una línea JSON en los logs (`event: "meta_templates_fetched"`, con número de WABAs, fallos y duración), y cada error de Meta otra (`event: "meta_api_error"`). Se pueden consultar en los Runtime Logs de Vercel.
+El servidor escribe líneas JSON en los logs, visibles en Vercel → _Logs_:
 
-## Requisitos
-
-- Node.js 22 (ver `.nvmrc`)
-- Una cuenta de Meta Business con acceso a la WhatsApp Business API
-- Un token de System User con el permiso `whatsapp_business_management`
+| Evento                   | Cuándo                                               | Campos                                               |
+| ------------------------ | ---------------------------------------------------- | ---------------------------------------------------- |
+| `meta_templates_fetched` | Cada regeneración del snapshot                       | `wabas`, `failed`, `durationMs`                      |
+| `meta_api_error`         | Cada respuesta de error de Meta                      | `context`, `status`, `code`, `message`, `fbtrace_id` |
+| `sync_failed`            | Una sincronización manual no pudo contactar con Meta | `message`                                            |
+| `brand_config_invalid`   | Una variable `BRAND_*` tiene un valor no válido      | `variable`, `value`                                  |
 
 ## Puesta en marcha
+
+### Requisitos
+
+- **Node.js 22** (ver `.nvmrc`; con nvm: `nvm use`).
+- Una cuenta de **Meta Business** con acceso a la WhatsApp Business API.
+- Un **token de System User** con el permiso `whatsapp_business_management`.
+
+### Obtener las credenciales de Meta
+
+1. En [Meta Business Suite](https://business.facebook.com/settings) → _Usuarios_ → _Usuarios del sistema_, crea un usuario del sistema (o usa uno existente).
+2. Asígnale como activos las **cuentas de WhatsApp** que quieras ver, con permiso de lectura.
+3. Genera un **token** para ese usuario con el permiso `whatsapp_business_management`. Este es `META_ACCESS_TOKEN`.
+4. El identificador de la empresa aparece en _Información del negocio_ (o en la URL de Business Suite como `business_id`). Este es `META_BUSINESS_ID`.
+
+### En local
 
 ```bash
 git clone https://github.com/Gonzalez8/whatsapp-template-hub.git
 cd whatsapp-template-hub
-cp .env.example .env.local   # rellenar credenciales
+nvm use
 npm install
+cp .env.example .env.local   # y rellena META_ACCESS_TOKEN y META_BUSINESS_ID
 npm run dev
 ```
 
-Abrir [http://localhost:3000](http://localhost:3000).
+Abre [http://localhost:3000](http://localhost:3000).
 
 ## Variables de entorno
 
-| Variable                | Obligatoria | Descripción                                                                                               |
-| ----------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
-| `META_ACCESS_TOKEN`     | Sí          | Token de System User con `whatsapp_business_management`                                                   |
-| `META_BUSINESS_ID`      | Sí          | ID de la cuenta de Meta Business                                                                          |
-| `REVALIDATE_SECRET`     | No          | Secreto para `POST /api/revalidate`. Si no está definido, el endpoint devuelve siempre 401                |
-| `BRAND_NAME`            | No          | Nombre de la empresa junto a su logo y en el título de la pestaña                                         |
-| `BRAND_LOGO_URL`        | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public` (p. ej. `/logo.png`)                        |
-| `BRAND_COLOR`           | No          | Color de marca en hexadecimal (p. ej. `#0017EC`). Por defecto, el verde de WhatsApp                       |
-| `BRAND_LOGO_BACKGROUND` | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros que no se verían sobre la barra oscura |
+| Variable                | Obligatoria | Descripción                                                                 | Ejemplo                |
+| ----------------------- | ----------- | --------------------------------------------------------------------------- | ---------------------- |
+| `META_ACCESS_TOKEN`     | Sí          | Token de System User con `whatsapp_business_management`                     | `EAAG…`                |
+| `META_BUSINESS_ID`      | Sí          | ID de la cuenta de Meta Business                                            | `1234567890`           |
+| `REVALIDATE_SECRET`     | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401 | cadena aleatoria larga |
+| `BRAND_NAME`            | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)           | `Acme`                 |
+| `BRAND_LOGO_URL`        | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`               | `https://…/logo.svg`   |
+| `BRAND_COLOR`           | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                       | `#F02B58`              |
+| `BRAND_LOGO_BACKGROUND` | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros          | `white`                |
 
-### Personalizar la marca
+`.env.example` contiene la plantilla completa.
 
-Con `BRAND_NAME`, `BRAND_LOGO_URL` y `BRAND_COLOR` cada despliegue lleva el logo y el color de la empresa sin tocar código:
+## Personalización de marca
 
-- El logo aparece a la izquierda de la barra superior, directamente sobre el fondo oscuro, seguido del icono de WhatsApp en gris y "Plantillas de WhatsApp" (sin logo de empresa, el icono va en su insignia verde). Si el logo es oscuro y no se ve, `BRAND_LOGO_BACKGROUND=white` lo pone sobre una pastilla blanca.
-- Sobre las barras oscuras se usa una versión aclarada del color de marca, calculada para que contraste (así un color de marca oscuro no desaparece).
-- El color de marca se usa como acento: botones principales, selección, casillas, chips y pestaña activa. El texto sobre el acento pasa a oscuro o a blanco según su contraste, y para los textos sobre blanco se oscurece el color hasta que se lea bien (WCAG AA).
-- Un valor no válido se ignora (con un aviso `brand_config_invalid` en los logs) y se usa el diseño por defecto.
-- Como la página es estática, un cambio en estas variables se aplica al **redesplegar** (Vercel → Deployments → Redeploy).
+Con las variables `BRAND_*` cada despliegue lleva la identidad de su empresa:
+
+- **Cabecera:** con logo o nombre de empresa, la barra superior muestra **[logo de la empresa] │ [icono de WhatsApp en gris] Plantillas de WhatsApp**. Sin marca configurada, el icono de WhatsApp va en su insignia verde.
+- **Color de marca:** es el acento de la interfaz (botones principales, selección, casillas, chips y pestaña activa). `src/lib/brand.ts` deriva automáticamente:
+  - el color del texto sobre el acento (oscuro o blanco, el que mejor contraste);
+  - una versión oscurecida para textos sobre blanco (contraste WCAG AA, 4,5:1);
+  - una versión aclarada para las barras oscuras, para que también se vea un color de marca oscuro.
+- **Valores no válidos:** se ignoran, se usa el diseño por defecto y se registra un aviso `brand_config_invalid`.
+- **Aplicación de cambios:** como la página es estática, un cambio en estas variables se aplica al **redesplegar**.
+
+## Despliegue en Vercel
+
+1. Importa el repositorio en Vercel (framework detectado: Next.js).
+2. En _Settings → Environment Variables_, define `META_ACCESS_TOKEN`, `META_BUSINESS_ID` y, opcionalmente, `REVALIDATE_SECRET` y las `BRAND_*`. Márcalas en **Production** y, si quieres verlas también en las previews, en **Preview**.
+3. Cada push a una rama genera una **preview**, y cada merge a `main` despliega en **producción**.
+4. Para restringir el acceso, activa _Settings → Deployment Protection_.
+
+Tras cambiar una variable de entorno: _Deployments → ⋯ → Redeploy_.
 
 ## API
 
 ### `POST /api/revalidate`
 
-Fuerza una sincronización con Meta (por ejemplo, desde un webhook o un cron).
+Fuerza una sincronización con Meta, por ejemplo desde un webhook o un cron.
 
 ```bash
 curl -X POST https://<dominio>/api/revalidate -H "x-revalidate-secret: $REVALIDATE_SECRET"
 ```
 
-| Respuesta | Significado                                                      |
-| --------- | ---------------------------------------------------------------- |
-| `200`     | `{ "revalidated": true }`                                        |
-| `401`     | Secreto ausente o incorrecto                                     |
-| `429`     | Datos de hace menos de 2 min; cabecera `Retry-After` en segundos |
-| `502`     | No se pudo contactar con Meta                                    |
+| Respuesta | Significado                                                                 |
+| --------- | --------------------------------------------------------------------------- |
+| `200`     | `{ "revalidated": true }`: la siguiente visita trae datos nuevos            |
+| `401`     | Secreto ausente o incorrecto                                                |
+| `429`     | Datos de hace menos de 2 min; la cabecera `Retry-After` indica los segundos |
+| `502`     | No se pudo contactar con Meta                                               |
 
-## Estructura
+## Estructura del proyecto
 
 ```
 src/
   app/
-    page.tsx               # Página (Server Component + ISR)
-    layout.tsx             # Layout raíz
-    error.tsx              # Error boundary
-    actions.ts             # Server Action de sincronización
-    api/revalidate/route.ts
+    page.tsx                 # Página (Server Component, ISR); lee la marca y el snapshot
+    layout.tsx               # Layout raíz: fuentes, metadatos y colores de marca
+    error.tsx                # Error boundary
+    actions.ts               # Server Action de sincronización
+    api/revalidate/route.ts  # POST /api/revalidate
+    globals.css              # Tokens de diseño (Tailwind 4 @theme)
   components/
-    TemplatesDashboard.tsx # Layout, selección, comparación, URL y teclado
-    TopBar.tsx             # Buscador y sincronización
-    WabaSidebar.tsx        # Filtro de WABAs
-    ListToolbar.tsx        # Chips y filtros de la lista
-    TemplateList.tsx       # Lista agrupada por WABA y por nombre
-    DetailPanel.tsx        # Detalle con pestañas
-    GalleryView.tsx        # Galería de burbujas por WABA
-    CompareView.tsx        # Comparación en columnas
-    WhatsAppPreview.tsx    # Burbuja de WhatsApp
+    TemplatesDashboard.tsx   # Layout, selección, comparación, URL y teclado
+    TopBar.tsx               # Marca, buscador, selector de vista y sincronización
+    WabaSidebar.tsx          # Filtro de WABAs
+    ListToolbar.tsx          # Chips y filtros de la lista
+    TemplateList.tsx         # Lista agrupada por WABA y por nombre
+    TemplateListItem.tsx     # Fila con etiquetas de idioma
+    DetailPanel.tsx          # Detalle con pestañas
+    TemplateDetails.tsx      # Pestañas Variables, Botones e Información
+    GalleryView.tsx          # Galería de burbujas por WABA
+    CompareView.tsx          # Comparación en columnas
+    WhatsAppPreview.tsx      # Burbuja de WhatsApp
+    Highlight.tsx            # Resaltado de coincidencias
   hooks/
-    useTemplateFilters.ts  # Filtrado en cliente
-    useTemplatesSync.ts    # Botón de sincronizar
-    useMediaQuery.ts
+    useTemplateFilters.ts    # Índice de búsqueda y filtros
+    useTemplatesSync.ts      # Botón de sincronizar
+    useMediaQuery.ts         # Escritorio / móvil
   lib/
-    meta-api.ts            # Cliente de Meta Graph API
-    templates.ts           # Snapshot cacheado + lógica de sincronización
-    sync-config.ts         # Tiempos de caché y cooldown (compartido servidor/cliente)
-    concurrency.ts         # allSettled con límite de concurrencia
-    secret.ts              # Comparación de secretos en tiempo constante
-    whatsapp-format.tsx    # Formato de texto de WhatsApp (negrita, cursiva…)
-    template-utils.ts      # Etiquetas, ejemplos y variables
-    template-groups.ts     # Variantes de idioma de una plantilla
-    search.ts              # Normalización, coincidencias y fragmentos
-    diff.ts                # Diferencias por palabras para comparar
-    url-state.ts           # Estado de la pantalla en la URL
+    meta-api.ts              # Cliente de Meta Graph API
+    templates.ts             # Snapshot cacheado y sincronización
+    sync-config.ts           # Tiempos de caché y cooldown
+    brand.ts                 # Marca y contraste de colores
+    search.ts                # Normalización, coincidencias y fragmentos
+    template-groups.ts       # Variantes de idioma
+    template-utils.ts        # Etiquetas, ejemplos y variables
+    diff.ts                  # Diferencias por palabras
+    url-state.ts             # Estado de la pantalla en la URL
+    concurrency.ts           # allSettled con límite de concurrencia
+    secret.ts                # Comparación de secretos en tiempo constante
+    whatsapp-format.tsx      # Formato de texto de WhatsApp
   types/
-    template.ts
-  __tests__/
+    template.ts              # Tipos de Meta y del snapshot
+  __tests__/                 # Tests (Vitest)
 ```
 
-## Scripts
+## Scripts, tests y CI
 
-| Comando          | Descripción            |
-| ---------------- | ---------------------- |
-| `npm run dev`    | Servidor de desarrollo |
-| `npm run build`  | Build de producción    |
-| `npm run start`  | Servidor de producción |
-| `npm test`       | Tests (Vitest)         |
-| `npm run lint`   | ESLint                 |
-| `npm run format` | Prettier               |
+| Comando                           | Descripción                                            |
+| --------------------------------- | ------------------------------------------------------ |
+| `npm run dev`                     | Servidor de desarrollo                                 |
+| `npm run build`                   | Build de producción (llama a Meta si hay credenciales) |
+| `npm run start`                   | Servidor de producción local                           |
+| `npm test`                        | Tests (Vitest)                                         |
+| `npm run test:watch`              | Tests en modo watch                                    |
+| `npm run lint`                    | ESLint                                                 |
+| `npm run format` / `format:check` | Prettier                                               |
 
-## Despliegue en Vercel
+Los tests cubren la lógica (búsqueda, diferencias, URL, marca y contraste, sincronización, cliente de Meta) y los componentes principales, además de un test de integración del dashboard. El CI de GitHub Actions ejecuta `npm test`, `npm run lint` y `npm run build` con Node 22 en cada pull request y en cada push a `main`.
 
-Configurar `META_ACCESS_TOKEN`, `META_BUSINESS_ID` y (opcionalmente) `REVALIDATE_SECRET` en las variables de entorno del proyecto.
+## Límites conocidos
 
-> ⚠️ La aplicación **todavía no tiene autenticación**: cualquiera con la URL puede ver las WABAs, plantillas y números de teléfono. Hasta que se añada, conviene activar la Deployment Protection de Vercel.
+- Tras una sincronización manual la entrada de caché se invalida. Si Meta falla justo entonces, no hay snapshot anterior que servir y se muestra `error.tsx` hasta la siguiente carga correcta.
+- La comprobación del cooldown no es atómica: dos sincronizaciones simultáneas pueden regenerar las dos (como mucho, una llamada extra a Meta).
+- Si Meta falla durante un despliegue, el build falla y se mantiene en producción la versión anterior.
+- Las imágenes y vídeos de las cabeceras son los ejemplos que Meta guarda con cada plantilla (URLs firmadas que se renuevan con cada sincronización).
 
 ## Contribuir
 
