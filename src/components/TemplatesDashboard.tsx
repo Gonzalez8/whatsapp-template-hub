@@ -17,7 +17,7 @@ import { CompareView } from "./CompareView";
 import { GalleryView } from "./GalleryView";
 import { AnalyticsView } from "./analytics/AnalyticsView";
 import type { DetailTab } from "./DetailPanel";
-import type { AnalyticsRange } from "@/lib/analytics/types";
+import type { AnalyticsOrigin, AnalyticsRange } from "@/lib/analytics/types";
 import { EmptyState } from "./EmptyState";
 
 interface TemplatesDashboardProps {
@@ -79,6 +79,8 @@ export function TemplatesDashboard({
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [detailTab, setDetailTab] = useState<DetailTab>("preview");
   const [range, setRange] = useState<AnalyticsRange>("30d");
+  const [origin, setOrigin] = useState<AnalyticsOrigin>("all");
+  const [day, setDay] = useState<string | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [wabaSheetOpen, setWabaSheetOpen] = useState(false);
 
@@ -107,6 +109,8 @@ export function TemplatesDashboard({
     // A shared analytics link opened where analytics is off falls back to the list.
     setView(url.view === "analytics" && !analyticsEnabled ? "list" : url.view);
     setRange(url.range);
+    setOrigin(url.origin);
+    setDay(url.day);
     setDetailTab(url.tab);
     const selected = url.template ? index.get(url.template) : undefined;
     if (selected) {
@@ -130,6 +134,8 @@ export function TemplatesDashboard({
       template: selectedId,
       compare: compareIds,
       range,
+      origin,
+      day,
       tab: detailTab,
     });
     const next = query ? `${window.location.pathname}?${query}` : window.location.pathname;
@@ -148,6 +154,8 @@ export function TemplatesDashboard({
     selectedId,
     compareIds,
     range,
+    origin,
+    day,
     detailTab,
   ]);
 
@@ -315,7 +323,14 @@ export function TemplatesDashboard({
                 wabas={wabas}
                 selectedWabas={selectedWabas}
                 range={range}
-                onRangeChange={setRange}
+                onRangeChange={(next) => {
+                  setRange(next);
+                  setDay(null);
+                }}
+                origin={origin}
+                onOriginChange={setOrigin}
+                day={day}
+                onDayChange={setDay}
                 onOpenTemplate={(t) => {
                   setDetailTab("analytics");
                   setView("list");

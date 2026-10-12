@@ -45,14 +45,36 @@ const AVOIDABLE_LIST = AVOIDABLE_ERROR_CODES.flatMap((code) =>
   code.startsWith("WA-") ? [`'${code}'`, `'${code.slice(3)}'`] : [`'${code}'`],
 ).join(",");
 
+/** Values of Application__c: where in Salesforce the send came from. */
+export const ORIGIN_APPLICATIONS = {
+  mce: "MARKETING_CLOUD_ENGAGEMENT",
+  de: "DIGITAL_ENGAGEMENT",
+} as const;
+
 export interface Scope {
   dlo: string;
   /** First day included (UTC, YYYY-MM-DD), or null for the whole history. */
   since: string | null;
+  /** First day excluded (UTC, YYYY-MM-DD), or null for "until now". Only bounds the sends. */
+  until?: string | null;
+  /** Only sends from this Application__c; null for every origin. */
+  origin?: string | null;
 }
 
 function sinceClause(scope: Scope): string {
   return scope.since ? `AND EventDateTime__c >= '${check(scope.since, ISO_DATE, "Fecha no válida")}'` : "";
+}
+
+function untilClause(scope: Scope): string {
+  return scope.until ? `AND EventDateTime__c < '${check(scope.until, ISO_DATE, "Fecha no válida")}'` : "";
+}
+
+function originClause(scope: Scope): string {
+  if (!scope.origin) return "";
+  if (!(Object.values(ORIGIN_APPLICATIONS) as string[]).includes(scope.origin)) {
+    throw new InvalidQueryParam("Origen no válido");
+  }
+  return `AND Application__c = '${scope.origin}'`;
 }
 
 function wabaClause(wabaIds: string[]): string {
@@ -60,14 +82,18 @@ function wabaClause(wabaIds: string[]): string {
   return `AND ExternalAccountId__c IN (${wabaIds.map((id) => `'${check(id, WABA_ID, "WABA no válida")}'`).join(",")})`;
 }
 
-/** Final state of every message in scope: one row per wamid. */
+/**
+ * Final state of every message in scope: one row per wamid. Bounded only from below,
+ * so a message sent on the last day still counts the reads that came the day after.
+ */
 function statusCte(scope: Scope, wabaIds: string[]): string {
   return `status AS (
     SELECT WhatsAppWamId__c AS wamid,
       MAX(CASE WHEN SendStatus__c IN ('DELIVERED','READ') THEN 1 ELSE 0 END) AS delivered,
       MAX(CASE WHEN SendStatus__c = 'READ' THEN 1 ELSE 0 END) AS read,
       MAX(CASE WHEN SendStatus__c IN ('FAILED','NOT_SENT') THEN 1 ELSE 0 END) AS failed,
-      MAX(CASE WHEN ErrorCode__c IN (${AVOIDABLE_LIST}) THEN 1 ELSE 0 END) AS avoidable
+      MAX(CASE WHEN ErrorCode__c IN (${AVOIDABLE_LIST}) THEN 1 ELSE 0 END) AS avoidable,
+      MIN(CASE WHEN SendStatus__c = 'READ' THEN EventDateTime__c END) AS read_at
     FROM ${check(scope.dlo, DLO_NAME, "Objeto de Data Cloud no válido")}
     WHERE EventType__c IN ('SEND_STATUS','DR') ${wabaClause(wabaIds)} ${sinceClause(scope)}
     GROUP BY WhatsAppWamId__c)`;
@@ -84,15 +110,19 @@ function sendsCte(scope: Scope, wabaIds: string[], template?: { name: string; la
     : `AND ${NAME_EXPR} IS NOT NULL`;
   return `sends AS (
     SELECT WhatsAppWamId__c AS wamid, ExternalAccountId__c AS waba,
-      ${NAME_EXPR} AS template, ${LANGUAGE_EXPR} AS language,
-      date_trunc('DAY', EventDateTime__c) AS day
+      ${NAME_EXPR} AS template, ${LANGUAGE_EXPR} AS language, Application__c AS origin,
+      EventDateTime__c AS sent_at, date_trunc('DAY', EventDateTime__c) AS day
     FROM ${check(scope.dlo, DLO_NAME, "Objeto de Data Cloud no válido")}
     WHERE EventType__c = 'SEND_STATUS' AND SendStatus__c IN ('SENT','NOT_SENT')
-      ${wabaClause(wabaIds)} ${sinceClause(scope)} ${templateFilter})`;
+      ${wabaClause(wabaIds)} ${sinceClause(scope)} ${untilClause(scope)} ${originClause(scope)} ${templateFilter})`;
 }
 
 const COUNTS = `COUNT(*) AS sent, SUM(COALESCE(d.delivered,0)) AS delivered, SUM(COALESCE(d.read,0)) AS read,
   SUM(COALESCE(d.failed,0)) AS failed, SUM(COALESCE(d.avoidable,0)) AS avoidable`;
+
+/** Median seconds from the send to the first read, over the messages that were read. */
+const READ_MEDIAN = `approx_percentile(CASE WHEN d.read_at IS NOT NULL
+  THEN GREATEST(0, date_diff('second', s.sent_at, d.read_at)) END, 0.5) AS read_median`;
 
 /** Daily counts for one template (WABA + name + language). */
 export function templateDailySql(scope: Scope, wabaId: string, name: string, language: string): string {
@@ -105,9 +135,24 @@ export function templateDailySql(scope: Scope, wabaId: string, name: string, lan
 /** Counts per template for the selected WABAs (all when empty). */
 export function templateRankingSql(scope: Scope, wabaIds: string[]): string {
   return `WITH ${sendsCte(scope, wabaIds)}, ${statusCte(scope, wabaIds)}
-    SELECT s.waba AS waba, s.template AS template, s.language AS language, ${COUNTS}
+    SELECT s.waba AS waba, s.template AS template, s.language AS language, ${COUNTS}, ${READ_MEDIAN}
     FROM sends s LEFT JOIN status d ON s.wamid = d.wamid
     GROUP BY s.waba, s.template, s.language ORDER BY sent DESC`;
+}
+
+/**
+ * Totals per origin plus a '__total' row for everything, with the read-time median
+ * (which can't be added up from the per-origin rows). Data Cloud doesn't support
+ * percentiles with GROUPING SETS, hence the UNION ALL. Optionally for one template.
+ */
+export function overviewSql(scope: Scope, wabaIds: string[], template?: { name: string; language: string }): string {
+  return `WITH ${sendsCte(scope, wabaIds, template)}, ${statusCte(scope, wabaIds)}
+    SELECT COALESCE(s.origin, '') AS origin, ${COUNTS}, ${READ_MEDIAN}
+    FROM sends s LEFT JOIN status d ON s.wamid = d.wamid
+    GROUP BY s.origin
+    UNION ALL
+    SELECT '__total' AS origin, ${COUNTS}, ${READ_MEDIAN}
+    FROM sends s LEFT JOIN status d ON s.wamid = d.wamid`;
 }
 
 /** Daily template sends for the selected WABAs (all when empty). */

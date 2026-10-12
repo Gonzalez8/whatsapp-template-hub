@@ -16,6 +16,7 @@ import {
   RangePicker,
   sendPoints,
   SourceNote,
+  formatDuration,
   formatNumber,
   formatPercent,
 } from "./shared";
@@ -70,7 +71,11 @@ function TemplateAnalyticsBody({ data, range }: { data: TemplateAnalytics; range
           value={formatPercent(own.delivery)}
           sub={`${formatNumber(totals.delivered)} de ${formatNumber(totals.sent)}`}
         />
-        <Kpi label="Leídas" value={formatPercent(own.read)} sub={`${formatNumber(totals.read)} de las entregadas`} />
+        <Kpi
+          label="Leídas"
+          value={formatPercent(own.read)}
+          sub={`${formatNumber(totals.read)} de ${formatNumber(totals.delivered)} · en ${formatDuration(totals.readMedian)}`}
+        />
         <Kpi
           label="Fallos"
           value={formatNumber(totals.failed)}
@@ -96,6 +101,13 @@ function TemplateAnalyticsBody({ data, range }: { data: TemplateAnalytics; range
               {Math.abs(diff).toFixed(1).replace(".", ",")} puntos {diff > 0 ? "por encima" : "por debajo"} de la media
             </p>
           )}
+          <div className="border-line/70 mt-3 flex justify-between border-t pt-2.5 text-xs">
+            <span>Tiempo hasta lectura (mediana)</span>
+            <span>
+              <strong>{formatDuration(totals.readMedian)}</strong>
+              <span className="text-muted"> · WABA {formatDuration(waba.readMedian)}</span>
+            </span>
+          </div>
         </Card>
         <Card title="Fallos">
           <ErrorList errors={data.errors} />

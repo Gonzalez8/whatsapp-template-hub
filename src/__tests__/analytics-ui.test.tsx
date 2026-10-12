@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AnalyticsView } from "@/components/analytics/AnalyticsView";
 import { TemplateAnalyticsTab } from "@/components/analytics/TemplateAnalyticsTab";
-import { BarChart, sendPoints } from "@/components/analytics/shared";
+import { BarChart, formatDuration, sendPoints } from "@/components/analytics/shared";
 import { clearAnalyticsCache } from "@/hooks/useAnalytics";
 import type { SummaryAnalytics, TemplateAnalytics } from "@/lib/analytics/types";
 import type { Template, Waba } from "@/types/template";
@@ -16,28 +16,40 @@ const template: Template = {
   components: [{ type: "BODY", text: "Hola" }],
 };
 
+const unused: Template = { ...template, id: "t2", name: "never_sent", language: "es" };
+
 const waba: Waba = {
   waba_id: "111",
   waba_name: "Campus MKT",
   phone_numbers: [{ id: "p", display_phone_number: "+34 900 000 000", verified_name: "Campus" }],
-  templates: [template],
+  templates: [template, unused, { ...template, id: "t3", name: "paused_one", status: "PAUSED" }],
 };
 
-const counts = (sent: number, delivered: number, read: number, failed = 0, avoidable = 0) => ({
+const counts = (sent: number, delivered: number, read: number, failed = 0, avoidable = 0, readMedian = 120) => ({
   sent,
   delivered,
   read,
   failed,
   avoidable,
+  readMedian,
 });
 
 const summary: SummaryAnalytics = {
   range: "30d",
+  origin: "all",
+  period: null,
   generatedAt: Date.now() - 12 * 60_000,
-  totals: counts(100, 90, 45, 10, 2),
-  daily: [{ day: "2026-10-01", sent: 100 }],
+  totals: counts(100, 90, 45, 10, 2, 300),
+  origins: [
+    { origin: "MARKETING_CLOUD_ENGAGEMENT", ...counts(70, 60, 30) },
+    { origin: "DIGITAL_ENGAGEMENT", ...counts(30, 30, 15) },
+  ],
+  daily: [
+    { day: "2026-10-01", sent: 60 },
+    { day: "2026-10-02", sent: 40 },
+  ],
   templates: [
-    { waba: "111", template: "campus_confirmation", language: "es_es", ...counts(80, 72, 36, 8, 2) },
+    { waba: "111", template: "campus_confirmation", language: "es_es", ...counts(80, 72, 36, 8, 2, 4000) },
     { waba: "111", template: "old_template", language: "es", ...counts(20, 18, 9, 2) },
   ],
   errors: [
@@ -53,27 +65,41 @@ function mockFetch(handler: (url: string) => Response) {
   return fetchMock;
 }
 
+function renderView(props: Partial<React.ComponentProps<typeof AnalyticsView>> = {}) {
+  const handlers = {
+    onRangeChange: vi.fn(),
+    onOriginChange: vi.fn(),
+    onDayChange: vi.fn(),
+    onOpenTemplate: vi.fn(),
+  };
+  render(
+    <AnalyticsView
+      wabas={[waba]}
+      selectedWabas={new Set(["111"])}
+      range="30d"
+      origin="all"
+      day={null}
+      {...handlers}
+      {...props}
+    />,
+  );
+  return handlers;
+}
+
 beforeEach(() => clearAnalyticsCache());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("AnalyticsView", () => {
   it("shows KPIs, Meta volume, the ranking and failures for the selected WABA", async () => {
     const fetchMock = mockFetch(() => Response.json(summary));
-    const onOpenTemplate = vi.fn();
-    render(
-      <AnalyticsView
-        wabas={[waba]}
-        selectedWabas={new Set(["111"])}
-        range="30d"
-        onRangeChange={() => {}}
-        onOpenTemplate={onOpenTemplate}
-      />,
-    );
+    const { onOpenTemplate } = renderView();
 
     expect(await screen.findByText("90 mensajes")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toContain("/api/analytics/summary?waba=111&range=30d");
     expect(screen.getByRole("heading", { name: "Campus MKT" })).toBeInTheDocument();
     expect(screen.getByText("2 evitables · 8 ruido")).toBeInTheDocument();
+    expect(screen.getByText("5 min")).toBeInTheDocument(); // read-time median KPI
+    expect(screen.getByText("1 h 7 min")).toBeInTheDocument(); // per-template median
     expect(screen.getByRole("button", { name: "Qué es Servicio" })).toHaveAccessibleDescription(
       /Respuestas libres a un cliente/,
     );
@@ -87,21 +113,66 @@ describe("AnalyticsView", () => {
     fireEvent.click(screen.getByRole("button", { name: "campus_confirmation" }));
     expect(onOpenTemplate).toHaveBeenCalledWith(template);
     expect(screen.queryByRole("button", { name: "old_template" })).toBeNull();
-    expect(screen.getByText("old_template")).toBeInTheDocument();
+  });
+
+  it("lists approved templates without sends in 90 days and sent ones gone from Meta", async () => {
+    const fetchMock = mockFetch(() => Response.json(summary));
+    const { onOpenTemplate } = renderView();
+
+    expect(await screen.findByText(/de 2 plantillas aprobadas no se han enviado/)).toHaveTextContent("1 de 2");
+    expect(fetchMock.mock.calls.map(([url]) => url)).toContainEqual(
+      expect.stringContaining("/api/analytics/summary?waba=111&range=90d"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "never_sent" }));
+    expect(onOpenTemplate).toHaveBeenCalledWith(unused);
+    expect(screen.queryByRole("button", { name: "paused_one" })).toBeNull();
+    expect(screen.getByText("Enviadas pero ya no existen en Meta (1)")).toBeInTheDocument();
+  });
+
+  it("splits by origin and filters by it", async () => {
+    mockFetch(() => Response.json(summary));
+    const { onOriginChange } = renderView();
+
+    await screen.findByText("90 mensajes");
+    const filter = within(screen.getByRole("group", { name: "Origen" }));
+    fireEvent.click(filter.getByRole("button", { name: "Marketing Cloud" }));
+    expect(onOriginChange).toHaveBeenLastCalledWith("mce");
+    // The origin table links to the same filter.
+    const [, deRow] = screen.getAllByTitle("Filtrar por este origen");
+    fireEvent.click(deRow);
+    expect(onOriginChange).toHaveBeenLastCalledWith("de");
+  });
+
+  it("asks for the origin when filtered", async () => {
+    const fetchMock = mockFetch(() => Response.json({ ...summary, origin: "de" }));
+    renderView({ origin: "de" });
+    expect(await screen.findByText("desde Digital Engagement")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[0][0]).toContain("range=30d&origin=de");
+  });
+
+  it("picks a day on the chart and loads that day for the rest of the view", async () => {
+    const day = { ...summary, totals: counts(60, 50, 20), period: { from: "2026-10-01", to: "2026-10-02" } };
+    const fetchMock = mockFetch((url) => Response.json(url.includes("from=") ? day : summary));
+    const { onDayChange } = renderView();
+    await screen.findByText("90 mensajes");
+    fireEvent.click(screen.getAllByTestId("chart-bar").at(-12)!);
+    expect(onDayChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+
+    cleanup();
+    clearAnalyticsCache();
+    const picked = renderView({ day: "2026-10-01" });
+    expect(await screen.findByText("50 mensajes")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => url)).toContainEqual(
+      expect.stringContaining("from=2026-10-01&to=2026-10-02"),
+    );
+    expect(screen.getByText(/Mostrando/)).toHaveTextContent("Mostrando jue, 1 oct");
+    fireEvent.click(screen.getByRole("button", { name: /Ver todo el periodo/ }));
+    expect(picked.onDayChange).toHaveBeenCalledWith(null);
   });
 
   it("changes the range and shows API errors", async () => {
     mockFetch(() => Response.json({ error: "La consulta a Data Cloud falló (HTTP 500)" }, { status: 502 }));
-    const onRangeChange = vi.fn();
-    render(
-      <AnalyticsView
-        wabas={[waba]}
-        selectedWabas={new Set()}
-        range="30d"
-        onRangeChange={onRangeChange}
-        onOpenTemplate={() => {}}
-      />,
-    );
+    const { onRangeChange } = renderView({ selectedWabas: new Set() });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 500");
     expect(screen.getByRole("heading", { name: "Todas las WABAs" })).toBeInTheDocument();
@@ -114,23 +185,25 @@ describe("TemplateAnalyticsTab", () => {
   const data: TemplateAnalytics = {
     range: "all",
     generatedAt: Date.now(),
-    totals: counts(69, 69, 55),
+    totals: counts(69, 69, 55, 0, 0, 30),
     daily: [{ day: "2026-05-26", ...counts(69, 69, 55) }],
     errors: [],
-    waba: counts(1000, 900, 600),
+    origins: [{ origin: "DIGITAL_ENGAGEMENT", ...counts(69, 69, 55, 0, 0, 30) }],
+    waba: counts(1000, 900, 600, 0, 0, 1500),
   };
 
   it("loads the whole history and compares with the WABA", async () => {
     const fetchMock = mockFetch(() => Response.json(data));
     render(<TemplateAnalyticsTab template={template} wabaId="111" />);
 
-    expect(await screen.findByText("55 de las entregadas")).toBeInTheDocument();
+    expect(await screen.findByText("55 de 69 · en <1 min")).toBeInTheDocument();
     expect(screen.getAllByText("79,7 %")).toHaveLength(2);
     expect(fetchMock.mock.calls[0][0]).toContain("waba=111&name=campus_confirmation&lang=es_ES&range=all");
     expect(screen.getByText("sin incidencias")).toBeInTheDocument();
     expect(screen.getByText("Envíos por semana")).toBeInTheDocument();
     expect(screen.getByText(/13,0 puntos por encima de la media/)).toBeInTheDocument();
     expect(screen.getByText("Ningún fallo en el periodo.")).toBeInTheDocument();
+    expect(screen.getByText("· WABA 25 min", { exact: false })).toBeInTheDocument();
   });
 
   it("refetches for another range and explains when there are no sends", async () => {
@@ -172,5 +245,16 @@ describe("BarChart", () => {
 
   it("labels weekly points as weeks", () => {
     expect(sendPoints([{ day: "2026-10-05", value: 1500 }], true)[0].title).toBe("Semana del 5 oct: 1500 envíos");
+  });
+});
+
+describe("formatDuration", () => {
+  it("reads like a person would say it", () => {
+    expect(formatDuration(null)).toBe("—");
+    expect(formatDuration(30)).toBe("<1 min");
+    expect(formatDuration(125)).toBe("2 min");
+    expect(formatDuration(3600)).toBe("1 h");
+    expect(formatDuration(3720)).toBe("1 h 2 min");
+    expect(formatDuration(129_600)).toBe("1,5 días");
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import type { AnalyticsRange, ErrorCount } from "@/lib/analytics/types";
+import type { AnalyticsOrigin, AnalyticsRange, ErrorCount } from "@/lib/analytics/types";
 import { formatDay, formatWeekday } from "@/lib/analytics/series";
 
 const numberFormat = new Intl.NumberFormat("es-ES");
@@ -16,8 +16,66 @@ export const RANGE_LABELS: Record<AnalyticsRange, string> = {
   all: "Todo",
 };
 
+export const ORIGIN_LABELS: Record<AnalyticsOrigin, string> = {
+  all: "Todos los orígenes",
+  mce: "Marketing Cloud",
+  de: "Digital Engagement",
+};
+
+/** Name of an Application__c value from Data Cloud. */
+export function applicationLabel(application: string): string {
+  if (application === "MARKETING_CLOUD_ENGAGEMENT") return ORIGIN_LABELS.mce;
+  if (application === "DIGITAL_ENGAGEMENT") return ORIGIN_LABELS.de;
+  return application || "Sin origen";
+}
+
+/** "<1 min", "12 min", "2 h 5 min", "1,5 días" (null → "—"). */
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null) return "—";
+  if (seconds < 60) return "<1 min";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  if (seconds < 86_400) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m ? `${h} h ${m} min` : `${h} h`;
+  }
+  return `${(seconds / 86_400).toFixed(1).replace(".", ",")} días`;
+}
+
 const segmented = (active: boolean) =>
-  `h-8 px-3 text-xs ${active ? "bg-ink font-medium text-white" : "bg-surface text-ink/80 hover:bg-canvas"}`;
+  `h-8 px-3 text-xs whitespace-nowrap ${active ? "bg-ink font-medium text-white" : "bg-surface text-ink/80 hover:bg-canvas"}`;
+
+/** Buttons where exactly one option is active. */
+export function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  labels,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  labels: Record<T, string>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div role="group" aria-label={label} className="border-line-strong flex w-fit overflow-hidden rounded-lg border">
+      {options.map((option, i) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChange(option)}
+          aria-pressed={value === option}
+          className={`${segmented(value === option)} ${i > 0 ? "border-line-strong border-l" : ""}`}
+        >
+          {labels[option]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function RangePicker({
   value,
@@ -28,21 +86,7 @@ export function RangePicker({
   options: AnalyticsRange[];
   onChange: (range: AnalyticsRange) => void;
 }) {
-  return (
-    <div role="group" aria-label="Periodo" className="border-line-strong flex w-fit overflow-hidden rounded-lg border">
-      {options.map((range, i) => (
-        <button
-          key={range}
-          type="button"
-          onClick={() => onChange(range)}
-          aria-pressed={value === range}
-          className={`${segmented(value === range)} ${i > 0 ? "border-line-strong border-l" : ""}`}
-        >
-          {RANGE_LABELS[range]}
-        </button>
-      ))}
-    </div>
-  );
+  return <Segmented label="Periodo" value={value} options={options} labels={RANGE_LABELS} onChange={onChange} />;
 }
 
 /** An ⓘ that shows `text` on hover, tap or keyboard focus. */
@@ -114,6 +158,8 @@ export function Kpi({
 }
 
 export interface ChartPoint {
+  /** Stable id passed to onSelect (the day, YYYY-MM-DD). */
+  id: string;
   /** Short label for the axis ("12 oct"). */
   key: string;
   value: number;
@@ -124,6 +170,7 @@ export interface ChartPoint {
 /** Chart points for daily or weekly sends, with the exact date and count on hover. */
 export function sendPoints(series: { day: string; value: number }[], weekly: boolean): ChartPoint[] {
   return series.map((p) => ({
+    id: p.day,
     key: formatDay(p.day),
     value: p.value,
     title: `${weekly ? `Semana del ${formatDay(p.day)}` : formatWeekday(p.day)}: ${formatNumber(p.value)} ${
@@ -140,9 +187,20 @@ function tickIndexes(length: number, count: number): number[] {
 
 /**
  * Vertical bars with a value axis. Hovering or tapping a bar (or moving with the arrow
- * keys once the chart has focus) shows its exact date and value.
+ * keys once the chart has focus) shows its exact date and value. With `onSelect`, a
+ * click or Enter picks the bar (and a second one un-picks it).
  */
-export function BarChart({ points, label }: { points: ChartPoint[]; label: string }) {
+export function BarChart({
+  points,
+  label,
+  selected = null,
+  onSelect,
+}: {
+  points: ChartPoint[];
+  label: string;
+  selected?: string | null;
+  onSelect?: (id: string | null) => void;
+}) {
   const [active, setActive] = useState<number | null>(null);
   const max = Math.max(1, ...points.map((p) => p.value));
   const n = points.length;
@@ -161,7 +219,23 @@ export function BarChart({ points, label }: { points: ChartPoint[]; label: strin
       setActive(event.key === "Home" ? 0 : n - 1);
     } else if (event.key === "Escape") {
       setActive(null);
+    } else if ((event.key === "Enter" || event.key === " ") && onSelect && active !== null) {
+      event.preventDefault();
+      pick(active);
     }
+  }
+
+  function pick(i: number) {
+    setActive(i);
+    onSelect?.(points[i].id === selected ? null : points[i].id);
+  }
+
+  function barColor(p: ChartPoint, i: number) {
+    if (active === i || p.id === selected) return "bg-accent";
+    if (!p.value) return "bg-line";
+    // With a bar picked, the rest step back.
+    if (selected) return "bg-accent/25";
+    return p.value === max ? "bg-accent/80" : "bg-accent/45";
   }
 
   return (
@@ -174,7 +248,7 @@ export function BarChart({ points, label }: { points: ChartPoint[]; label: strin
         </div>
         <div
           role="group"
-          aria-label={`${label}. Usa las flechas para recorrer los valores.`}
+          aria-label={`${label}. Usa las flechas para recorrer los valores${onSelect ? " e Intro para filtrar" : ""}.`}
           tabIndex={0}
           onKeyDown={onKeyDown}
           onMouseLeave={() => setActive(null)}
@@ -189,13 +263,12 @@ export function BarChart({ points, label }: { points: ChartPoint[]; label: strin
                 key={p.key + i}
                 data-testid="chart-bar"
                 onMouseEnter={() => setActive(i)}
-                onClick={() => setActive(i)}
-                className="flex h-full min-w-[3px] flex-1 cursor-default items-end"
+                onClick={() => (onSelect ? pick(i) : setActive(i))}
+                aria-current={p.id === selected ? "date" : undefined}
+                className={`flex h-full min-w-[3px] flex-1 items-end ${onSelect ? "cursor-pointer" : "cursor-default"}`}
               >
                 <div
-                  className={`w-full rounded-t-[3px] transition-colors ${
-                    active === i ? "bg-accent" : p.value === max ? "bg-accent/80" : p.value ? "bg-accent/45" : "bg-line"
-                  }`}
+                  className={`w-full rounded-t-[3px] transition-colors ${barColor(p, i)}`}
                   style={{ height: `${height(p.value)}%` }}
                 />
               </div>

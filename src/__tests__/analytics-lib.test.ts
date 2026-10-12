@@ -6,7 +6,9 @@ import { describeError } from "@/lib/analytics/errors";
 import {
   DEFAULT_WHATSAPP_DLO,
   InvalidQueryParam,
+  ORIGIN_APPLICATIONS,
   errorsSql,
+  overviewSql,
   summaryDailySql,
   templateDailySql,
   templateRankingSql,
@@ -179,7 +181,28 @@ describe("analytics SQL", () => {
     expect(errorsSql(scope, ["1"])).toContain("f.EventDateTime__c >= '2026-09-11'");
   });
 
+  it("narrows sends to a day and an origin, but counts reads that came later", () => {
+    const sql = templateRankingSql({ ...scope, until: "2026-09-12", origin: ORIGIN_APPLICATIONS.mce }, ["1"]);
+    const [sends, status] = [
+      sql.slice(sql.indexOf("sends AS"), sql.indexOf("status AS")),
+      sql.slice(sql.indexOf("status AS")),
+    ];
+    expect(sends).toContain("EventDateTime__c < '2026-09-12'");
+    expect(sends).toContain("Application__c = 'MARKETING_CLOUD_ENGAGEMENT'");
+    expect(status).not.toContain("EventDateTime__c <");
+    expect(sql).toContain("approx_percentile");
+  });
+
+  it("returns one row per origin plus a total", () => {
+    const sql = overviewSql(scope, ["1"], { name: "orbi", language: "es_ES" });
+    expect(sql).toContain("UNION ALL");
+    expect(sql).toContain("'__total' AS origin");
+    expect(sql).toContain("= 'orbi'");
+  });
+
   it.each([
+    ["origin", () => templateRankingSql({ ...scope, origin: "X' OR '1'='1" }, [])],
+    ["end date", () => summaryDailySql({ ...scope, until: "2026-01-01' --" }, [])],
     ["WABA", () => templateRankingSql(scope, ["1' OR '1'='1"])],
     ["template", () => templateDailySql(scope, "1", "x'; DROP TABLE t; --", "es")],
     ["language", () => templateDailySql(scope, "1", "ok", "es') OR ('1")],
@@ -264,7 +287,7 @@ describe("fetchMetaVolume", () => {
             }),
       ),
     );
-    expect(await fetchMetaVolume(["a", "bad"], 30)).toEqual({
+    expect(await fetchMetaVolume(["a", "bad"], 0, 86_400)).toEqual({
       total: 12,
       paid: 5,
       free: 7,
@@ -278,6 +301,6 @@ describe("fetchMetaVolume", () => {
       "fetch",
       vi.fn(async () => new Response("{}", { status: 500 })),
     );
-    expect(await fetchMetaVolume(["a"], 30)).toBeNull();
+    expect(await fetchMetaVolume(["a"], 0, 86_400)).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { ANALYTICS_RANGES, type AnalyticsRange } from "@/lib/analytics/types";
+import { ANALYTICS_ORIGINS, ANALYTICS_RANGES, type AnalyticsOrigin, type AnalyticsRange } from "@/lib/analytics/types";
 
 export type ViewMode = "list" | "gallery" | "compare" | "analytics";
 
@@ -19,6 +19,10 @@ export interface DashboardUrlState {
   compare: string[];
   /** Period of the analytics view. */
   range: AnalyticsRange;
+  /** Origin filter of the analytics view. */
+  origin: AnalyticsOrigin;
+  /** Day (or Monday of the week, in "all") picked on the analytics chart. */
+  day: string | null;
   /** Open tab of the template detail. */
   tab: DetailTabId;
 }
@@ -37,6 +41,8 @@ export const DEFAULT_URL_STATE: DashboardUrlState = {
   template: null,
   compare: [],
   range: "30d",
+  origin: "all",
+  day: null,
   tab: "preview",
 };
 
@@ -47,6 +53,10 @@ const VIEW_PARAM: Record<string, ViewMode> = {
   compare: "compare",
   analytics: "analytics",
 };
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const oneOf = <T extends string>(options: readonly T[], value: string | null, fallback: T): T =>
+  (options as readonly string[]).includes(value ?? "") ? (value as T) : fallback;
 
 const list = (value: string | null) => (value ? value.split(",").filter(Boolean) : []);
 
@@ -62,12 +72,10 @@ export function parseUrlState(search: string): DashboardUrlState {
     view: VIEW_PARAM[p.get("view") ?? ""] ?? "list",
     template: p.get("t") || null,
     compare: list(p.get("cmp")).slice(0, MAX_COMPARE),
-    range: (ANALYTICS_RANGES as readonly string[]).includes(p.get("range") ?? "")
-      ? (p.get("range") as AnalyticsRange)
-      : DEFAULT_URL_STATE.range,
-    tab: (DETAIL_TABS as readonly string[]).includes(p.get("tab") ?? "")
-      ? (p.get("tab") as DetailTabId)
-      : DEFAULT_URL_STATE.tab,
+    range: oneOf(ANALYTICS_RANGES, p.get("range"), DEFAULT_URL_STATE.range),
+    origin: oneOf(ANALYTICS_ORIGINS, p.get("origin"), DEFAULT_URL_STATE.origin),
+    day: ISO_DAY.test(p.get("day") ?? "") ? p.get("day") : null,
+    tab: oneOf(DETAIL_TABS, p.get("tab"), DEFAULT_URL_STATE.tab),
   };
 }
 
@@ -83,7 +91,11 @@ export function serializeUrlState(state: DashboardUrlState): string {
   if (state.view !== "list") p.set("view", state.view);
   if (state.template) p.set("t", state.template);
   if (state.compare.length) p.set("cmp", state.compare.join(","));
-  if (state.view === "analytics" && state.range !== DEFAULT_URL_STATE.range) p.set("range", state.range);
+  if (state.view === "analytics") {
+    if (state.range !== DEFAULT_URL_STATE.range) p.set("range", state.range);
+    if (state.origin !== DEFAULT_URL_STATE.origin) p.set("origin", state.origin);
+    if (state.day) p.set("day", state.day);
+  }
   if (state.template && state.tab !== DEFAULT_URL_STATE.tab) p.set("tab", state.tab);
   return p.toString();
 }

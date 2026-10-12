@@ -43,3 +43,6 @@ export function toWeeks(points: { day: string; value: number }[]) {
 
 export const todayUtc = () => isoDay(Date.now());
 export const daysAgoUtc = (days: number) => isoDay(Date.now() - days * DAY_MS);
+
+/** The day `n` days after `day` (YYYY-MM-DD). */
+export const addDays = (day: string, n: number) => isoDay(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS);

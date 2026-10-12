@@ -3,6 +3,16 @@
 export const ANALYTICS_RANGES = ["7d", "30d", "90d", "all"] as const;
 export type AnalyticsRange = (typeof ANALYTICS_RANGES)[number];
 
+/** Where in Salesforce the send came from: Marketing Cloud or Digital Engagement. */
+export const ANALYTICS_ORIGINS = ["all", "mce", "de"] as const;
+export type AnalyticsOrigin = (typeof ANALYTICS_ORIGINS)[number];
+
+/** A stretch of days inside the range (UTC, YYYY-MM-DD, `to` excluded): a day or a week. */
+export interface AnalyticsPeriod {
+  from: string;
+  to: string;
+}
+
 export interface Counts {
   /** Send attempts (sent or rejected before reaching Meta). */
   sent: number;
@@ -21,18 +31,29 @@ export interface ErrorCount {
   label: string;
 }
 
+/** Counts plus the median seconds from send to first read (null when nothing was read). */
+export interface ReadCounts extends Counts {
+  readMedian: number | null;
+}
+
+export interface OriginRow extends ReadCounts {
+  /** Application__c, e.g. MARKETING_CLOUD_ENGAGEMENT; "" when Salesforce didn't fill it. */
+  origin: string;
+}
+
 export interface TemplateAnalytics {
   range: AnalyticsRange;
   /** Epoch ms of when the figures were computed (they are cached for an hour). */
   generatedAt: number;
-  totals: Counts;
+  totals: ReadCounts;
   daily: ({ day: string } & Counts)[];
   errors: ErrorCount[];
+  origins: OriginRow[];
   /** Same metrics for the whole WABA in the same range, to compare against. */
-  waba: Counts;
+  waba: ReadCounts;
 }
 
-export interface TemplateRow extends Counts {
+export interface TemplateRow extends ReadCounts {
   waba: string;
   template: string;
   language: string;
@@ -47,9 +68,13 @@ export interface MetaVolume {
 
 export interface SummaryAnalytics {
   range: AnalyticsRange;
+  origin: AnalyticsOrigin;
+  /** Set when the figures cover a single day or week of the range. */
+  period: AnalyticsPeriod | null;
   /** Epoch ms of when the figures were computed (they are cached for an hour). */
   generatedAt: number;
-  totals: Counts;
+  totals: ReadCounts;
+  origins: OriginRow[];
   daily: { day: string; sent: number }[];
   templates: TemplateRow[];
   errors: ErrorCount[];

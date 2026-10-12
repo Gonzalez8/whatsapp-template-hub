@@ -4,7 +4,6 @@ import type { MetaVolume } from "./analytics/types";
 const META_API = "https://graph.facebook.com/v23.0";
 const FETCH_TIMEOUT_MS = 15_000;
 const WABA_CONCURRENCY = 16;
-const DAY = 86_400;
 
 interface PricingPoint {
   volume?: number;
@@ -34,16 +33,14 @@ function isFree(point: PricingPoint): boolean {
 }
 
 /**
- * Messages Meta counted for the given WABAs over the last `days` days, by pricing
- * category and paid/free. Counts every source, not only Salesforce. Returns null if
- * Meta can't be reached; WABAs that fail individually are left out.
+ * Messages Meta counted for the given WABAs between two instants (epoch seconds, at
+ * day boundaries), by pricing category and paid/free. Counts every source, not only
+ * Salesforce. Returns null if Meta can't be reached; WABAs that fail are left out.
  */
-export async function fetchMetaVolume(wabaIds: string[], days: number): Promise<MetaVolume | null> {
+export async function fetchMetaVolume(wabaIds: string[], start: number, end: number): Promise<MetaVolume | null> {
   const token = process.env.META_ACCESS_TOKEN;
   if (!token || wabaIds.length === 0) return null;
 
-  const end = Math.floor(Date.now() / 1000 / DAY) * DAY;
-  const start = end - days * DAY;
   const settled = await settleWithConcurrency(wabaIds, WABA_CONCURRENCY, (id) => wabaPricing(id, start, end, token));
   if (settled.every((r) => r.status === "rejected")) return null;
 

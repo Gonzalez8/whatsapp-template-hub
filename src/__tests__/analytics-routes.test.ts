@@ -65,10 +65,25 @@ describe("analytics routes", () => {
     const res = await summary(req("/api/analytics/summary?range=7d"));
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
-    expect(getSummaryAnalytics).toHaveBeenCalledWith(["1", "2"], "7d");
+    expect(getSummaryAnalytics).toHaveBeenCalledWith(["1", "2"], "7d", "all", null);
 
     await summary(req("/api/analytics/summary?range=30d&waba=9,8,9"));
-    expect(getSummaryAnalytics).toHaveBeenLastCalledWith(["8", "9"], "30d");
+    expect(getSummaryAnalytics).toHaveBeenLastCalledWith(["8", "9"], "30d", "all", null);
+  });
+
+  it("passes the origin and a day or week", async () => {
+    await summary(req("/api/analytics/summary?range=all&waba=1&origin=de&from=2026-10-05&to=2026-10-12"));
+    expect(getSummaryAnalytics).toHaveBeenLastCalledWith(["1"], "all", "de", { from: "2026-10-05", to: "2026-10-12" });
+  });
+
+  it.each([
+    ["an unknown origin", "origin=x"],
+    ["only one end of the period", "from=2026-10-05"],
+    ["a period over a week", "from=2026-10-01&to=2026-10-20"],
+    ["an empty period", "from=2026-10-05&to=2026-10-05"],
+    ["a malformed date", "from=2026-10-05&to=hoy"],
+  ])("answers 400 for %s", async (_, query) => {
+    expect((await summary(req(`/api/analytics/summary?range=30d&waba=1&${query}`))).status).toBe(400);
   });
 
   it("answers 400 for a bad range or missing template params", async () => {
