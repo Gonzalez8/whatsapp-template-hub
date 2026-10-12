@@ -251,11 +251,18 @@ export function LoadError({ message }: { message: string }) {
   );
 }
 
-export function SourceNote() {
+/** "hace 12 min" for the moment the cached figures were computed. */
+function age(generatedAt: number, now = Date.now()) {
+  const minutes = Math.max(0, Math.round((now - generatedAt) / 60_000));
+  return minutes < 1 ? "hace un momento" : minutes < 60 ? `hace ${minutes} min` : `hace ${Math.round(minutes / 60)} h`;
+}
+
+export function SourceNote({ generatedAt }: { generatedAt?: number }) {
   return (
     <p className="text-faint text-[11px] leading-relaxed">
       Fuente: Data Cloud · solo envíos hechos desde Salesforce · «Leídas» requiere que el destinatario tenga activadas
-      las confirmaciones de lectura · datos con ~15 min de retraso y caché de 1 h.
+      las confirmaciones de lectura · Data Cloud va ~15 min por detrás de Meta · las cifras se recalculan cada hora
+      {generatedAt ? ` (estas, ${age(generatedAt)})` : ""}.
     </p>
   );
 }

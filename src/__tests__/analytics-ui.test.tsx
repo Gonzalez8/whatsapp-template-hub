@@ -33,6 +33,7 @@ const counts = (sent: number, delivered: number, read: number, failed = 0, avoid
 
 const summary: SummaryAnalytics = {
   range: "30d",
+  generatedAt: Date.now() - 12 * 60_000,
   totals: counts(100, 90, 45, 10, 2),
   daily: [{ day: "2026-10-01", sent: 100 }],
   templates: [
@@ -73,7 +74,9 @@ describe("AnalyticsView", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("/api/analytics/summary?waba=111&range=30d");
     expect(screen.getByRole("heading", { name: "Campus MKT" })).toBeInTheDocument();
     expect(screen.getByText("2 evitables · 8 ruido")).toBeInTheDocument();
-    expect(screen.getByText("De pago 300 · Gratis 200")).toBeInTheDocument();
+    expect(screen.getByText(/Plantillas promocionales/)).toBeInTheDocument();
+    expect(screen.getByText(/Respuestas libres a un cliente/)).toBeInTheDocument();
+    expect(screen.getByText(/estas, hace 12 min/)).toBeInTheDocument();
     expect(screen.getByText("Evitable")).toBeInTheDocument();
 
     // Templates still in Meta open the detail; deleted ones are plain text.
@@ -106,6 +109,7 @@ describe("AnalyticsView", () => {
 describe("TemplateAnalyticsTab", () => {
   const data: TemplateAnalytics = {
     range: "all",
+    generatedAt: Date.now(),
     totals: counts(69, 69, 55),
     daily: [{ day: "2026-05-26", ...counts(69, 69, 55) }],
     errors: [],

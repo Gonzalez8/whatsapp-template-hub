@@ -2,6 +2,8 @@
 
 Aplicación web interna para consultar las plantillas de mensajes de WhatsApp Business de todas las WABAs (WhatsApp Business Accounts) de una cuenta de Meta Business. Permite buscarlas, filtrarlas por cuenta, ver cómo se muestran en WhatsApp, revisar sus variables y botones y compararlas entre sí. Es de solo lectura: la edición se hace en el WhatsApp Manager de Meta, al que la app enlaza desde cada plantilla.
 
+Solo necesita un token de Meta. La [analítica de envíos](#analítica-salesforce-data-cloud) y el [inicio de sesión](#inicio-de-sesión-microsoft-entra-id) son módulos opcionales que se activan por configuración: quien no use Salesforce o Microsoft Entra ID no tiene que configurar nada de ellos.
+
 ## Índice
 
 - [Funcionalidades](#funcionalidades)
@@ -357,7 +359,9 @@ Para probar el flujo completo sin el tenant de la empresa, basta una cuenta grat
 
 ## Analítica (Salesforce Data Cloud)
 
-Métricas de envío de las plantillas, a partir de los eventos de WhatsApp que Salesforce guarda en Data Cloud y del volumen que Meta factura por WABA.
+Módulo **opcional** para quien envía sus plantillas desde Salesforce y tiene Data Cloud: métricas de envío de las plantillas a partir de los eventos de WhatsApp que Salesforce guarda en Data Cloud, junto con el volumen que Meta factura por WABA.
+
+Sin las variables `SF_*` el módulo no existe para el usuario: no aparece la vista ni la pestaña _Analítica_, los endpoints responden 404 y no se hace ninguna llamada a Salesforce. El resto de la app funciona igual. El objeto de Data Cloud de otra org se indica con `DATACLOUD_WHATSAPP_DLO`.
 
 | Dónde                                 | Qué muestra                                                                                                                                                                                                                                                                                                       |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -406,9 +410,62 @@ sequenceDiagram
 
 - **Origen de los datos:** el objeto de Data Cloud con los eventos de WhatsApp (`DATACLOUD_WHATSAPP_DLO`). Cada mensaje tiene varias filas con el mismo `WhatsAppWamId__c`: el envío desde Salesforce (`SEND_STATUS`, con la plantilla y el idioma dentro de `Message__c`) y los acuses de Meta (`DR`: enviado, entregado, leído, fallido). La app toma el envío y su estado final.
 - **Métricas:** _Entregadas_ = entregadas o leídas / enviadas; _Leídas_ = leídas / entregadas; _Fallos_ = fallidos o rechazados antes de llegar a Meta. Un fallo es **evitable** si su código depende de nuestra configuración o datos (`SF-3060`, `100`, `132000`, `132015`, `132001`, `131008`, `131005`, `190`, `10`) y **ruido** en otro caso (número sin WhatsApp, límites de marketing de Meta…).
-- **Total en Meta:** `pricing_analytics` de cada WABA, por categoría y de pago o gratis. Cuenta los mensajes de **todos los orígenes**, no solo de Salesforce. Meta guarda 90 días, así que en _Todo_ muestra los últimos 90.
+- **Total en Meta:** `pricing_analytics` de cada WABA, por categoría y de pago o gratis. Cuenta los mensajes de **todos los orígenes**, no solo de Salesforce, e incluye mensajes que no son plantillas. Meta guarda 90 días, así que en _Todo_ muestra los últimos 90. La tarjeta explica cada categoría:
+
+  | Categoría      | Qué es                                                                 | Coste                                              |
+  | -------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+  | Marketing      | Plantillas promocionales                                               | Siempre de pago (tarifa más alta)                  |
+  | Marketing Lite | Plantillas de marketing enviadas por la Marketing Messages API de Meta | De pago, con la tarifa de marketing                |
+  | Utilidad       | Confirmaciones, recordatorios y avisos                                 | De pago, gratis dentro de una conversación abierta |
+  | Autenticación  | Códigos de verificación (OTP)                                          | Siempre de pago                                    |
+  | Servicio       | Respuestas libres a un cliente que ha escrito; no son plantillas       | Gratis                                             |
+
+  Meta cobra por mensaje entregado. Una conversación abierta es la ventana de 24 h que empieza cuando el cliente escribe (72 h si llega desde un anuncio de clic a WhatsApp). _De pago_ y _Gratis_ salen del tipo de precio que Meta asigna a cada mensaje, no de la categoría.
+
 - **SQL seguro:** WABA, plantilla, idioma, fecha y nombre del objeto se validan contra patrones estrictos (`src/lib/analytics/queries.ts`); un valor que no encaja responde 400 sin llegar a Data Cloud.
-- **Caché:** 1 hora por combinación de WABAs, periodo y plantilla (etiqueta `analytics`). Data Cloud va unos 15 minutos por detrás de Meta.
+
+### Caché y llamadas a Salesforce
+
+La analítica no consulta Salesforce en cada visita. Hay tres niveles:
+
+| Nivel                           | Qué guarda                                                                                                              | Duración                                            | Dónde vive                                                           |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------- |
+| **Caché de datos** del servidor | El resultado de cada combinación: WABAs seleccionadas + periodo (vista) o WABA + plantilla + idioma + periodo (pestaña) | **1 hora** (`unstable_cache`, etiqueta `analytics`) | Data Cache de Vercel, compartida por todas las instancias y usuarios |
+| **Token de Salesforce**         | El token del flujo client credentials                                                                                   | 30 min, o hasta que Data Cloud responda 401         | Memoria de cada instancia de la función                              |
+| **Caché del navegador**         | Las respuestas ya cargadas en la pestaña                                                                                | Mientras no se recargue la página                   | Memoria del navegador                                                |
+
+```mermaid
+flowchart TD
+    A[Petición a /api/analytics/*] --> B{¿Hay resultado en la caché de datos?}
+    B -- "Sí, de hace menos de 1 h" --> C[Respuesta inmediata<br/>sin llamar a Salesforce]
+    B -- "Sí, de hace más de 1 h" --> D[Respuesta inmediata con el dato anterior]
+    D --> E[Regeneración en segundo plano]
+    B -- No --> F[Consulta a Salesforce y a Meta]
+    E --> F
+    F --> G{¿Token en memoria?}
+    G -- No --> H[POST /services/oauth2/token]
+    G -- Sí --> I[Consultas a la Query API de Data Cloud]
+    H --> I
+    I --> J[Resultado guardado 1 h]
+```
+
+**Cuántas llamadas hace cada resultado no cacheado:**
+
+| Petición                                | Data Cloud                                                                                                      | Meta                                                               |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Vista Analítica (WABAs + periodo)       | 3 consultas en paralelo: ranking, envíos por día y fallos                                                       | 1 llamada a `pricing_analytics` por WABA (16 a la vez como máximo) |
+| Pestaña Analítica (plantilla + periodo) | 2 consultas: envíos por día y fallos, más el resumen de su WABA (que reutiliza la caché de la vista si ya está) | Las del resumen de su WABA, si no estaba en caché                  |
+| Token                                   | 1 petición OAuth cada 30 min por instancia                                                                      | —                                                                  |
+
+En la práctica, cada combinación distinta consulta Salesforce **como mucho una vez por hora**, la vean una o cien personas. Volver a una WABA o a un periodo ya vistos en la misma pestaña no hace ninguna petición.
+
+- **Refresco:** a partir de la hora, la siguiente visita recibe el dato anterior al instante y dispara la regeneración en segundo plano (_stale-while-revalidate_). Si esa regeneración falla, se sigue sirviendo el dato anterior. La nota al pie indica la antigüedad de las cifras («estas, hace 12 min»).
+- **Errores:** un fallo de Salesforce no se guarda en caché; la siguiente petición vuelve a intentarlo.
+- **El botón Sincronizar** solo refresca las plantillas de Meta, no la analítica. No hace falta: Data Cloud ya va unos 15 minutos por detrás de Meta y las métricas son diarias.
+- **Consultas acotadas:** cada consulta filtra por WABA y por fecha, y agrupa en Data Cloud; a la app solo llegan los totales, nunca eventos sueltos.
+- **Tiempos de espera:** 30 s por consulta a Data Cloud y 15 s por llamada a Meta.
+
+Los tiempos están en `src/lib/analytics/index.ts` (`ANALYTICS_REVALIDATE_SECONDS`) y `src/lib/datacloud.ts` (`TOKEN_TTL_MS`, `QUERY_TIMEOUT_MS`).
 
 ### Qué pedir al administrador de Salesforce
 

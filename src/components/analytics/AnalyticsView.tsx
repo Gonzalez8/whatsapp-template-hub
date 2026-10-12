@@ -23,12 +23,19 @@ const RANGES: AnalyticsRange[] = ["7d", "30d", "90d", "all"];
 const RANGE_DAYS: Partial<Record<AnalyticsRange, number>> = { "7d": 7, "30d": 30, "90d": 90 };
 const PAGE = 25;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  MARKETING_LITE: "Marketing Lite",
-  MARKETING: "Marketing",
-  UTILITY: "Utilidad",
-  SERVICE: "Servicio (gratis)",
-  AUTHENTICATION: "Autenticación",
+/** Meta's pricing categories, explained for the legend. */
+const CATEGORIES: Record<string, { label: string; help: string }> = {
+  MARKETING: { label: "Marketing", help: "Plantillas promocionales. Siempre de pago, la tarifa más alta." },
+  MARKETING_LITE: {
+    label: "Marketing Lite",
+    help: "Marketing enviado por la Marketing Messages API de Meta. De pago, con la tarifa de marketing.",
+  },
+  UTILITY: {
+    label: "Utilidad",
+    help: "Confirmaciones, recordatorios y avisos. De pago, salvo dentro de una conversación abierta.",
+  },
+  AUTHENTICATION: { label: "Autenticación", help: "Códigos de verificación (OTP). Siempre de pago." },
+  SERVICE: { label: "Servicio", help: "Respuestas libres a un cliente que ha escrito; no son plantillas. Gratis." },
 };
 
 interface AnalyticsViewProps {
@@ -142,18 +149,25 @@ function AnalyticsBody({
           {meta ? (
             <>
               {categories.map(([category, n]) => (
-                <div key={category} className="mb-2.5">
+                <div key={category} className="mb-3">
                   <div className="flex justify-between text-xs">
-                    <span>{CATEGORY_LABELS[category] ?? category}</span>
+                    <span className="font-medium">{CATEGORIES[category]?.label ?? category}</span>
                     <span className="font-mono">{formatNumber(n)}</span>
                   </div>
                   <div className="bg-canvas mt-1 h-2 rounded-full">
                     <div className="bg-accent h-2 rounded-full" style={{ width: `${(n / maxCategory) * 100}%` }} />
                   </div>
+                  {CATEGORIES[category] && (
+                    <p className="text-muted mt-1 text-[11px] leading-snug">{CATEGORIES[category].help}</p>
+                  )}
                 </div>
               ))}
-              <p className="text-muted mt-1 text-xs">
-                De pago {formatNumber(meta.paid)} · Gratis {formatNumber(meta.free)}
+              <p className="mt-1 text-xs">
+                De pago <strong>{formatNumber(meta.paid)}</strong> · Gratis <strong>{formatNumber(meta.free)}</strong>
+              </p>
+              <p className="text-muted mt-1 text-[11px] leading-snug">
+                Meta cobra por mensaje entregado. Es gratis lo que se envía en la ventana de 24 h que abre el cliente al
+                escribir (72 h si llega desde un anuncio). Incluye mensajes de todos los orígenes, no solo plantillas.
               </p>
             </>
           ) : (
@@ -236,7 +250,7 @@ function AnalyticsBody({
           <ErrorList errors={data.errors} />
         </Card>
       </div>
-      <SourceNote />
+      <SourceNote generatedAt={data.generatedAt} />
     </>
   );
 }

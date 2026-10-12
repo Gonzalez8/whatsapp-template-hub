@@ -63,6 +63,7 @@ async function loadSummary(wabaIds: string[], range: AnalyticsRange): Promise<Su
   }));
   return {
     range,
+    generatedAt: Date.now(),
     totals: sumCounts(templates),
     daily: daily.map((row) => ({ day: day(row.day), sent: num(row.sent) })),
     templates,
@@ -87,6 +88,7 @@ async function loadTemplate(
   const days = daily.map((row) => ({ day: day(row.day), ...toCounts(row) }));
   return {
     range,
+    generatedAt: Date.now(),
     totals: sumCounts(days),
     daily: days,
     errors: errors.map((row) => describeError(String(row.code ?? "Desconocido"), num(row.failed))),

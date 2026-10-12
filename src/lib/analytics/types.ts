@@ -23,6 +23,8 @@ export interface ErrorCount {
 
 export interface TemplateAnalytics {
   range: AnalyticsRange;
+  /** Epoch ms of when the figures were computed (they are cached for an hour). */
+  generatedAt: number;
   totals: Counts;
   daily: ({ day: string } & Counts)[];
   errors: ErrorCount[];
@@ -45,6 +47,8 @@ export interface MetaVolume {
 
 export interface SummaryAnalytics {
   range: AnalyticsRange;
+  /** Epoch ms of when the figures were computed (they are cached for an hour). */
+  generatedAt: number;
   totals: Counts;
   daily: { day: string; sent: number }[];
   templates: TemplateRow[];
