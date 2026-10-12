@@ -157,13 +157,13 @@ async function loadTemplate(
 export const getSummaryAnalytics = unstable_cache(
   (wabaIds: string[], range: AnalyticsRange, origin: AnalyticsOrigin = "all", period: AnalyticsPeriod | null = null) =>
     loadSummary([...wabaIds].sort(), range, origin, period),
-  ["analytics-summary-v6"],
+  ["analytics-summary-v7"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );
 
 export const getTemplateAnalytics = unstable_cache(
   (wabaId: string, name: string, language: string, range: AnalyticsRange) =>
     loadTemplate(wabaId, name, language.toLowerCase(), range),
-  ["analytics-template-v6"],
+  ["analytics-template-v7"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );

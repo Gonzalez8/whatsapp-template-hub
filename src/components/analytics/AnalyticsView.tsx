@@ -299,29 +299,65 @@ function Layer({
 const MC = "MARKETING_CLOUD_ENGAGEMENT";
 const DE = "DIGITAL_ENGAGEMENT";
 const HATCH = "repeating-linear-gradient(135deg, var(--color-line-strong) 0 5px, var(--color-line) 5px 10px)";
+const UNMATCHED_HELP =
+  "Plantillas que Meta entregó y Data Cloud no tiene registradas: enviadas con otra herramienta o desde una parte de Salesforce que no vuelca en Data Cloud. Es una resta (Meta − Data Cloud) por WABA, no un origen comprobado; en un solo día puede moverse unos mensajes porque Meta cuenta los días con la hora de la WABA y Data Cloud en UTC.";
 
 /** Templates Meta delivered for a selection: every category but service conversations. */
 const metaTemplates = (meta: MetaVolume) =>
   Object.entries(meta.byCategory).reduce((n, [category, v]) => (category === "SERVICE" ? n : n + v), 0);
 
-/** Three-part bar: Marketing Cloud, Digital Engagement and outside Salesforce. */
-function SplitBar({ mc, de, outside, scale }: { mc: number; de: number; outside: number; scale: number }) {
+interface WabaReconciliation {
+  id: string;
+  mc: number;
+  de: number;
+  /** Delivered according to Data Cloud. */
+  sf: number;
+  /** Delivered according to Meta. */
+  inMeta: number;
+  /** Meta − Data Cloud: positive = not in Data Cloud; negative = Data Cloud counts more. */
+  diff: number;
+}
+
+/**
+ * Meta against Data Cloud, WABA by WABA. Differences are kept per WABA: one WABA where
+ * Data Cloud counts more does not hide another where it has nothing.
+ */
+function reconcile(data: SummaryAnalytics, meta: MetaVolume, wabaIds: string[] | null) {
+  const ids = wabaIds ?? [...new Set([...Object.keys(meta.byWaba), ...data.wabaOrigins.map((r) => r.waba)])];
+  const rows: WabaReconciliation[] = ids
+    .filter((id) => !meta.missing.includes(id))
+    .map((id) => {
+      const of = (application: string) =>
+        data.wabaOrigins.find((r) => r.waba === id && r.origin === application)?.delivered ?? 0;
+      const sf = data.wabaOrigins.filter((r) => r.waba === id).reduce((n, r) => n + r.delivered, 0);
+      const inMeta = meta.byWaba[id]?.templates ?? 0;
+      return { id, mc: of(MC), de: of(DE), sf, inMeta, diff: inMeta - sf };
+    })
+    .filter((r) => r.inMeta > 0 || r.sf > 0)
+    .sort((a, b) => b.diff - a.diff || b.inMeta - a.inMeta);
+  const unmatched = rows.reduce((n, r) => n + Math.max(0, r.diff), 0);
+  const surplus = rows.filter((r) => r.diff < 0);
+  return { rows, unmatched, surplus, surplusTotal: surplus.reduce((n, r) => n - r.diff, 0) };
+}
+
+/** Three-part bar: Marketing Cloud, Digital Engagement and not in Data Cloud. */
+function SplitBar({ mc, de, unmatched, scale }: { mc: number; de: number; unmatched: number; scale: number }) {
   const pct = (n: number) => `${scale ? (n / scale) * 100 : 0}%`;
   return (
     <div className="bg-canvas flex h-2.5 overflow-hidden rounded-full" aria-hidden="true">
       <div className="bg-accent" style={{ width: pct(mc) }} />
       <div className="bg-accent/45" style={{ width: pct(de) }} />
-      <div style={{ width: pct(outside), background: HATCH }} />
+      <div style={{ width: pct(unmatched), background: HATCH }} />
     </div>
   );
 }
 
-function Swatch({ kind }: { kind: "mc" | "de" | "outside" }) {
+function Swatch({ kind }: { kind: "mc" | "de" | "unmatched" }) {
   return (
     <span
       aria-hidden="true"
       className={`inline-block h-2.5 w-2.5 shrink-0 rounded-[3px] ${kind === "mc" ? "bg-accent" : kind === "de" ? "bg-accent/45" : ""}`}
-      style={kind === "outside" ? { background: HATCH } : undefined}
+      style={kind === "unmatched" ? { background: HATCH } : undefined}
     />
   );
 }
@@ -341,27 +377,30 @@ function MetaLayer({
   const delivered = (application: string) => data.origins.find((o) => o.origin === application)?.delivered ?? 0;
   const mc = delivered(MC);
   const de = delivered(DE);
-  const sf = data.totals.delivered;
   const templates = meta ? metaTemplates(meta) : null;
-  const outside = templates === null ? null : Math.max(0, templates - sf);
+  const check = meta ? reconcile(data, meta, wabaIds) : null;
   const categories = meta ? Object.entries(meta.byCategory).sort((a, b) => b[1] - a[1]) : [];
 
   return (
     <>
+      {meta && meta.missing.length > 0 && (
+        <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Meta no ha respondido para {meta.missing.length} {meta.missing.length === 1 ? "WABA" : "WABAs"}
+          {meta.missing.length <= 3 && ` (${meta.missing.map((id) => byId.get(id)?.waba_name ?? id).join(", ")})`}: las
+          cifras de Meta están incompletas y esas WABAs no entran en la comparación.
+        </p>
+      )}
       <div className="grid gap-3 lg:grid-cols-[2fr_1fr_1fr]">
         <div className="border-line rounded-xl border px-4 py-3.5">
           <div className="text-muted flex items-center gap-1 text-xs">
             Plantillas entregadas
-            <InfoTip
-              label="Cómo se calcula"
-              text="Meta cuenta las plantillas entregadas desde cualquier herramienta. «Fuera de Salesforce» es esa cifra menos lo que entregó Salesforce. Es una estimación: en un solo día puede variar en unos pocos mensajes porque Meta cuenta los días con la hora de la WABA y Data Cloud en UTC."
-            />
+            <InfoTip label="Cómo se calcula" text={UNMATCHED_HELP} />
           </div>
           <div className="mt-1.5 text-2xl font-semibold tracking-tight">
             {templates === null ? "—" : formatNumber(templates)}
           </div>
           <div className="mt-3">
-            <SplitBar mc={mc} de={de} outside={outside ?? 0} scale={Math.max(templates ?? 0, sf)} />
+            <SplitBar mc={mc} de={de} unmatched={check?.unmatched ?? 0} scale={Math.max(templates ?? 0, mc + de)} />
           </div>
           <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span className="flex items-center gap-1.5">
@@ -373,8 +412,8 @@ function MetaLayer({
               Digital Engagement <strong>{formatNumber(de)}</strong>
             </span>
             <span className="flex items-center gap-1.5">
-              <Swatch kind="outside" />
-              Fuera de Salesforce <strong>{outside === null ? "—" : `≈ ${formatNumber(outside)}`}</strong>
+              <Swatch kind="unmatched" />
+              Sin registro en Data Cloud <strong>{check === null ? "—" : `≈ ${formatNumber(check.unmatched)}`}</strong>
             </span>
           </div>
         </div>
@@ -421,7 +460,7 @@ function MetaLayer({
           )}
         </div>
       </div>
-      {meta && showTable && <WhoSends data={data} meta={meta} wabaIds={wabaIds} byId={byId} />}
+      {meta && check && showTable && <WhoSends check={check} templates={metaTemplates(meta)} byId={byId} />}
     </>
   );
 }
@@ -429,36 +468,21 @@ function MetaLayer({
 const WHO_PAGE = 8;
 
 function WhoSends({
-  data,
-  meta,
-  wabaIds,
+  check,
+  templates,
   byId,
 }: {
-  data: SummaryAnalytics;
-  meta: MetaVolume;
-  wabaIds: string[] | null;
+  check: ReturnType<typeof reconcile>;
+  templates: number;
   byId: Map<string, Waba>;
 }) {
   const [visible, setVisible] = useState(WHO_PAGE);
-  const rows = useMemo(() => {
-    const ids = wabaIds ?? [...new Set([...Object.keys(meta.byWaba), ...data.wabaOrigins.map((r) => r.waba)])];
-    return ids
-      .map((id) => {
-        const of = (application: string) =>
-          data.wabaOrigins.find((r) => r.waba === id && r.origin === application)?.delivered ?? 0;
-        const sf = data.wabaOrigins.filter((r) => r.waba === id).reduce((n, r) => n + r.delivered, 0);
-        const inMeta = meta.byWaba[id]?.templates ?? 0;
-        return { id, mc: of(MC), de: of(DE), sf, inMeta, outside: Math.max(0, inMeta - sf) };
-      })
-      .filter((r) => r.inMeta > 0 || r.sf > 0)
-      .sort((a, b) => b.outside - a.outside || b.inMeta - a.inMeta);
-  }, [data.wabaOrigins, meta.byWaba, wabaIds]);
-
+  const { rows, surplus, surplusTotal } = check;
   const scale = Math.max(1, ...rows.map((r) => Math.max(r.inMeta, r.sf)));
-  const onlyOutside = rows.filter((r) => r.sf === 0).length;
-  const mixed = rows.filter((r) => r.sf > 0 && r.outside > 0).length;
-  const templates = metaTemplates(meta);
-  const coverage = templates ? Math.min(1, data.totals.delivered / templates) : null;
+  const notInDataCloud = rows.filter((r) => r.sf === 0).length;
+  const partly = rows.filter((r) => r.sf > 0 && r.diff > 0).length;
+  const matched = rows.reduce((n, r) => n + Math.min(r.sf, r.inMeta), 0);
+  const coverage = templates ? Math.min(1, matched / templates) : null;
 
   return (
     <div className="border-line rounded-xl border px-4 py-3.5">
@@ -475,8 +499,8 @@ function WhoSends({
             Digital Engagement
           </span>
           <span className="flex items-center gap-1.5">
-            <Swatch kind="outside" />
-            Fuera de Salesforce
+            <Swatch kind="unmatched" />
+            Sin registro en Data Cloud
           </span>
         </span>
       </div>
@@ -488,10 +512,10 @@ function WhoSends({
             <thead className="text-muted">
               <tr>
                 <th className="py-1.5 font-medium">WABA</th>
-                <th className="w-[40%] px-2 py-1.5 font-medium">Reparto</th>
+                <th className="w-[38%] px-2 py-1.5 font-medium">Reparto</th>
                 <th className="px-2 py-1.5 text-right font-medium">En Meta</th>
-                <th className="px-2 py-1.5 text-right font-medium">Salesforce</th>
-                <th className="py-1.5 text-right font-medium">Fuera</th>
+                <th className="px-2 py-1.5 text-right font-medium">Data Cloud</th>
+                <th className="py-1.5 text-right font-medium">Diferencia</th>
               </tr>
             </thead>
             <tbody>
@@ -499,21 +523,28 @@ function WhoSends({
                 <tr key={r.id} className="border-line/70 border-t">
                   <td className="max-w-[220px] truncate py-2">{byId.get(r.id)?.waba_name ?? r.id}</td>
                   <td className="px-2 py-2">
-                    <SplitBar mc={r.mc} de={r.de} outside={r.outside} scale={scale} />
+                    <SplitBar mc={r.mc} de={r.de} unmatched={Math.max(0, r.diff)} scale={scale} />
                   </td>
                   <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(r.inMeta)}</td>
                   <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(r.sf)}</td>
                   <td className="py-2 text-right whitespace-nowrap">
                     {r.sf === 0 ? (
                       <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
-                        Todo fuera
+                        Sin Data Cloud
                       </span>
-                    ) : r.outside === 0 ? (
+                    ) : r.diff === 0 ? (
                       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
-                        Todo Salesforce
+                        Cuadra
                       </span>
+                    ) : r.diff > 0 ? (
+                      <span className="font-mono">≈ {formatNumber(r.diff)} sin registro</span>
                     ) : (
-                      <span className="font-mono">≈ {formatNumber(r.outside)}</span>
+                      <span
+                        className="text-muted font-mono"
+                        title="Data Cloud cuenta más entregas que Meta: días que caen distinto o acuses tardíos"
+                      >
+                        Data Cloud +{formatNumber(-r.diff)}
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -532,12 +563,19 @@ function WhoSends({
         </div>
       )}
       <p className="text-muted mt-2 text-xs">
-        {onlyOutside} {onlyOutside === 1 ? "WABA envía" : "WABAs envían"} solo fuera de Salesforce · {mixed}{" "}
-        {mixed === 1 ? "mixta" : "mixtas"}
+        {notInDataCloud} {notInDataCloud === 1 ? "WABA" : "WABAs"} sin ningún registro en Data Cloud · {partly} con
+        parte sin registro
         {coverage !== null && (
           <>
             {" "}
-            · Salesforce entrega el <strong>{formatPercent(coverage)}</strong> de las plantillas
+            · Data Cloud cubre el <strong>{formatPercent(coverage)}</strong> de las plantillas entregadas
+          </>
+        )}
+        {surplus.length > 0 && (
+          <>
+            {" "}
+            · en {surplus.length} {surplus.length === 1 ? "WABA" : "WABAs"} Data Cloud cuenta{" "}
+            {formatNumber(surplusTotal)} más que Meta (días que caen distinto o acuses tardíos)
           </>
         )}
       </p>

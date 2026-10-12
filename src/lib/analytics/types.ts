@@ -66,6 +66,8 @@ export interface MetaVolume {
   byCategory: Record<string, number>;
   /** Per WABA: templates (every category but SERVICE) and service conversations. */
   byWaba: Record<string, { templates: number; service: number }>;
+  /** WABAs Meta didn't answer for: the figures leave them out. */
+  missing: string[];
 }
 
 /** What Salesforce sent and delivered for one WABA from one origin. */

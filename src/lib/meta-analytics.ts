@@ -44,9 +44,12 @@ export async function fetchMetaVolume(wabaIds: string[], start: number, end: num
   const settled = await settleWithConcurrency(wabaIds, WABA_CONCURRENCY, (id) => wabaPricing(id, start, end, token));
   if (settled.every((r) => r.status === "rejected")) return null;
 
-  const volume: MetaVolume = { total: 0, paid: 0, free: 0, byCategory: {}, byWaba: {} };
+  const volume: MetaVolume = { total: 0, paid: 0, free: 0, byCategory: {}, byWaba: {}, missing: [] };
   for (const [i, result] of settled.entries()) {
-    if (result.status !== "fulfilled") continue;
+    if (result.status !== "fulfilled") {
+      volume.missing.push(wabaIds[i]);
+      continue;
+    }
     const waba = (volume.byWaba[wabaIds[i]] = { templates: 0, service: 0 });
     for (const point of result.value) {
       const n = point.volume ?? 0;
