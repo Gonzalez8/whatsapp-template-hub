@@ -132,9 +132,10 @@ describe("AnalyticsView", () => {
     renderView({ wabas: [waba, otherWaba], selectedWabas: new Set() });
 
     // 300 templates in Meta (service conversations apart), 90 delivered from Salesforce.
+    // The block is there while it loads: wait for its figures.
     const layer = within(await screen.findByRole("region", { name: "Todo WhatsApp, según Meta" }));
+    expect(await layer.findByText("≈ 210")).toBeInTheDocument();
     expect(layer.getAllByText("300").length).toBeGreaterThan(0);
-    expect(layer.getByText("≈ 210")).toBeInTheDocument();
     expect(layer.getAllByText("200").length).toBeGreaterThan(0); // service conversations
 
     const rows = layer.getAllByRole("row");
