@@ -99,7 +99,14 @@ export function AnalyticsView({
   const ids = [...selectedWabas].sort();
   const waba = ids.join(",");
   const weekly = !RANGE_DAYS[range];
-  const period = day ? { from: day, to: addDays(day, weekly ? 7 : 1) } : null;
+  // A day from an old link that is not on the chart any more (another range) is ignored.
+  const rangeDays = RANGE_DAYS[range];
+  const onChart =
+    !!day &&
+    day <= todayUtc() &&
+    (rangeDays ? day >= daysAgoUtc(rangeDays) : new Date(`${day}T00:00:00Z`).getUTCDay() === 1);
+  const pickedDay = onChart ? day : null;
+  const period = pickedDay ? { from: pickedDay, to: addDays(pickedDay, weekly ? 7 : 1) } : null;
   const salesforce = { waba, range, ...(origin !== "all" && { origin }) };
 
   // Layer 2 (Salesforce): the chart always covers the range; the rest follows a picked day.
@@ -138,7 +145,7 @@ export function AnalyticsView({
   );
 
   const figures = period ? picked : main;
-  const pickedLabel = day ? (weekly ? `la semana del ${formatDay(day)}` : formatWeekday(day)) : null;
+  const pickedLabel = pickedDay ? (weekly ? `la semana del ${formatDay(pickedDay)}` : formatWeekday(pickedDay)) : null;
 
   return (
     <div className="bg-canvas h-full overflow-y-auto">
@@ -219,7 +226,7 @@ export function AnalyticsView({
                   title={`Plantillas enviadas por ${weekly ? "semana" : "día"}`}
                   aside={`Pulsa ${weekly ? "una semana" : "un día"} para verlo en detalle`}
                 >
-                  <SendsChart data={main.data} range={range} day={day} onDayChange={onDayChange} />
+                  <SendsChart data={main.data} range={range} day={pickedDay} onDayChange={onDayChange} />
                 </Card>
                 {figures.status === "ready" && (
                   <Origins rows={figures.data.origins} origin={origin} onOriginChange={onOriginChange} />

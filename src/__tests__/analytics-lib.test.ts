@@ -139,6 +139,24 @@ describe("queryDataCloud", () => {
     expect(urls.filter((u) => u.endsWith("/ssot/queryv2"))).toHaveLength(2);
   });
 
+  it("runs at most 8 queries at a time per instance", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight--;
+        return Response.json({ data: [], metadata: {} });
+      }),
+    );
+    const token = { status: "access-token" as const, instanceUrl: config.instanceUrl, accessToken: "t" };
+    await Promise.all(Array.from({ length: 20 }, () => queryDataCloud("SELECT 1", token)));
+    expect(peak).toBe(8);
+  });
+
   it("throws DataCloudError on auth or query failures", async () => {
     vi.stubGlobal(
       "fetch",
