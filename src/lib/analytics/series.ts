@@ -4,6 +4,14 @@ const DAY_MS = 86_400_000;
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const shortDate = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
 export const formatDay = (day: string) => shortDate.format(new Date(`${day}T00:00:00Z`));
+const longDate = new Intl.DateTimeFormat("es-ES", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+/** "lun, 12 oct" */
+export const formatWeekday = (day: string) => longDate.format(new Date(`${day}T00:00:00Z`));
 
 /** One point per day between `from` and `to` (inclusive, YYYY-MM-DD), zero where there is no data. */
 export function fillDays(points: { day: string; value: number }[], from: string, to: string) {

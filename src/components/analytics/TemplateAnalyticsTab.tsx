@@ -14,6 +14,7 @@ import {
   Loading,
   RANGE_LABELS,
   RangePicker,
+  sendPoints,
   SourceNote,
   formatNumber,
   formatPercent,
@@ -81,11 +82,7 @@ function TemplateAnalyticsBody({ data, range }: { data: TemplateAnalytics; range
       <Card title={`Envíos por ${unit}`}>
         <BarChart
           label={`Envíos por ${unit}: ${formatNumber(totals.sent)} en total`}
-          points={series.map((p) => ({
-            key: formatDay(p.day),
-            value: p.value,
-            title: `${formatDay(p.day)}: ${p.value} envíos`,
-          }))}
+          points={sendPoints(series, !rangeDays)}
         />
       </Card>
 

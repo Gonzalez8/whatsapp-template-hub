@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AnalyticsView } from "@/components/analytics/AnalyticsView";
 import { TemplateAnalyticsTab } from "@/components/analytics/TemplateAnalyticsTab";
+import { BarChart, sendPoints } from "@/components/analytics/shared";
 import { clearAnalyticsCache } from "@/hooks/useAnalytics";
 import type { SummaryAnalytics, TemplateAnalytics } from "@/lib/analytics/types";
 import type { Template, Waba } from "@/types/template";
@@ -134,5 +135,34 @@ describe("TemplateAnalyticsTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "30 días" }));
     await waitFor(() => expect(screen.getByText(/en los últimos 30 días/)).toBeInTheDocument());
     expect(fetchMock.mock.calls.at(-1)?.[0]).toContain("range=30d");
+  });
+});
+
+describe("BarChart", () => {
+  it("shows the exact date and value on hover and with the arrow keys", () => {
+    const points = sendPoints(
+      [
+        { day: "2026-10-05", value: 3 },
+        { day: "2026-10-06", value: 1 },
+        { day: "2026-10-07", value: 12 },
+      ],
+      false,
+    );
+    render(<BarChart points={points} label="Envíos" />);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByText("12")).toBeInTheDocument(); // value axis
+
+    fireEvent.mouseEnter(screen.getAllByTestId("chart-bar")[2]);
+    expect(screen.getByRole("status")).toHaveTextContent("mié, 7 oct: 12 envíos");
+
+    const chart = screen.getByRole("group", { name: /Envíos/ });
+    fireEvent.keyDown(chart, { key: "ArrowLeft" });
+    expect(screen.getByRole("status")).toHaveTextContent("mar, 6 oct: 1 envío");
+    fireEvent.keyDown(chart, { key: "Escape" });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("labels weekly points as weeks", () => {
+    expect(sendPoints([{ day: "2026-10-05", value: 1500 }], true)[0].title).toBe("Semana del 5 oct: 1500 envíos");
   });
 });

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Template, Waba } from "@/types/template";
 import { rates, type AnalyticsRange, type SummaryAnalytics, type TemplateRow } from "@/lib/analytics/types";
-import { daysAgoUtc, fillDays, formatDay, todayUtc, toWeeks } from "@/lib/analytics/series";
+import { daysAgoUtc, fillDays, todayUtc, toWeeks } from "@/lib/analytics/series";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import {
   BarChart,
@@ -13,6 +13,7 @@ import {
   LoadError,
   Loading,
   RangePicker,
+  sendPoints,
   SourceNote,
   formatNumber,
   formatPercent,
@@ -134,11 +135,7 @@ function AnalyticsBody({
         <Card title={`Plantillas enviadas por ${rangeDays ? "día" : "semana"}`}>
           <BarChart
             label={`Envíos de plantillas: ${formatNumber(totals.sent)} en total`}
-            points={series.map((p) => ({
-              key: formatDay(p.day),
-              value: p.value,
-              title: `${formatDay(p.day)}: ${p.value} envíos`,
-            }))}
+            points={sendPoints(series, !rangeDays)}
           />
         </Card>
         <Card title="Volumen en Meta por categoría" aside={range === "all" ? "últimos 90 días" : undefined}>
