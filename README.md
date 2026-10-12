@@ -20,6 +20,8 @@ Solo necesita un token de Meta. La [analítica de envíos](#analítica-salesforc
 - [Variables de entorno](#variables-de-entorno)
 - [Inicio de sesión (Microsoft Entra ID)](#inicio-de-sesión-microsoft-entra-id)
 - [Analítica (Salesforce Data Cloud)](#analítica-salesforce-data-cloud)
+  - [De dónde sale cada cifra](#de-dónde-sale-cada-cifra)
+  - [Otras orgs de Salesforce](#otras-orgs-de-salesforce)
 - [Personalización de marca](#personalización-de-marca)
 - [Despliegue en Vercel](#despliegue-en-vercel)
 - [API](#api)
@@ -377,6 +379,33 @@ La vista, el periodo, el origen, el día elegido y la pestaña se guardan en la 
 - **Plantillas sin envíos:** plantillas **aprobadas** en Meta sin ningún envío desde Salesforce en los últimos 90 días (candidatas a limpiar), y plantillas enviadas en ese tiempo que ya no existen en Meta. Una plantilla que se envía desde otra herramienta aparece como «sin envíos» aunque se use.
 - **Días:** Data Cloud agrupa los días en UTC (su SQL no admite zonas horarias con nombre) y Meta en la zona horaria de la WABA. Los envíos entre las 22:00 y las 24:00 UTC (medianoche en España) pueden caer en días distintos en una y otra fuente; los totales de varios días coinciden.
 
+### De dónde sale cada cifra
+
+Meta y Data Cloud no comparten un identificador de envío que la app pueda cruzar mensaje a mensaje. Lo que tienen en común es la **WABA** (en Data Cloud, `ExternalAccountId__c`) y el **día**. El bloque de Meta pone una al lado de la otra:
+
+| Cifra                                        | Fuente                    | Cómo se obtiene                                                                                                                                                                            |
+| -------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Plantillas entregadas** (total)            | Meta, `pricing_analytics` | Suma de las categorías Marketing, Marketing Lite, Utilidad y Autenticación por WABA y día. Meta **no dice desde qué herramienta** se envió cada mensaje, solo cuántos entregó (y facturó). |
+| **Conversaciones de servicio**               | Meta                      | Categoría Servicio: respuestas libres, no plantillas.                                                                                                                                      |
+| **Marketing Cloud** y **Digital Engagement** | Data Cloud                | Envíos `SEND_STATUS` de cada origen (`Application__c`) cuyo mensaje tiene un acuse `DR` de entregado o leído. Es un recuento directo, no un reparto proporcional.                          |
+| **Fuera de Salesforce**                      | Resta de las dos          | _Plantillas entregadas según Meta − entregadas según Data Cloud_, por WABA (nunca negativa) y sumada. No se extrapola nada: es lo que Meta entregó y Data Cloud no tiene registrado.       |
+
+```mermaid
+flowchart LR
+    M[Meta · pricing_analytics<br/>plantillas entregadas por WABA y día] --> R{Resta por WABA}
+    D[Data Cloud · eventos de WhatsApp<br/>entregadas por WABA y Application__c] --> R
+    D --> MC[Marketing Cloud]
+    D --> DE[Digital Engagement]
+    R --> F[Fuera de Salesforce<br/>sin registro en Data Cloud]
+```
+
+Por qué es fiable y dónde no:
+
+- **Se compara entregado con entregado.** Meta solo cuenta (y cobra) lo que llega al teléfono. Una WABA que solo envía desde Salesforce sale casi exacta: NoriBot, en 7 días, 758 entregadas en Data Cloud y 758 de Utilidad en Meta.
+- **«Fuera de Salesforce» significa «sin registro en Data Cloud».** Incluye lo enviado con otras herramientas y lo que se envía desde una parte de Salesforce que no vuelca en este Data Cloud (otra unidad de negocio de Marketing Cloud, otra org). Una WABA sin ningún evento en Data Cloud sale como «Todo fuera».
+- **Días:** Data Cloud cuenta en UTC y Meta en la zona horaria de la WABA, y un mensaje puede enviarse un día y entregarse al siguiente. En un solo día la cifra por WABA puede moverse unos pocos mensajes; en periodos de varios días cuadra.
+- **Historial:** Meta guarda 90 días; en _Todo_ el bloque de Meta compara solo esos 90 días.
+
 ### Cuándo se activa
 
 | Configuración                                                                           | Analítica                                                                     |
@@ -473,6 +502,37 @@ En la práctica, cada combinación distinta consulta Salesforce **como mucho una
 - **Tiempos de espera:** 30 s por consulta a Data Cloud y 15 s por llamada a Meta.
 
 Los tiempos están en `src/lib/analytics/index.ts` (`ANALYTICS_REVALIDATE_SECONDS`) y `src/lib/datacloud.ts` (`TOKEN_TTL_MS`, `QUERY_TIMEOUT_MS`).
+
+### Otras orgs de Salesforce
+
+El módulo no está atado a una org concreta, pero da por hecho una configuración de Salesforce:
+
+1. **Data Cloud** en la org, con los eventos de mensajería de WhatsApp de Salesforce (Marketing Cloud Engagement y/o Digital Engagement) ingestados en un objeto de Data Cloud (DLO).
+2. **El nombre del objeto.** Data Cloud lo crea como `MessagingEventsWhatsAppV2_<sufijo>__dll`, y el sufijo es distinto en cada org. El valor por defecto del código, `MessagingEventsWhatsAppV2_Whats_752DC657__dll`, es el de la org donde se desarrolló; en cualquier otra hay que indicarlo en `DATACLOUD_WHATSAPP_DLO`. Para encontrarlo: _Data Cloud → Objetos de lago de datos_ (busca «MessagingEventsWhatsApp»), o la API de metadatos:
+
+   ```bash
+   sf api request rest "/services/data/v63.0/ssot/metadata?dataspace=default" -o <org> \
+     | jq -r '.metadata[].name' | grep -i whatsapp
+   ```
+
+   Puede salir más de uno (por ejemplo, uno con prefijo `PR_`): el que hay que usar es el que empieza por `MessagingEventsWhatsAppV2_`.
+
+3. **Los campos que lee la app.** Si el objeto de otra org no los tiene con estos nombres, Data Cloud rechaza la consulta y la vista muestra «La consulta a Data Cloud falló»:
+
+   | Campo                  | Para qué                                                                           |
+   | ---------------------- | ---------------------------------------------------------------------------------- |
+   | `WhatsAppWamId__c`     | Une el envío con sus acuses de Meta (todas las filas de un mensaje lo comparten)   |
+   | `EventType__c`         | `SEND_STATUS` (envío desde Salesforce) o `DR` (acuse de Meta)                      |
+   | `SendStatus__c`        | `SENT`, `NOT_SENT`, `DELIVERED`, `READ`, `FAILED`                                  |
+   | `ErrorCode__c`         | Código del fallo (`WA-131026`, `SF-3060`…)                                         |
+   | `ExternalAccountId__c` | ID de la WABA: lo que permite cruzar con Meta                                      |
+   | `Application__c`       | Origen: `MARKETING_CLOUD_ENGAGEMENT` o `DIGITAL_ENGAGEMENT`                        |
+   | `Message__c`           | JSON del envío: nombre de la plantilla (`"name"`) e idioma (`"language":{"code"}`) |
+   | `EventDateTime__c`     | Fecha y hora del evento (UTC)                                                      |
+
+4. **El espacio de datos `default`** de Data Cloud, que es el que usa la Query API sin más parámetros.
+
+Lo demás (códigos de error evitables, categorías de Meta, cálculo de medianas) es genérico de WhatsApp y de Salesforce.
 
 ### Qué pedir al administrador de Salesforce
 
