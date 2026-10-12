@@ -4,7 +4,8 @@ import { useId, useState, type ReactNode } from "react";
 import type { AnalyticsOrigin, AnalyticsRange, ErrorCount } from "@/lib/analytics/types";
 import { formatDay, formatWeekday } from "@/lib/analytics/series";
 
-const numberFormat = new Intl.NumberFormat("es-ES");
+// Spanish leaves 4-digit numbers ungrouped (2917); in tables next to 15.302 that reads as a typo.
+const numberFormat = new Intl.NumberFormat("es-ES", { useGrouping: "always" });
 export const formatNumber = (n: number) => numberFormat.format(n);
 export const formatPercent = (ratio: number | null) =>
   ratio === null ? "—" : `${(ratio * 100).toFixed(1).replace(".", ",")} %`;
@@ -235,7 +236,7 @@ export function BarChart({
     if (!p.value) return "bg-line";
     // With a bar picked, the rest step back.
     if (selected) return "bg-accent/25";
-    return p.value === max ? "bg-accent/80" : "bg-accent/45";
+    return "bg-accent/45";
   }
 
   return (

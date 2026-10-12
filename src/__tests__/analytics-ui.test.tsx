@@ -274,7 +274,7 @@ describe("BarChart", () => {
   });
 
   it("labels weekly points as weeks", () => {
-    expect(sendPoints([{ day: "2026-10-05", value: 1500 }], true)[0].title).toBe("Semana del 5 oct: 1500 envíos");
+    expect(sendPoints([{ day: "2026-10-05", value: 1500 }], true)[0].title).toBe("Semana del 5 oct: 1.500 envíos");
   });
 });
 

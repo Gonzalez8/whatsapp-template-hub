@@ -19,7 +19,7 @@ const LABELS: Record<string, string> = {
   "130472": "Número en un experimento de Meta",
   "131047": "Ventana de 24 h caducada",
   "131050": "El destinatario se dio de baja del marketing",
-  "131053": "Error al descargar la imagen o el vídeo",
+  "131053": "Meta no pudo descargar la imagen o el vídeo de la cabecera",
 };
 
 const AVOIDABLE = new Set(AVOIDABLE_ERROR_CODES.map(bare));

@@ -167,7 +167,7 @@ export function AnalyticsView({
         )}
 
         <Layer
-          step={1}
+          source="Meta"
           title="Todo WhatsApp, según Meta"
           description="Cualquier herramienta: todo lo que Meta entrega y factura"
           aside={!period && range === "all" ? "últimos 90 días" : undefined}
@@ -185,7 +185,7 @@ export function AnalyticsView({
         </Layer>
 
         <Layer
-          step={2}
+          source="Data Cloud"
           title="Detalle de Salesforce"
           description="Data Cloud: plantilla a plantilla, con entrega, lectura y fallos"
           controls={
@@ -227,7 +227,7 @@ export function AnalyticsView({
               </div>
 
               {figures.status === "ready" && (
-                <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr]">
+                <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
                   <Ranking
                     data={figures.data}
                     showWaba={selected.length !== 1}
@@ -261,14 +261,14 @@ export function AnalyticsView({
 }
 
 function Layer({
-  step,
+  source,
   title,
   description,
   aside,
   controls,
   children,
 }: {
-  step: number;
+  source: string;
   title: string;
   description: string;
   aside?: string;
@@ -278,7 +278,7 @@ function Layer({
   return (
     <section aria-label={title} className="border-line bg-surface space-y-4 rounded-2xl border p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="text-muted text-[11px] font-semibold tracking-wider uppercase">Capa {step}</span>
+        <span className="bg-canvas text-muted rounded-full px-2 py-0.5 text-[11px] font-medium">Fuente: {source}</span>
         <h2 className="text-base font-semibold">{title}</h2>
         <span className="text-faint text-xs">{description}</span>
         {aside && <span className="text-muted text-xs">· {aside}</span>}
@@ -630,7 +630,7 @@ function Ranking({
                 const rr = rates(row);
                 return (
                   <tr key={`${row.waba}-${row.template}-${row.language}`} className="border-line/70 border-t">
-                    <td className="max-w-[320px] py-2 font-mono">
+                    <td className="max-w-[220px] py-2 font-mono">
                       {template ? (
                         <button
                           type="button"
@@ -647,7 +647,10 @@ function Ranking({
                       )}
                     </td>
                     {showWaba && (
-                      <td className="text-muted max-w-[160px] truncate px-2 py-2">
+                      <td
+                        className="text-muted max-w-[130px] truncate px-2 py-2"
+                        title={byId.get(row.waba)?.waba_name ?? row.waba}
+                      >
                         {byId.get(row.waba)?.waba_name ?? row.waba}
                       </td>
                     )}
@@ -659,9 +662,9 @@ function Ranking({
                     </td>
                     <td
                       className={`py-2 text-right font-mono whitespace-nowrap ${row.avoidable ? "font-semibold text-red-700" : ""}`}
+                      title={row.avoidable ? `${row.avoidable} evitables` : undefined}
                     >
                       {formatNumber(row.failed)}
-                      {row.avoidable > 0 && ` (${row.avoidable} evit.)`}
                     </td>
                   </tr>
                 );
@@ -745,7 +748,8 @@ function Origins({
         </table>
       )}
       <p className="text-muted mt-2 text-[11px] leading-snug">
-        Las dos son Salesforce y las registra Data Cloud. Lo enviado desde otras herramientas solo aparece en la capa 1.
+        Las dos son Salesforce y las registra Data Cloud. Lo que Data Cloud no registra solo aparece en el bloque de
+        Meta.
       </p>
     </Card>
   );

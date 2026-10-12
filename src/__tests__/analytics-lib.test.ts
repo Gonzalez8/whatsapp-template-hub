@@ -223,6 +223,8 @@ describe("describeError", () => {
       label: "Número sin WhatsApp o no alcanzable",
     });
     expect(describeError("999", 1)).toMatchObject({ avoidable: false, label: "Otro motivo" });
+    // A header image or video Meta couldn't download is usually our URL.
+    expect(describeError("WA-131053", 2).avoidable).toBe(true);
   });
 });
 

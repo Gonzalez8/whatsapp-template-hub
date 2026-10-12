@@ -21,6 +21,8 @@ export const AVOIDABLE_ERROR_CODES = [
   "WA-131005",
   "WA-190",
   "WA-10",
+  // Meta couldn't download the header image or video: usually our URL (expired or private).
+  "WA-131053",
 ] as const;
 
 const WABA_ID = /^\d{1,20}$/;
