@@ -155,6 +155,15 @@ export function overviewSql(scope: Scope, wabaIds: string[], template?: { name: 
     FROM sends s LEFT JOIN status d ON s.wamid = d.wamid`;
 }
 
+/** Sends and deliveries per WABA and origin: what Salesforce delivered, to set against Meta's count. */
+export function wabaOriginSql(scope: Scope, wabaIds: string[]): string {
+  return `WITH ${sendsCte(scope, wabaIds)}, ${statusCte(scope, wabaIds)}
+    SELECT s.waba AS waba, COALESCE(s.origin, '') AS origin, COUNT(*) AS sent,
+      SUM(COALESCE(d.delivered,0)) AS delivered
+    FROM sends s LEFT JOIN status d ON s.wamid = d.wamid
+    GROUP BY s.waba, s.origin`;
+}
+
 /** Daily template sends for the selected WABAs (all when empty). */
 export function summaryDailySql(scope: Scope, wabaIds: string[]): string {
   return `WITH ${sendsCte(scope, wabaIds)}

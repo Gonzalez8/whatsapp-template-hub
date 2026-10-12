@@ -292,6 +292,7 @@ describe("fetchMetaVolume", () => {
       paid: 5,
       free: 7,
       byCategory: { MARKETING: 5, SERVICE: 6, UTILITY: 1 },
+      byWaba: { a: { templates: 6, service: 6 } },
     });
   });
 

@@ -56,8 +56,20 @@ const summary: SummaryAnalytics = {
     { code: "WA-132000", failed: 2, avoidable: true, label: "El número de parámetros no coincide con la plantilla" },
     { code: "131026", failed: 8, avoidable: false, label: "Número sin WhatsApp o no alcanzable" },
   ],
-  meta: { total: 500, paid: 300, free: 200, byCategory: { MARKETING: 300, SERVICE: 200 } },
+  wabaOrigins: [
+    { waba: "111", origin: "MARKETING_CLOUD_ENGAGEMENT", sent: 70, delivered: 60 },
+    { waba: "111", origin: "DIGITAL_ENGAGEMENT", sent: 30, delivered: 30 },
+  ],
+  meta: {
+    total: 500,
+    paid: 300,
+    free: 200,
+    byCategory: { MARKETING: 300, SERVICE: 200 },
+    byWaba: { "111": { templates: 120, service: 150 }, "222": { templates: 180, service: 50 } },
+  },
 };
+
+const otherWaba: Waba = { ...waba, waba_id: "222", waba_name: "DFO Escuela", templates: [] };
 
 function mockFetch(handler: (url: string) => Response) {
   const fetchMock = vi.fn(async (input: string | URL | Request) => handler(input.toString()));
@@ -100,7 +112,7 @@ describe("AnalyticsView", () => {
     expect(screen.getByText("2 evitables · 8 ruido")).toBeInTheDocument();
     expect(screen.getByText("5 min")).toBeInTheDocument(); // read-time median KPI
     expect(screen.getByText("1 h 7 min")).toBeInTheDocument(); // per-template median
-    expect(screen.getByRole("button", { name: "Qué es Servicio" })).toHaveAccessibleDescription(
+    expect(screen.getAllByRole("button", { name: "Qué es Servicio" })[0]).toHaveAccessibleDescription(
       /Respuestas libres a un cliente/,
     );
     expect(screen.getByRole("button", { name: "Qué es Marketing" })).toHaveAccessibleDescription(
@@ -113,6 +125,24 @@ describe("AnalyticsView", () => {
     fireEvent.click(screen.getByRole("button", { name: "campus_confirmation" }));
     expect(onOpenTemplate).toHaveBeenCalledWith(template);
     expect(screen.queryByRole("button", { name: "old_template" })).toBeNull();
+  });
+
+  it("sets Meta's count against what Salesforce delivered, per WABA", async () => {
+    mockFetch(() => Response.json(summary));
+    renderView({ wabas: [waba, otherWaba], selectedWabas: new Set() });
+
+    // 300 templates in Meta (service conversations apart), 90 delivered from Salesforce.
+    const layer = within(await screen.findByRole("region", { name: "Todo WhatsApp, según Meta" }));
+    expect(layer.getAllByText("300").length).toBeGreaterThan(0);
+    expect(layer.getByText("≈ 210")).toBeInTheDocument();
+    expect(layer.getAllByText("200").length).toBeGreaterThan(0); // service conversations
+
+    const rows = layer.getAllByRole("row");
+    expect(rows[1]).toHaveTextContent("DFO Escuela");
+    expect(rows[1]).toHaveTextContent("Todo fuera");
+    expect(rows[2]).toHaveTextContent("Campus MKT");
+    expect(rows[2]).toHaveTextContent("≈ 30");
+    expect(layer.getByText(/1 WABA envía solo fuera de Salesforce · 1 mixta/)).toHaveTextContent("30,0 %");
   });
 
   it("lists approved templates without sends in 90 days and sent ones gone from Meta", async () => {
@@ -134,7 +164,7 @@ describe("AnalyticsView", () => {
     const { onOriginChange } = renderView();
 
     await screen.findByText("90 mensajes");
-    const filter = within(screen.getByRole("group", { name: "Origen" }));
+    const filter = within(screen.getByRole("group", { name: "Origen en Salesforce" }));
     fireEvent.click(filter.getByRole("button", { name: "Marketing Cloud" }));
     expect(onOriginChange).toHaveBeenLastCalledWith("mce");
     // The origin table links to the same filter.
@@ -174,7 +204,7 @@ describe("AnalyticsView", () => {
     mockFetch(() => Response.json({ error: "La consulta a Data Cloud falló (HTTP 500)" }, { status: 502 }));
     const { onRangeChange } = renderView({ selectedWabas: new Set() });
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 500");
+    expect((await screen.findAllByRole("alert"))[0]).toHaveTextContent("HTTP 500");
     expect(screen.getByRole("heading", { name: "Todas las WABAs" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "7 días" }));
     expect(onRangeChange).toHaveBeenCalledWith("7d");

@@ -7,6 +7,7 @@ import {
   rates,
   type AnalyticsOrigin,
   type AnalyticsRange,
+  type MetaVolume,
   type OriginRow,
   type SummaryAnalytics,
   type TemplateRow,
@@ -38,6 +39,14 @@ const PAGE = 25;
 const UNUSED_PAGE = 8;
 /** Window for "templates without sends". */
 const UNUSED_RANGE: AnalyticsRange = "90d";
+/** Meta keeps 90 days of pricing data. */
+const META_RANGE: AnalyticsRange = "90d";
+
+const SALESFORCE_ORIGIN_LABELS: Record<AnalyticsOrigin, string> = {
+  all: "Todo Salesforce",
+  mce: "Marketing Cloud",
+  de: "Digital Engagement",
+};
 
 /** Meta's pricing categories, explained for the legend. */
 const CATEGORIES: Record<string, { label: string; help: string }> = {
@@ -89,13 +98,17 @@ export function AnalyticsView({
 }: AnalyticsViewProps) {
   const ids = [...selectedWabas].sort();
   const waba = ids.join(",");
-  const base = { waba, range, ...(origin !== "all" && { origin }) };
   const weekly = !RANGE_DAYS[range];
+  const period = day ? { from: day, to: addDays(day, weekly ? 7 : 1) } : null;
+  const salesforce = { waba, range, ...(origin !== "all" && { origin }) };
 
-  // The whole range feeds the chart; a picked day or week feeds everything else.
-  const main = useAnalytics<SummaryAnalytics>(summaryUrl(base));
-  const picked = useAnalytics<SummaryAnalytics>(
-    day ? summaryUrl({ ...base, from: day, to: addDays(day, weekly ? 7 : 1) }) : null,
+  // Layer 2 (Salesforce): the chart always covers the range; the rest follows a picked day.
+  const main = useAnalytics<SummaryAnalytics>(summaryUrl(salesforce));
+  const picked = useAnalytics<SummaryAnalytics>(period ? summaryUrl({ ...salesforce, ...period }) : null);
+  // Layer 1 (Meta) compares against every Salesforce origin. Meta keeps 90 days, so
+  // "Todo" is set against Salesforce's last 90 days too.
+  const everything = useAnalytics<SummaryAnalytics>(
+    summaryUrl(period ? { waba, range, ...period } : { waba, range: range === "all" ? META_RANGE : range }),
   );
   // Usage over 90 days, every origin: which templates aren't sent any more.
   const usage = useAnalytics<SummaryAnalytics>(summaryUrl({ waba, range: UNUSED_RANGE }));
@@ -124,7 +137,7 @@ export function AnalyticsView({
     [byId],
   );
 
-  const figures = day ? picked : main;
+  const figures = period ? picked : main;
   const pickedLabel = day ? (weekly ? `la semana del ${formatDay(day)}` : formatWeekday(day)) : null;
 
   return (
@@ -135,65 +148,86 @@ export function AnalyticsView({
             <h1 className="text-xl font-semibold">{title}</h1>
             {subtitle && <p className="text-muted mt-0.5 truncate text-xs">{subtitle}</p>}
           </div>
-          <Segmented
-            label="Origen"
-            value={origin}
-            options={ANALYTICS_ORIGINS}
-            labels={ORIGIN_LABELS}
-            onChange={onOriginChange}
-          />
           <RangePicker value={range} options={RANGES} onChange={onRangeChange} />
         </div>
 
-        {main.status === "loading" && <Loading />}
-        {main.status === "error" && <LoadError message={main.message} />}
-        {main.status === "ready" && (
-          <>
-            {pickedLabel && (
-              <div className="bg-accent/10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-sm">
-                <span>
-                  Mostrando <strong>{pickedLabel}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onDayChange(null)}
-                  className="text-accent-ink text-xs font-medium hover:underline"
-                >
-                  Ver todo el periodo ✕
-                </button>
-              </div>
-            )}
+        {pickedLabel && (
+          <div className="bg-accent/10 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-sm">
+            <span>
+              Mostrando <strong>{pickedLabel}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => onDayChange(null)}
+              className="text-accent-ink text-xs font-medium hover:underline"
+            >
+              Ver todo el periodo ✕
+            </button>
+          </div>
+        )}
 
-            {figures.status === "ready" ? (
-              <Kpis data={figures.data} origin={origin} />
-            ) : figures.status === "error" ? (
-              <LoadError message={figures.message} />
-            ) : (
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6" aria-busy="true">
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="shimmer h-24 rounded-xl" />
-                ))}
-              </div>
-            )}
+        <Layer
+          step={1}
+          title="Todo WhatsApp, según Meta"
+          description="Cualquier herramienta: todo lo que Meta entrega y factura"
+          aside={!period && range === "all" ? "últimos 90 días" : undefined}
+        >
+          {everything.status === "loading" && <div className="shimmer h-40 rounded-xl" aria-busy="true" />}
+          {everything.status === "error" && <LoadError message={everything.message} />}
+          {everything.status === "ready" && (
+            <MetaLayer
+              data={everything.data}
+              wabaIds={ids.length ? ids : null}
+              byId={byId}
+              showTable={selected.length !== 1}
+            />
+          )}
+        </Layer>
 
-            <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-              <Card
-                title={`Plantillas enviadas por ${weekly ? "semana" : "día"}`}
-                aside={`Pulsa ${weekly ? "una semana" : "un día"} para verlo en detalle`}
-              >
-                <SendsChart data={main.data} range={range} day={day} onDayChange={onDayChange} />
-              </Card>
-              {figures.status === "ready" && (
-                <MetaCard
-                  data={figures.data}
-                  note={day ? undefined : range === "all" ? "últimos 90 días" : undefined}
-                />
+        <Layer
+          step={2}
+          title="Detalle de Salesforce"
+          description="Data Cloud: plantilla a plantilla, con entrega, lectura y fallos"
+          controls={
+            <Segmented
+              label="Origen en Salesforce"
+              value={origin}
+              options={ANALYTICS_ORIGINS}
+              labels={SALESFORCE_ORIGIN_LABELS}
+              onChange={onOriginChange}
+            />
+          }
+        >
+          {main.status === "loading" && <Loading />}
+          {main.status === "error" && <LoadError message={main.message} />}
+          {main.status === "ready" && (
+            <>
+              {figures.status === "ready" ? (
+                <Kpis data={figures.data} origin={origin} />
+              ) : figures.status === "error" ? (
+                <LoadError message={figures.message} />
+              ) : (
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-busy="true">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="shimmer h-24 rounded-xl" />
+                  ))}
+                </div>
               )}
-            </div>
 
-            {figures.status === "ready" && (
-              <>
-                <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
+              <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
+                <Card
+                  title={`Plantillas enviadas por ${weekly ? "semana" : "día"}`}
+                  aside={`Pulsa ${weekly ? "una semana" : "un día"} para verlo en detalle`}
+                >
+                  <SendsChart data={main.data} range={range} day={day} onDayChange={onDayChange} />
+                </Card>
+                {figures.status === "ready" && (
+                  <Origins rows={figures.data.origins} origin={origin} onOriginChange={onOriginChange} />
+                )}
+              </div>
+
+              {figures.status === "ready" && (
+                <div className="grid items-start gap-3 lg:grid-cols-[2fr_1fr]">
                   <Ranking
                     data={figures.data}
                     showWaba={selected.length !== 1}
@@ -201,40 +235,323 @@ export function AnalyticsView({
                     findTemplate={findTemplate}
                     onOpenTemplate={onOpenTemplate}
                   />
-                  <Card title="Fallos por motivo">
-                    <ErrorList errors={figures.data.errors} />
-                  </Card>
+                  <div className="min-w-0 space-y-3">
+                    <Card title="Fallos por motivo">
+                      <ErrorList errors={figures.data.errors} />
+                    </Card>
+                    <UnusedTemplates
+                      state={usage}
+                      wabas={selected.length ? selected : wabas}
+                      showWaba={selected.length !== 1}
+                      byId={byId}
+                      findTemplate={findTemplate}
+                      onOpenTemplate={onOpenTemplate}
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <Origins rows={figures.data.origins} origin={origin} onOriginChange={onOriginChange} />
-                  <UnusedTemplates
-                    state={usage}
-                    wabas={selected.length ? selected : wabas}
-                    showWaba={selected.length !== 1}
-                    byId={byId}
-                    findTemplate={findTemplate}
-                    onOpenTemplate={onOpenTemplate}
-                  />
-                </div>
-                <SourceNote generatedAt={figures.data.generatedAt} />
-              </>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </Layer>
+
+        {figures.status === "ready" && <SourceNote generatedAt={figures.data.generatedAt} />}
       </div>
     </div>
   );
 }
 
-function Kpis({ data, origin }: { data: SummaryAnalytics; origin: AnalyticsOrigin }) {
-  const { totals, meta } = data;
-  const r = rates(totals);
+function Layer({
+  step,
+  title,
+  description,
+  aside,
+  controls,
+  children,
+}: {
+  step: number;
+  title: string;
+  description: string;
+  aside?: string;
+  controls?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+    <section aria-label={title} className="border-line bg-surface space-y-4 rounded-2xl border p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="text-muted text-[11px] font-semibold tracking-wider uppercase">Capa {step}</span>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <span className="text-faint text-xs">{description}</span>
+        {aside && <span className="text-muted text-xs">· {aside}</span>}
+        {controls && <div className="ml-auto">{controls}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+const MC = "MARKETING_CLOUD_ENGAGEMENT";
+const DE = "DIGITAL_ENGAGEMENT";
+const HATCH = "repeating-linear-gradient(135deg, var(--color-line-strong) 0 5px, var(--color-line) 5px 10px)";
+
+/** Templates Meta delivered for a selection: every category but service conversations. */
+const metaTemplates = (meta: MetaVolume) =>
+  Object.entries(meta.byCategory).reduce((n, [category, v]) => (category === "SERVICE" ? n : n + v), 0);
+
+/** Three-part bar: Marketing Cloud, Digital Engagement and outside Salesforce. */
+function SplitBar({ mc, de, outside, scale }: { mc: number; de: number; outside: number; scale: number }) {
+  const pct = (n: number) => `${scale ? (n / scale) * 100 : 0}%`;
+  return (
+    <div className="bg-canvas flex h-2.5 overflow-hidden rounded-full" aria-hidden="true">
+      <div className="bg-accent" style={{ width: pct(mc) }} />
+      <div className="bg-accent/45" style={{ width: pct(de) }} />
+      <div style={{ width: pct(outside), background: HATCH }} />
+    </div>
+  );
+}
+
+function Swatch({ kind }: { kind: "mc" | "de" | "outside" }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block h-2.5 w-2.5 shrink-0 rounded-[3px] ${kind === "mc" ? "bg-accent" : kind === "de" ? "bg-accent/45" : ""}`}
+      style={kind === "outside" ? { background: HATCH } : undefined}
+    />
+  );
+}
+
+function MetaLayer({
+  data,
+  wabaIds,
+  byId,
+  showTable,
+}: {
+  data: SummaryAnalytics;
+  wabaIds: string[] | null;
+  byId: Map<string, Waba>;
+  showTable: boolean;
+}) {
+  const { meta } = data;
+  const delivered = (application: string) => data.origins.find((o) => o.origin === application)?.delivered ?? 0;
+  const mc = delivered(MC);
+  const de = delivered(DE);
+  const sf = data.totals.delivered;
+  const templates = meta ? metaTemplates(meta) : null;
+  const outside = templates === null ? null : Math.max(0, templates - sf);
+  const categories = meta ? Object.entries(meta.byCategory).sort((a, b) => b[1] - a[1]) : [];
+
+  return (
+    <>
+      <div className="grid gap-3 lg:grid-cols-[2fr_1fr_1fr]">
+        <div className="border-line rounded-xl border px-4 py-3.5">
+          <div className="text-muted flex items-center gap-1 text-xs">
+            Plantillas entregadas
+            <InfoTip
+              label="Cómo se calcula"
+              text="Meta cuenta las plantillas entregadas desde cualquier herramienta. «Fuera de Salesforce» es esa cifra menos lo que entregó Salesforce. Es una estimación: en un solo día puede variar en unos pocos mensajes porque Meta cuenta los días con la hora de la WABA y Data Cloud en UTC."
+            />
+          </div>
+          <div className="mt-1.5 text-2xl font-semibold tracking-tight">
+            {templates === null ? "—" : formatNumber(templates)}
+          </div>
+          <div className="mt-3">
+            <SplitBar mc={mc} de={de} outside={outside ?? 0} scale={Math.max(templates ?? 0, sf)} />
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            <span className="flex items-center gap-1.5">
+              <Swatch kind="mc" />
+              Marketing Cloud <strong>{formatNumber(mc)}</strong>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Swatch kind="de" />
+              Digital Engagement <strong>{formatNumber(de)}</strong>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Swatch kind="outside" />
+              Fuera de Salesforce <strong>{outside === null ? "—" : `≈ ${formatNumber(outside)}`}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="border-line rounded-xl border px-4 py-3.5">
+          <div className="text-muted flex items-center gap-1 text-xs">
+            Conversaciones de servicio
+            <InfoTip label="Qué es Servicio" text={CATEGORIES.SERVICE.help} />
+          </div>
+          <div className="mt-1.5 text-2xl font-semibold tracking-tight">
+            {meta ? formatNumber(meta.byCategory.SERVICE ?? 0) : "—"}
+          </div>
+          <div className="text-muted mt-1 text-xs">Respuestas de agentes y bots. No son plantillas. Gratis.</div>
+        </div>
+        <div className="border-line rounded-xl border px-4 py-3.5">
+          <div className="text-muted text-xs">Por categoría</div>
+          {meta ? (
+            <div className="mt-2 space-y-1.5 text-xs">
+              {categories.map(([category, n]) => (
+                <div key={category} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1">
+                    {CATEGORIES[category]?.label ?? category}
+                    {CATEGORIES[category] && (
+                      <InfoTip label={`Qué es ${CATEGORIES[category].label}`} text={CATEGORIES[category].help} />
+                    )}
+                  </span>
+                  <span className="font-mono">{formatNumber(n)}</span>
+                </div>
+              ))}
+              <div className="border-line flex items-center justify-between gap-2 border-t pt-1.5">
+                <span className="flex items-center gap-1">
+                  De pago · Gratis
+                  <InfoTip
+                    label="Qué se paga y qué es gratis"
+                    text="Meta cobra por mensaje entregado. Es gratis lo que se envía en la ventana de 24 h que abre el cliente al escribir (72 h si llega desde un anuncio) y cualquier respuesta de servicio."
+                  />
+                </span>
+                <span>
+                  <strong>{formatNumber(meta.paid)}</strong> · <strong>{formatNumber(meta.free)}</strong>
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted mt-2 text-sm">Meta no responde ahora mismo.</p>
+          )}
+        </div>
+      </div>
+      {meta && showTable && <WhoSends data={data} meta={meta} wabaIds={wabaIds} byId={byId} />}
+    </>
+  );
+}
+
+const WHO_PAGE = 8;
+
+function WhoSends({
+  data,
+  meta,
+  wabaIds,
+  byId,
+}: {
+  data: SummaryAnalytics;
+  meta: MetaVolume;
+  wabaIds: string[] | null;
+  byId: Map<string, Waba>;
+}) {
+  const [visible, setVisible] = useState(WHO_PAGE);
+  const rows = useMemo(() => {
+    const ids = wabaIds ?? [...new Set([...Object.keys(meta.byWaba), ...data.wabaOrigins.map((r) => r.waba)])];
+    return ids
+      .map((id) => {
+        const of = (application: string) =>
+          data.wabaOrigins.find((r) => r.waba === id && r.origin === application)?.delivered ?? 0;
+        const sf = data.wabaOrigins.filter((r) => r.waba === id).reduce((n, r) => n + r.delivered, 0);
+        const inMeta = meta.byWaba[id]?.templates ?? 0;
+        return { id, mc: of(MC), de: of(DE), sf, inMeta, outside: Math.max(0, inMeta - sf) };
+      })
+      .filter((r) => r.inMeta > 0 || r.sf > 0)
+      .sort((a, b) => b.outside - a.outside || b.inMeta - a.inMeta);
+  }, [data.wabaOrigins, meta.byWaba, wabaIds]);
+
+  const scale = Math.max(1, ...rows.map((r) => Math.max(r.inMeta, r.sf)));
+  const onlyOutside = rows.filter((r) => r.sf === 0).length;
+  const mixed = rows.filter((r) => r.sf > 0 && r.outside > 0).length;
+  const templates = metaTemplates(meta);
+  const coverage = templates ? Math.min(1, data.totals.delivered / templates) : null;
+
+  return (
+    <div className="border-line rounded-xl border px-4 py-3.5">
+      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <h3 className="text-[13px] font-semibold">Quién envía las plantillas</h3>
+        <span className="text-muted text-xs">plantillas entregadas por WABA</span>
+        <span className="ml-auto flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <span className="flex items-center gap-1.5">
+            <Swatch kind="mc" />
+            Marketing Cloud
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Swatch kind="de" />
+            Digital Engagement
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Swatch kind="outside" />
+            Fuera de Salesforce
+          </span>
+        </span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-sm">Sin plantillas entregadas en el periodo.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="text-muted">
+              <tr>
+                <th className="py-1.5 font-medium">WABA</th>
+                <th className="w-[40%] px-2 py-1.5 font-medium">Reparto</th>
+                <th className="px-2 py-1.5 text-right font-medium">En Meta</th>
+                <th className="px-2 py-1.5 text-right font-medium">Salesforce</th>
+                <th className="py-1.5 text-right font-medium">Fuera</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, visible).map((r) => (
+                <tr key={r.id} className="border-line/70 border-t">
+                  <td className="max-w-[220px] truncate py-2">{byId.get(r.id)?.waba_name ?? r.id}</td>
+                  <td className="px-2 py-2">
+                    <SplitBar mc={r.mc} de={r.de} outside={r.outside} scale={scale} />
+                  </td>
+                  <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(r.inMeta)}</td>
+                  <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(r.sf)}</td>
+                  <td className="py-2 text-right whitespace-nowrap">
+                    {r.sf === 0 ? (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
+                        Todo fuera
+                      </span>
+                    ) : r.outside === 0 ? (
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                        Todo Salesforce
+                      </span>
+                    ) : (
+                      <span className="font-mono">≈ {formatNumber(r.outside)}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {rows.length > visible && (
+            <button
+              type="button"
+              onClick={() => setVisible(rows.length)}
+              className="text-accent-ink mt-2 text-xs font-medium hover:underline"
+            >
+              Ver las {rows.length} WABAs
+            </button>
+          )}
+        </div>
+      )}
+      <p className="text-muted mt-2 text-xs">
+        {onlyOutside} {onlyOutside === 1 ? "WABA envía" : "WABAs envían"} solo fuera de Salesforce · {mixed}{" "}
+        {mixed === 1 ? "mixta" : "mixtas"}
+        {coverage !== null && (
+          <>
+            {" "}
+            · Salesforce entrega el <strong>{formatPercent(coverage)}</strong> de las plantillas
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function Kpis({ data, origin }: { data: SummaryAnalytics; origin: AnalyticsOrigin }) {
+  const { totals } = data;
+  const r = rates(totals);
+  const sent = (application: string) => data.origins.find((o) => o.origin === application)?.sent ?? 0;
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
       <Kpi
-        label="Plantillas enviadas"
+        label="Enviadas"
         value={formatNumber(totals.sent)}
-        sub={origin === "all" ? "desde Salesforce" : `desde ${ORIGIN_LABELS[origin]}`}
+        sub={
+          origin === "all"
+            ? `MC ${formatNumber(sent(MC))} · DE ${formatNumber(sent(DE))}`
+            : `desde ${ORIGIN_LABELS[origin]}`
+        }
       />
       <Kpi label="Entregadas" value={formatPercent(r.delivery)} sub={`${formatNumber(totals.delivered)} mensajes`} />
       <Kpi label="Leídas" value={formatPercent(r.read)} sub={`${formatNumber(totals.read)} de las entregadas`} />
@@ -245,7 +562,6 @@ function Kpis({ data, origin }: { data: SummaryAnalytics; origin: AnalyticsOrigi
         sub={`${totals.avoidable} evitables · ${totals.failed - totals.avoidable} ruido`}
         tone={totals.avoidable ? "bad" : undefined}
       />
-      <Kpi label="Total en Meta" value={meta ? formatNumber(meta.total) : "—"} sub="todos los orígenes" />
     </div>
   );
 }
@@ -271,48 +587,6 @@ function SendsChart({
       selected={day}
       onSelect={onDayChange}
     />
-  );
-}
-
-function MetaCard({ data, note }: { data: SummaryAnalytics; note?: string }) {
-  const { meta } = data;
-  const categories = meta ? Object.entries(meta.byCategory).sort((a, b) => b[1] - a[1]) : [];
-  const maxCategory = Math.max(1, ...categories.map(([, n]) => n));
-  return (
-    <Card title="Volumen en Meta por categoría" aside={note}>
-      {meta ? (
-        <>
-          {categories.length === 0 && <p className="text-muted text-sm">Sin mensajes en el periodo.</p>}
-          {categories.map(([category, n]) => (
-            <div key={category} className="mb-3">
-              <div className="flex justify-between text-xs">
-                <span className="flex items-center gap-1 font-medium">
-                  {CATEGORIES[category]?.label ?? category}
-                  {CATEGORIES[category] && (
-                    <InfoTip label={`Qué es ${CATEGORIES[category].label}`} text={CATEGORIES[category].help} />
-                  )}
-                </span>
-                <span className="font-mono">{formatNumber(n)}</span>
-              </div>
-              <div className="bg-canvas mt-1 h-2 rounded-full">
-                <div className="bg-accent h-2 rounded-full" style={{ width: `${(n / maxCategory) * 100}%` }} />
-              </div>
-            </div>
-          ))}
-          <p className="mt-1 flex items-center gap-1 text-xs">
-            <span>
-              De pago <strong>{formatNumber(meta.paid)}</strong> · Gratis <strong>{formatNumber(meta.free)}</strong>
-            </span>
-            <InfoTip
-              label="Qué se paga y qué es gratis"
-              text="Meta cobra por mensaje entregado. Es gratis lo que se envía en la ventana de 24 h que abre el cliente al escribir (72 h si llega desde un anuncio) y cualquier respuesta de servicio. Incluye mensajes de todos los orígenes, no solo plantillas."
-            />
-          </p>
-        </>
-      ) : (
-        <p className="text-muted text-sm">No disponible ahora mismo.</p>
-      )}
-    </Card>
   );
 }
 
@@ -420,7 +694,7 @@ function Origins({
 }) {
   const total = rows.reduce((n, row) => n + row.sent, 0);
   return (
-    <Card title="Origen de los envíos" aside={origin === "all" ? "dentro de Salesforce" : "filtrado"}>
+    <Card title="Por origen" aside={origin === "all" ? "Marketing Cloud y Digital Engagement" : "filtrado"}>
       {rows.length === 0 ? (
         <p className="text-sm">Sin envíos en el periodo.</p>
       ) : (
@@ -471,8 +745,7 @@ function Origins({
         </table>
       )}
       <p className="text-muted mt-2 text-[11px] leading-snug">
-        Data Cloud solo registra los envíos hechos desde Salesforce. Lo que se envía desde otras herramientas cuenta en
-        «Total en Meta», pero no se puede desglosar por plantilla.
+        Las dos son Salesforce y las registra Data Cloud. Lo enviado desde otras herramientas solo aparece en la capa 1.
       </p>
     </Card>
   );

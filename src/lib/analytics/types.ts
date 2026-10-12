@@ -64,6 +64,16 @@ export interface MetaVolume {
   paid: number;
   free: number;
   byCategory: Record<string, number>;
+  /** Per WABA: templates (every category but SERVICE) and service conversations. */
+  byWaba: Record<string, { templates: number; service: number }>;
+}
+
+/** What Salesforce sent and delivered for one WABA from one origin. */
+export interface WabaOriginRow {
+  waba: string;
+  origin: string;
+  sent: number;
+  delivered: number;
 }
 
 export interface SummaryAnalytics {
@@ -75,6 +85,7 @@ export interface SummaryAnalytics {
   generatedAt: number;
   totals: ReadCounts;
   origins: OriginRow[];
+  wabaOrigins: WabaOriginRow[];
   daily: { day: string; sent: number }[];
   templates: TemplateRow[];
   errors: ErrorCount[];

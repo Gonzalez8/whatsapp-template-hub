@@ -10,6 +10,7 @@ import {
   summaryDailySql,
   templateDailySql,
   templateRankingSql,
+  wabaOriginSql,
   type Scope,
 } from "./queries";
 import type {
@@ -95,11 +96,12 @@ async function loadSummary(
   period: AnalyticsPeriod | null,
 ): Promise<SummaryAnalytics> {
   const scope = scopeFor(range, origin, period);
-  const [ranking, daily, errors, overview, meta] = await Promise.all([
+  const [ranking, daily, errors, overview, wabaOrigins, meta] = await Promise.all([
     queryDataCloud(templateRankingSql(scope, wabaIds)),
     queryDataCloud(summaryDailySql(scope, wabaIds)),
     queryDataCloud(errorsSql(scope, wabaIds)),
     queryDataCloud(overviewSql(scope, wabaIds)),
+    queryDataCloud(wabaOriginSql(scope, wabaIds)),
     fetchMetaVolume(wabaIds, ...metaWindow(range, period)).catch(() => null),
   ]);
   const templates: TemplateRow[] = ranking.map((row) => ({
@@ -114,6 +116,12 @@ async function loadSummary(
     period,
     generatedAt: Date.now(),
     ...splitOverview(overview),
+    wabaOrigins: wabaOrigins.map((row) => ({
+      waba: String(row.waba),
+      origin: String(row.origin ?? ""),
+      sent: num(row.sent),
+      delivered: num(row.delivered),
+    })),
     daily: daily.map((row) => ({ day: day(row.day), sent: num(row.sent) })),
     templates,
     errors: errors.map((row) => describeError(String(row.code ?? "Desconocido"), num(row.failed))),
@@ -149,13 +157,13 @@ async function loadTemplate(
 export const getSummaryAnalytics = unstable_cache(
   (wabaIds: string[], range: AnalyticsRange, origin: AnalyticsOrigin = "all", period: AnalyticsPeriod | null = null) =>
     loadSummary([...wabaIds].sort(), range, origin, period),
-  ["analytics-summary-v4"],
+  ["analytics-summary-v5"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );
 
 export const getTemplateAnalytics = unstable_cache(
   (wabaId: string, name: string, language: string, range: AnalyticsRange) =>
     loadTemplate(wabaId, name, language.toLowerCase(), range),
-  ["analytics-template-v4"],
+  ["analytics-template-v5"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );
