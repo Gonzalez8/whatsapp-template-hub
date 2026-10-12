@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { AnalyticsRange, ErrorCount } from "@/lib/analytics/types";
 import { formatDay, formatWeekday } from "@/lib/analytics/series";
 
@@ -42,6 +42,40 @@ export function RangePicker({
         </button>
       ))}
     </div>
+  );
+}
+
+/** An ⓘ that shows `text` on hover, tap or keyboard focus. */
+export function InfoTip({ label, text }: { label: string; text: string }) {
+  const id = useId();
+  return (
+    <span className="group relative inline-flex align-middle">
+      <button
+        type="button"
+        aria-label={label}
+        aria-describedby={id}
+        className="text-faint hover:text-ink focus-visible:ring-accent/40 rounded-full outline-none focus-visible:ring-2"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden
+        >
+          <circle cx="8" cy="8" r="6.25" />
+          <path d="M8 7.25v3.5M8 5.1v.1" strokeLinecap="round" />
+        </svg>
+      </button>
+      <span
+        role="tooltip"
+        id={id}
+        className="bg-ink invisible absolute top-full left-0 z-20 mt-1.5 w-64 rounded-md px-2.5 py-1.5 text-[11px] leading-snug font-normal text-white opacity-0 shadow-lg transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
   );
 }
 

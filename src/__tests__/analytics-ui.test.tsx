@@ -74,8 +74,12 @@ describe("AnalyticsView", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("/api/analytics/summary?waba=111&range=30d");
     expect(screen.getByRole("heading", { name: "Campus MKT" })).toBeInTheDocument();
     expect(screen.getByText("2 evitables · 8 ruido")).toBeInTheDocument();
-    expect(screen.getByText(/Plantillas promocionales/)).toBeInTheDocument();
-    expect(screen.getByText(/Respuestas libres a un cliente/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Qué es Servicio" })).toHaveAccessibleDescription(
+      /Respuestas libres a un cliente/,
+    );
+    expect(screen.getByRole("button", { name: "Qué es Marketing" })).toHaveAccessibleDescription(
+      /Plantillas promocionales/,
+    );
     expect(screen.getByText(/estas, hace 12 min/)).toBeInTheDocument();
     expect(screen.getByText("Evitable")).toBeInTheDocument();
 

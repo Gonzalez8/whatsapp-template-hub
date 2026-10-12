@@ -410,7 +410,7 @@ sequenceDiagram
 
 - **Origen de los datos:** el objeto de Data Cloud con los eventos de WhatsApp (`DATACLOUD_WHATSAPP_DLO`). Cada mensaje tiene varias filas con el mismo `WhatsAppWamId__c`: el envío desde Salesforce (`SEND_STATUS`, con la plantilla y el idioma dentro de `Message__c`) y los acuses de Meta (`DR`: enviado, entregado, leído, fallido). La app toma el envío y su estado final.
 - **Métricas:** _Entregadas_ = entregadas o leídas / enviadas; _Leídas_ = leídas / entregadas; _Fallos_ = fallidos o rechazados antes de llegar a Meta. Un fallo es **evitable** si su código depende de nuestra configuración o datos (`SF-3060`, `100`, `132000`, `132015`, `132001`, `131008`, `131005`, `190`, `10`) y **ruido** en otro caso (número sin WhatsApp, límites de marketing de Meta…).
-- **Total en Meta:** `pricing_analytics` de cada WABA, por categoría y de pago o gratis. Cuenta los mensajes de **todos los orígenes**, no solo de Salesforce, e incluye mensajes que no son plantillas. Meta guarda 90 días, así que en _Todo_ muestra los últimos 90. La tarjeta explica cada categoría:
+- **Total en Meta:** `pricing_analytics` de cada WABA, por categoría y de pago o gratis. Cuenta los mensajes de **todos los orígenes**, no solo de Salesforce, e incluye mensajes que no son plantillas. Meta guarda 90 días, así que en _Todo_ muestra los últimos 90. Cada categoría lleva un icono ⓘ que muestra su explicación al pasar el ratón, tocarlo o enfocarlo con el teclado:
 
   | Categoría      | Qué es                                                                 | Coste                                              |
   | -------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |

@@ -9,6 +9,7 @@ import {
   BarChart,
   Card,
   ErrorList,
+  InfoTip,
   Kpi,
   LoadError,
   Loading,
@@ -151,23 +152,27 @@ function AnalyticsBody({
               {categories.map(([category, n]) => (
                 <div key={category} className="mb-3">
                   <div className="flex justify-between text-xs">
-                    <span className="font-medium">{CATEGORIES[category]?.label ?? category}</span>
+                    <span className="flex items-center gap-1 font-medium">
+                      {CATEGORIES[category]?.label ?? category}
+                      {CATEGORIES[category] && (
+                        <InfoTip label={`Qué es ${CATEGORIES[category].label}`} text={CATEGORIES[category].help} />
+                      )}
+                    </span>
                     <span className="font-mono">{formatNumber(n)}</span>
                   </div>
                   <div className="bg-canvas mt-1 h-2 rounded-full">
                     <div className="bg-accent h-2 rounded-full" style={{ width: `${(n / maxCategory) * 100}%` }} />
                   </div>
-                  {CATEGORIES[category] && (
-                    <p className="text-muted mt-1 text-[11px] leading-snug">{CATEGORIES[category].help}</p>
-                  )}
                 </div>
               ))}
-              <p className="mt-1 text-xs">
-                De pago <strong>{formatNumber(meta.paid)}</strong> · Gratis <strong>{formatNumber(meta.free)}</strong>
-              </p>
-              <p className="text-muted mt-1 text-[11px] leading-snug">
-                Meta cobra por mensaje entregado. Es gratis lo que se envía en la ventana de 24 h que abre el cliente al
-                escribir (72 h si llega desde un anuncio). Incluye mensajes de todos los orígenes, no solo plantillas.
+              <p className="mt-1 flex items-center gap-1 text-xs">
+                <span>
+                  De pago <strong>{formatNumber(meta.paid)}</strong> · Gratis <strong>{formatNumber(meta.free)}</strong>
+                </span>
+                <InfoTip
+                  label="Qué se paga y qué es gratis"
+                  text="Meta cobra por mensaje entregado. Es gratis lo que se envía en la ventana de 24 h que abre el cliente al escribir (72 h si llega desde un anuncio). Incluye mensajes de todos los orígenes, no solo plantillas."
+                />
               </p>
             </>
           ) : (
