@@ -236,7 +236,7 @@ flowchart TD
 - El token de Meta solo se usa en el servidor y nunca llega al navegador.
 - `POST /api/revalidate` exige el secreto `REVALIDATE_SECRET` en la cabecera `x-revalidate-secret`, comparado en tiempo constante. Sin secreto configurado, el endpoint responde siempre 401.
 - Las URLs de logo de la marca solo admiten `https://` o rutas de `/public`.
-- La analítica solo se activa con el inicio de sesión activo (o en `npm run dev`). Sus endpoints exigen sesión, responden con `Cache-Control: private, no-store` y validan cada parámetro con un patrón estricto antes de construir el SQL. Las credenciales de Salesforce solo se usan en el servidor.
+- La analítica solo se activa con el inicio de sesión activo (o en `npm run dev`). Sus endpoints exigen sesión, responden con `Cache-Control: private, no-store` y validan cada parámetro con un patrón estricto antes de construir el SQL. Solo aceptan WABAs y plantillas de la cuenta de Meta, y días que la gráfica permite elegir, y limitan a 60 peticiones por persona y minuto. Las credenciales de Salesforce solo se usan en el servidor.
 - El acceso se protege con [inicio de sesión de Microsoft Entra ID](#inicio-de-sesión-microsoft-entra-id), que se activa por configuración. La **Deployment Protection** de Vercel es una alternativa para restringir el acceso sin tocar la app.
 
 ### Observabilidad
@@ -500,6 +500,8 @@ En la práctica, cada combinación distinta consulta Salesforce **como mucho una
 - **El botón Sincronizar** solo refresca las plantillas de Meta, no la analítica. No hace falta: Data Cloud ya va unos 15 minutos por detrás de Meta y las métricas son diarias.
 - **Consultas acotadas:** cada consulta filtra por WABA y por fecha, y agrupa en Data Cloud; a la app solo llegan los totales, nunca eventos sueltos.
 - **Tiempos de espera:** 30 s por consulta a Data Cloud y 15 s por llamada a Meta.
+- **Combinaciones acotadas:** el servidor solo acepta las que la interfaz puede pedir. Las WABAs tienen que ser de la cuenta de Meta (un ID inventado responde 400 en lugar de abrir otra entrada de caché); un día tiene que caer dentro del periodo (7, 30 o 90 días) y, en _Todo_, solo se admiten semanas que empiezan en lunes; la pestaña de una plantilla responde 404 si la plantilla no existe en esa WABA.
+- **Límites de uso:** 60 peticiones por persona y minuto (por dirección IP sin login), y como mucho 8 consultas simultáneas a Data Cloud por instancia del servidor; las demás esperan turno. Los dos límites viven en la memoria de cada instancia: frenan a una persona o a un script con su sesión, no un ataque repartido entre muchas instancias.
 
 Los tiempos están en `src/lib/analytics/index.ts` (`ANALYTICS_REVALIDATE_SECONDS`) y `src/lib/datacloud.ts` (`TOKEN_TTL_MS`, `QUERY_TIMEOUT_MS`).
 
@@ -600,13 +602,14 @@ Los usa la interfaz de [analítica](#analítica-salesforce-data-cloud); exigen s
 | `/api/analytics/summary`  | `range` (`7d`, `30d`, `90d`, `all`), `waba` (IDs separados por comas; vacío = todas las WABAs), `origin` (`mce` o `de`; sin él, todos) y opcionalmente `from` y `to` (`YYYY-MM-DD`, `to` excluido) para un día o una semana, de 1 a 7 días |
 | `/api/analytics/template` | `range`, `waba`, `name` y `lang` de la plantilla                                                                                                                                                                                           |
 
-| Respuesta | Significado                                   |
-| --------- | --------------------------------------------- |
-| `200`     | Métricas en JSON                              |
-| `400`     | Parámetro ausente o no válido                 |
-| `401`     | Sin sesión                                    |
-| `404`     | Analítica desactivada                         |
-| `502`     | Data Cloud no respondió o rechazó la consulta |
+| Respuesta | Significado                                                                        |
+| --------- | ---------------------------------------------------------------------------------- |
+| `200`     | Métricas en JSON                                                                   |
+| `400`     | Parámetro ausente o no válido, WABA que no es de la cuenta o día fuera del periodo |
+| `401`     | Sin sesión                                                                         |
+| `404`     | Analítica desactivada, o la plantilla no existe en esa WABA                        |
+| `429`     | Más de 60 peticiones en un minuto; `Retry-After` indica los segundos               |
+| `502`     | Data Cloud no respondió o rechazó la consulta                                      |
 
 ## Estructura del proyecto
 
