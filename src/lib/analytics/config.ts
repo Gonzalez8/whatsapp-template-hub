@@ -11,12 +11,16 @@ export type AnalyticsConfig =
   | { status: "disabled"; reason: "needs-login" };
 
 /**
- * Analytics shows business data, so it only turns on behind login. The one exception
- * is local development (`next dev`), to be able to build and test it with real data.
+ * Analytics shows business data, so it only turns on behind login. The exceptions are
+ * local development (`next dev`) and Vercel previews with ANALYTICS_WITHOUT_LOGIN=true,
+ * meant for previews behind Vercel's Deployment Protection. Production always needs login.
  */
 export function getAnalyticsConfig(env: Env = process.env): AnalyticsConfig {
   if (getDataCloudConfig(env).status === "disabled") return { status: "disabled", reason: "no-datacloud" };
   if (getAuthConfig(env).status === "enabled") return { status: "enabled", requiresSession: true };
   if (env.NODE_ENV === "development") return { status: "enabled", requiresSession: false };
+  if (env.ANALYTICS_WITHOUT_LOGIN?.trim() === "true" && env.VERCEL_ENV === "preview") {
+    return { status: "enabled", requiresSession: false };
+  }
   return { status: "disabled", reason: "needs-login" };
 }

@@ -280,25 +280,26 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 ## Variables de entorno
 
-| Variable                         | Obligatoria | Descripción                                                                                   | Ejemplo                            |
-| -------------------------------- | ----------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `META_ACCESS_TOKEN`              | Sí          | Token de System User con `whatsapp_business_management`                                       | `EAAG…`                            |
-| `META_BUSINESS_ID`               | Sí          | ID de la cuenta de Meta Business                                                              | `1234567890`                       |
-| `REVALIDATE_SECRET`              | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401                   | cadena aleatoria larga             |
-| `BRAND_NAME`                     | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)                             | `Acme`                             |
-| `BRAND_LOGO_URL`                 | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`                                 | `https://…/logo.svg`               |
-| `BRAND_COLOR`                    | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                                         | `#F02B58`                          |
-| `BRAND_LOGO_BACKGROUND`          | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros                            | `white`                            |
-| `AUTH_MICROSOFT_ENTRA_ID_ID`     | No          | ID de la aplicación (cliente) registrada en Entra. Activa el inicio de sesión                 | `00000000-…`                       |
-| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No          | Secreto de cliente de esa aplicación                                                          | —                                  |
-| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No          | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                          | —                                  |
-| `AUTH_SECRET`                    | Con login   | Clave para cifrar la sesión. Se genera con `npx auth secret`                                  | —                                  |
-| `AUTH_ALLOWED_EMAILS`            | No          | Lista de correos con acceso, separados por comas. Sin ella, entra cualquier cuenta del tenant | `ana@empresa.com,luis@empresa.com` |
-| `SF_INSTANCE_URL`                | No          | URL `https://` de la org de Salesforce con Data Cloud. Activa la analítica                    | `https://<org>.my.salesforce.com`  |
-| `SF_CLIENT_ID`                   | No          | Consumer key de la External Client App (flujo client credentials)                             | —                                  |
-| `SF_CLIENT_SECRET`               | No          | Consumer secret de esa aplicación                                                             | —                                  |
-| `SF_ACCESS_TOKEN`                | No          | Solo para desarrollo: token de sesión en lugar de `SF_CLIENT_ID`/`SF_CLIENT_SECRET`           | ver [abajo](#desarrollo-en-local)  |
-| `DATACLOUD_WHATSAPP_DLO`         | No          | Objeto de Data Cloud con los eventos de WhatsApp, si no es el de por defecto                  | `MessagingEventsWhatsAppV2_…__dll` |
+| Variable                         | Obligatoria | Descripción                                                                                                                                    | Ejemplo                            |
+| -------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `META_ACCESS_TOKEN`              | Sí          | Token de System User con `whatsapp_business_management`                                                                                        | `EAAG…`                            |
+| `META_BUSINESS_ID`               | Sí          | ID de la cuenta de Meta Business                                                                                                               | `1234567890`                       |
+| `REVALIDATE_SECRET`              | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401                                                                    | cadena aleatoria larga             |
+| `BRAND_NAME`                     | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)                                                                              | `Acme`                             |
+| `BRAND_LOGO_URL`                 | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`                                                                                  | `https://…/logo.svg`               |
+| `BRAND_COLOR`                    | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                                                                                          | `#F02B58`                          |
+| `BRAND_LOGO_BACKGROUND`          | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros                                                                             | `white`                            |
+| `AUTH_MICROSOFT_ENTRA_ID_ID`     | No          | ID de la aplicación (cliente) registrada en Entra. Activa el inicio de sesión                                                                  | `00000000-…`                       |
+| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No          | Secreto de cliente de esa aplicación                                                                                                           | —                                  |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No          | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                                                                           | —                                  |
+| `AUTH_SECRET`                    | Con login   | Clave para cifrar la sesión. Se genera con `npx auth secret`                                                                                   | —                                  |
+| `AUTH_ALLOWED_EMAILS`            | No          | Lista de correos con acceso, separados por comas. Sin ella, entra cualquier cuenta del tenant                                                  | `ana@empresa.com,luis@empresa.com` |
+| `SF_INSTANCE_URL`                | No          | URL `https://` de la org de Salesforce con Data Cloud. Activa la analítica                                                                     | `https://<org>.my.salesforce.com`  |
+| `SF_CLIENT_ID`                   | No          | Consumer key de la External Client App (flujo client credentials)                                                                              | —                                  |
+| `SF_CLIENT_SECRET`               | No          | Consumer secret de esa aplicación                                                                                                              | —                                  |
+| `SF_ACCESS_TOKEN`                | No          | Solo para desarrollo: token de sesión en lugar de `SF_CLIENT_ID`/`SF_CLIENT_SECRET`                                                            | ver [abajo](#desarrollo-en-local)  |
+| `ANALYTICS_WITHOUT_LOGIN`        | No          | `true` activa la analítica sin inicio de sesión **solo en previews** de Vercel (se ignora en producción). Úsala solo con Deployment Protection | `true`                             |
+| `DATACLOUD_WHATSAPP_DLO`         | No          | Objeto de Data Cloud con los eventos de WhatsApp, si no es el de por defecto                                                                   | `MessagingEventsWhatsAppV2_…__dll` |
 
 `.env.example` contiene la plantilla completa.
 
@@ -367,12 +368,13 @@ La vista, el periodo y la pestaña se guardan en la URL (`view=analytics`, `rang
 
 ### Cuándo se activa
 
-| Configuración                                                                 | Analítica                                                           |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Sin `SF_INSTANCE_URL` o sin credenciales                                      | No aparece                                                          |
-| Con Data Cloud y con [inicio de sesión](#inicio-de-sesión-microsoft-entra-id) | Activa; los endpoints exigen sesión                                 |
-| Con Data Cloud, sin inicio de sesión, en `npm run dev`                        | Activa, para desarrollar con datos reales                           |
-| Con Data Cloud, sin inicio de sesión, desplegada                              | No aparece: son datos de negocio y no se exponen en una URL abierta |
+| Configuración                                                                           | Analítica                                                                     |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Sin `SF_INSTANCE_URL` o sin credenciales                                                | No aparece                                                                    |
+| Con Data Cloud y con [inicio de sesión](#inicio-de-sesión-microsoft-entra-id)           | Activa; los endpoints exigen sesión                                           |
+| Con Data Cloud, sin inicio de sesión, en `npm run dev`                                  | Activa, para desarrollar con datos reales                                     |
+| Con Data Cloud, sin inicio de sesión, en una preview con `ANALYTICS_WITHOUT_LOGIN=true` | Activa, sin sesión. Pensado para previews con Deployment Protection de Vercel |
+| Con Data Cloud, sin inicio de sesión, desplegada                                        | No aparece: son datos de negocio y no se exponen en una URL abierta           |
 
 ### Cómo funciona
 

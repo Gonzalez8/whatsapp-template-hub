@@ -70,6 +70,21 @@ describe("getAnalyticsConfig", () => {
       requiresSession: false,
     });
   });
+
+  it("allows previews without login only with ANALYTICS_WITHOUT_LOGIN, never production", () => {
+    const flag = { ...dc, NODE_ENV: "production", ANALYTICS_WITHOUT_LOGIN: "true" };
+    expect(getAnalyticsConfig({ ...flag, VERCEL_ENV: "preview" })).toEqual({
+      status: "enabled",
+      requiresSession: false,
+    });
+    expect(getAnalyticsConfig({ ...flag, VERCEL_ENV: "production" })).toEqual({
+      status: "disabled",
+      reason: "needs-login",
+    });
+    expect(getAnalyticsConfig({ ...flag, ANALYTICS_WITHOUT_LOGIN: "1", VERCEL_ENV: "preview" }).status).toBe(
+      "disabled",
+    );
+  });
 });
 
 describe("toRows", () => {
