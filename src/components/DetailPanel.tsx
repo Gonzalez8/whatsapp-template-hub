@@ -8,8 +8,10 @@ import { Highlight } from "./Highlight";
 import { TemplateBadges } from "./TemplateBadges";
 import { CopyButton } from "./CopyButton";
 import { ButtonsTab, InfoTab, VariablesTab, countButtons } from "./TemplateDetails";
+import { TemplateAnalyticsTab } from "./analytics/TemplateAnalyticsTab";
 
-type Tab = "preview" | "variables" | "buttons" | "info";
+export type { DetailTabId as DetailTab } from "@/lib/url-state";
+import type { DetailTabId as DetailTab } from "@/lib/url-state";
 
 interface DetailPanelProps {
   template: Template | null;
@@ -22,6 +24,10 @@ interface DetailPanelProps {
   compareDisabled: boolean;
   onToggleCompare: () => void;
   onCompareLanguages: () => void;
+  /** Kept by the parent across templates, so you can go through several looking at the same tab. */
+  tab: DetailTab;
+  onTabChange: (tab: DetailTab) => void;
+  analyticsEnabled?: boolean;
 }
 
 const segmented = (active: boolean) =>
@@ -48,19 +54,22 @@ export function DetailPanel({
   compareDisabled,
   onToggleCompare,
   onCompareLanguages,
+  tab: requestedTab,
+  onTabChange: setTab,
+  analyticsEnabled = false,
 }: DetailPanelProps) {
-  // Kept across templates so you can go through several looking at the same tab.
-  const [tab, setTab] = useState<Tab>("preview");
   const [mode, setMode] = useState<PreviewMode>("template");
 
   if (!template || !wabaId) return <PanelEmpty />;
 
-  const tabs: { id: Tab; label: string }[] = [
+  const tabs: { id: DetailTab; label: string }[] = [
     { id: "preview", label: "Vista previa" },
     { id: "variables", label: `Variables (${extractVariables(template).length})` },
     { id: "buttons", label: `Botones (${countButtons(template)})` },
     { id: "info", label: "Información" },
+    ...(analyticsEnabled ? [{ id: "analytics" as const, label: "Analítica" }] : []),
   ];
+  const tab = tabs.some((t) => t.id === requestedTab) ? requestedTab : "preview";
 
   const onTabKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
@@ -194,6 +203,7 @@ export function DetailPanel({
         {tab === "variables" && <VariablesTab template={template} />}
         {tab === "buttons" && <ButtonsTab template={template} />}
         {tab === "info" && <InfoTab template={template} wabaName={wabaName} />}
+        {tab === "analytics" && <TemplateAnalyticsTab key={template.id} template={template} wabaId={wabaId} />}
       </div>
     </div>
   );

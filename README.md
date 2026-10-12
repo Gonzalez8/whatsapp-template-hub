@@ -2,6 +2,8 @@
 
 Aplicación web interna para consultar las plantillas de mensajes de WhatsApp Business de todas las WABAs (WhatsApp Business Accounts) de una cuenta de Meta Business. Permite buscarlas, filtrarlas por cuenta, ver cómo se muestran en WhatsApp, revisar sus variables y botones y compararlas entre sí. Es de solo lectura: la edición se hace en el WhatsApp Manager de Meta, al que la app enlaza desde cada plantilla.
 
+Solo necesita un token de Meta. La [analítica de envíos](#analítica-salesforce-data-cloud) y el [inicio de sesión](#inicio-de-sesión-microsoft-entra-id) son módulos opcionales que se activan por configuración: quien no use Salesforce o Microsoft Entra ID no tiene que configurar nada de ellos.
+
 ## Índice
 
 - [Funcionalidades](#funcionalidades)
@@ -17,6 +19,7 @@ Aplicación web interna para consultar las plantillas de mensajes de WhatsApp Bu
 - [Puesta en marcha](#puesta-en-marcha)
 - [Variables de entorno](#variables-de-entorno)
 - [Inicio de sesión (Microsoft Entra ID)](#inicio-de-sesión-microsoft-entra-id)
+- [Analítica (Salesforce Data Cloud)](#analítica-salesforce-data-cloud)
 - [Personalización de marca](#personalización-de-marca)
 - [Despliegue en Vercel](#despliegue-en-vercel)
 - [API](#api)
@@ -26,19 +29,20 @@ Aplicación web interna para consultar las plantillas de mensajes de WhatsApp Bu
 
 ## Funcionalidades
 
-| Área                     | Qué ofrece                                                                                                                                                                                                                                                                                                                         |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Filtro por WABA**      | Barra lateral con casillas para ver una o varias WABAs, botón "Solo" para quedarse con una, buscador de WABAs y número de plantillas que coinciden en cada una. El teléfono distingue las WABAs con el mismo nombre. Las WABAs que fallan al cargar se marcan en rojo                                                              |
-| **Búsqueda**             | En nombre, cabecera, cuerpo, pie, texto, URL y teléfono de los botones, WABA e ID. Sin distinguir acentos ni mayúsculas, `_` equivale a espacio y varias palabras se buscan en cualquier orden. Las coincidencias se resaltan                                                                                                      |
-| **Lista**                | Agrupada por WABA (grupos plegables), una fila por nombre de plantilla con una etiqueta por idioma (`es`, `pt_PT`…) y el fragmento donde coincide la búsqueda                                                                                                                                                                      |
-| **Detalle**              | Pestañas _Vista previa_ (burbuja de WhatsApp con cabecera de texto, imagen, vídeo, documento o ubicación; modo "Con ejemplo"), _Variables_ (con su valor de ejemplo), _Botones_ (con su destino: URL, teléfono o Flow) e _Información_. Selector de idioma, aviso si Meta cambió la categoría, botones para copiar y enlace a Meta |
-| **Galería**              | Todas las plantillas filtradas como burbujas de WhatsApp, agrupadas por WABA, para recorrerlas haciendo scroll                                                                                                                                                                                                                     |
-| **Comparar**             | De 2 a 4 plantillas en columnas. "Resaltar diferencias" marca las palabras del cuerpo que cambian y los datos que no coinciden. "Comparar idiomas" abre todas las variantes de idioma de una plantilla                                                                                                                             |
-| **Enlaces compartibles** | Búsqueda, filtros, vista, plantilla abierta y comparación se guardan en la URL                                                                                                                                                                                                                                                     |
-| **Teclado**              | `/` o `Cmd+K` para buscar, `Esc` para limpiar, `↑`/`↓` para recorrer la lista                                                                                                                                                                                                                                                      |
-| **Sincronización**       | Botón para traer los últimos cambios de Meta, limitado a una vez cada 2 minutos                                                                                                                                                                                                                                                    |
-| **Marca**                | Logo, nombre y color de la empresa configurables por despliegue                                                                                                                                                                                                                                                                    |
-| **Responsive**           | En móvil, el filtro de WABAs y el detalle se abren como paneles desde abajo                                                                                                                                                                                                                                                        |
+| Área                     | Qué ofrece                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Filtro por WABA**      | Barra lateral con casillas para ver una o varias WABAs, botón "Solo" para quedarse con una, buscador de WABAs y número de plantillas que coinciden en cada una. El teléfono distingue las WABAs con el mismo nombre. Las WABAs que fallan al cargar se marcan en rojo                                                                                                                            |
+| **Búsqueda**             | En nombre, cabecera, cuerpo, pie, texto, URL y teléfono de los botones, WABA e ID. Sin distinguir acentos ni mayúsculas, `_` equivale a espacio y varias palabras se buscan en cualquier orden. Las coincidencias se resaltan                                                                                                                                                                    |
+| **Lista**                | Agrupada por WABA (grupos plegables), una fila por nombre de plantilla con una etiqueta por idioma (`es`, `pt_PT`…) y el fragmento donde coincide la búsqueda                                                                                                                                                                                                                                    |
+| **Detalle**              | Pestañas _Vista previa_ (burbuja de WhatsApp con cabecera de texto, imagen, vídeo, documento o ubicación; modo "Con ejemplo"), _Variables_ (con su valor de ejemplo), _Botones_ (con su destino: URL, teléfono o Flow) e _Información_. Selector de idioma, aviso si Meta cambió la categoría, botones para copiar y enlace a Meta                                                               |
+| **Galería**              | Todas las plantillas filtradas como burbujas de WhatsApp, agrupadas por WABA, para recorrerlas haciendo scroll                                                                                                                                                                                                                                                                                   |
+| **Comparar**             | De 2 a 4 plantillas en columnas. "Resaltar diferencias" marca las palabras del cuerpo que cambian y los datos que no coinciden. "Comparar idiomas" abre todas las variantes de idioma de una plantilla                                                                                                                                                                                           |
+| **Analítica**            | Opcional, con Salesforce Data Cloud. Vista _Analítica_ con envíos, entrega, lectura, tiempo hasta la lectura y fallos por WABA y origen (Marketing Cloud o Digital Engagement), detalle de un día pulsando la gráfica, ranking de plantillas, plantillas sin uso y volumen total en Meta; pestaña _Analítica_ en el detalle de cada plantilla. Ver [Analítica](#analítica-salesforce-data-cloud) |
+| **Enlaces compartibles** | Búsqueda, filtros, vista, plantilla abierta y comparación se guardan en la URL                                                                                                                                                                                                                                                                                                                   |
+| **Teclado**              | `/` o `Cmd+K` para buscar, `Esc` para limpiar, `↑`/`↓` para recorrer la lista                                                                                                                                                                                                                                                                                                                    |
+| **Sincronización**       | Botón para traer los últimos cambios de Meta, limitado a una vez cada 2 minutos                                                                                                                                                                                                                                                                                                                  |
+| **Marca**                | Logo, nombre y color de la empresa configurables por despliegue                                                                                                                                                                                                                                                                                                                                  |
+| **Responsive**           | En móvil, el filtro de WABAs y el detalle se abren como paneles desde abajo                                                                                                                                                                                                                                                                                                                      |
 
 ## Arquitectura
 
@@ -230,6 +234,7 @@ flowchart TD
 - El token de Meta solo se usa en el servidor y nunca llega al navegador.
 - `POST /api/revalidate` exige el secreto `REVALIDATE_SECRET` en la cabecera `x-revalidate-secret`, comparado en tiempo constante. Sin secreto configurado, el endpoint responde siempre 401.
 - Las URLs de logo de la marca solo admiten `https://` o rutas de `/public`.
+- La analítica solo se activa con el inicio de sesión activo (o en `npm run dev`). Sus endpoints exigen sesión, responden con `Cache-Control: private, no-store` y validan cada parámetro con un patrón estricto antes de construir el SQL. Las credenciales de Salesforce solo se usan en el servidor.
 - El acceso se protege con [inicio de sesión de Microsoft Entra ID](#inicio-de-sesión-microsoft-entra-id), que se activa por configuración. La **Deployment Protection** de Vercel es una alternativa para restringir el acceso sin tocar la app.
 
 ### Observabilidad
@@ -242,6 +247,10 @@ El servidor escribe líneas JSON en los logs, visibles en Vercel → _Logs_:
 | `meta_api_error`         | Cada respuesta de error de Meta                      | `context`, `status`, `code`, `message`, `fbtrace_id` |
 | `sync_failed`            | Una sincronización manual no pudo contactar con Meta | `message`                                            |
 | `brand_config_invalid`   | Una variable `BRAND_*` tiene un valor no válido      | `variable`, `value`                                  |
+| `datacloud_query`        | Cada consulta a Data Cloud                           | `rows`, `durationMs`                                 |
+| `datacloud_query_error`  | Data Cloud respondió con error                       | `status`, `body` (recortado)                         |
+| `datacloud_auth_error`   | No se pudo obtener el token de Salesforce            | `status`, `error`                                    |
+| `analytics_error`        | Error inesperado en un endpoint de analítica         | `message`                                            |
 
 ## Puesta en marcha
 
@@ -273,20 +282,26 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 ## Variables de entorno
 
-| Variable                         | Obligatoria | Descripción                                                                                   | Ejemplo                            |
-| -------------------------------- | ----------- | --------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `META_ACCESS_TOKEN`              | Sí          | Token de System User con `whatsapp_business_management`                                       | `EAAG…`                            |
-| `META_BUSINESS_ID`               | Sí          | ID de la cuenta de Meta Business                                                              | `1234567890`                       |
-| `REVALIDATE_SECRET`              | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401                   | cadena aleatoria larga             |
-| `BRAND_NAME`                     | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)                             | `Acme`                             |
-| `BRAND_LOGO_URL`                 | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`                                 | `https://…/logo.svg`               |
-| `BRAND_COLOR`                    | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                                         | `#F02B58`                          |
-| `BRAND_LOGO_BACKGROUND`          | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros                            | `white`                            |
-| `AUTH_MICROSOFT_ENTRA_ID_ID`     | No          | ID de la aplicación (cliente) registrada en Entra. Activa el inicio de sesión                 | `00000000-…`                       |
-| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No          | Secreto de cliente de esa aplicación                                                          | —                                  |
-| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No          | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                          | —                                  |
-| `AUTH_SECRET`                    | Con login   | Clave para cifrar la sesión. Se genera con `npx auth secret`                                  | —                                  |
-| `AUTH_ALLOWED_EMAILS`            | No          | Lista de correos con acceso, separados por comas. Sin ella, entra cualquier cuenta del tenant | `ana@empresa.com,luis@empresa.com` |
+| Variable                         | Obligatoria | Descripción                                                                                                                                    | Ejemplo                            |
+| -------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `META_ACCESS_TOKEN`              | Sí          | Token de System User con `whatsapp_business_management`                                                                                        | `EAAG…`                            |
+| `META_BUSINESS_ID`               | Sí          | ID de la cuenta de Meta Business                                                                                                               | `1234567890`                       |
+| `REVALIDATE_SECRET`              | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401                                                                    | cadena aleatoria larga             |
+| `BRAND_NAME`                     | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)                                                                              | `Acme`                             |
+| `BRAND_LOGO_URL`                 | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`                                                                                  | `https://…/logo.svg`               |
+| `BRAND_COLOR`                    | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                                                                                          | `#F02B58`                          |
+| `BRAND_LOGO_BACKGROUND`          | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros                                                                             | `white`                            |
+| `AUTH_MICROSOFT_ENTRA_ID_ID`     | No          | ID de la aplicación (cliente) registrada en Entra. Activa el inicio de sesión                                                                  | `00000000-…`                       |
+| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No          | Secreto de cliente de esa aplicación                                                                                                           | —                                  |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No          | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                                                                           | —                                  |
+| `AUTH_SECRET`                    | Con login   | Clave para cifrar la sesión. Se genera con `npx auth secret`                                                                                   | —                                  |
+| `AUTH_ALLOWED_EMAILS`            | No          | Lista de correos con acceso, separados por comas. Sin ella, entra cualquier cuenta del tenant                                                  | `ana@empresa.com,luis@empresa.com` |
+| `SF_INSTANCE_URL`                | No          | URL `https://` de la org de Salesforce con Data Cloud. Activa la analítica                                                                     | `https://<org>.my.salesforce.com`  |
+| `SF_CLIENT_ID`                   | No          | Consumer key de la External Client App (flujo client credentials)                                                                              | —                                  |
+| `SF_CLIENT_SECRET`               | No          | Consumer secret de esa aplicación                                                                                                              | —                                  |
+| `SF_ACCESS_TOKEN`                | No          | Solo para desarrollo: token de sesión en lugar de `SF_CLIENT_ID`/`SF_CLIENT_SECRET`                                                            | ver [abajo](#desarrollo-en-local)  |
+| `ANALYTICS_WITHOUT_LOGIN`        | No          | `true` activa la analítica sin inicio de sesión **solo en previews** de Vercel (se ignora en producción). Úsala solo con Deployment Protection | `true`                             |
+| `DATACLOUD_WHATSAPP_DLO`         | No          | Objeto de Data Cloud con los eventos de WhatsApp, si no es el de por defecto                                                                   | `MessagingEventsWhatsAppV2_…__dll` |
 
 `.env.example` contiene la plantilla completa.
 
@@ -342,6 +357,142 @@ Cada dominio desde el que se use la app (producción y, si se quiere, la URL fij
 
 Para probar el flujo completo sin el tenant de la empresa, basta una cuenta gratuita de Azure: crea un directorio propio donde registrar una aplicación de prueba.
 
+## Analítica (Salesforce Data Cloud)
+
+Módulo **opcional** para quien envía sus plantillas desde Salesforce y tiene Data Cloud: métricas de envío de las plantillas a partir de los eventos de WhatsApp que Salesforce guarda en Data Cloud, junto con el volumen que Meta factura por WABA.
+
+Sin las variables `SF_*` el módulo no existe para el usuario: no aparece la vista ni la pestaña _Analítica_, los endpoints responden 404 y no se hace ninguna llamada a Salesforce. El resto de la app funciona igual. El objeto de Data Cloud de otra org se indica con `DATACLOUD_WHATSAPP_DLO`.
+
+| Dónde                                 | Qué muestra                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vista **Analítica** (Lista · Galería) | Para las WABAs marcadas en la barra lateral (o todas), en dos bloques. **«Todo WhatsApp, según Meta»** (_Fuente: Meta_): plantillas entregadas desde cualquier herramienta, repartidas entre Marketing Cloud, Digital Engagement y fuera de Salesforce; conversaciones de servicio; volumen por categoría, de pago y gratis; y la tabla «Quién envía las plantillas» por WABA. **«Detalle de Salesforce»** (_Fuente: Data Cloud_): enviadas, % entregadas, % leídas, tiempo hasta la lectura (mediana) y fallos (evitables / ruido); envíos por día (por semana en _Todo_); reparto por origen; ranking de plantillas; fallos por motivo; plantillas sin envíos. Su filtro de origen (todo Salesforce, Marketing Cloud o Digital Engagement) solo afecta a este bloque. Periodos: 7, 30, 90 días o todo |
+| Pestaña **Analítica** del detalle     | Lo mismo para una plantilla e idioma, más su tasa de lectura y su tiempo hasta la lectura frente a los de su WABA en el mismo periodo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+La vista, el periodo, el origen, el día elegido y la pestaña se guardan en la URL (`view=analytics`, `range=`, `origin=`, `day=`, `tab=analytics`). Desde el ranking y desde la lista de plantillas sin envíos se abre el detalle de la plantilla en su pestaña _Analítica_.
+
+- **Detalle de un día:** al pulsar una barra de la gráfica (o una semana, en _Todo_), los KPIs, el volumen de Meta, el ranking, los fallos y el origen pasan a ese día; la gráfica sigue mostrando el periodo completo para poder elegir otro. Se vuelve con _Ver todo el periodo_ o pulsando la misma barra.
+- **Origen:** el campo `Application__c` del envío distingue **Marketing Cloud** (`MARKETING_CLOUD_ENGAGEMENT`) y **Digital Engagement** (`DIGITAL_ENGAGEMENT`). Los dos son Salesforce y los registra Data Cloud. Lo enviado desde otras herramientas no está en Data Cloud: solo aparece en el bloque de Meta.
+- **Fuera de Salesforce:** Meta solo cuenta (y cobra) los mensajes **entregados**, así que se compara con las **entregadas** de Salesforce, no con las enviadas: _fuera de Salesforce ≈ plantillas entregadas según Meta − plantillas entregadas según Data Cloud_, por WABA y en total (nunca negativo). Una WABA que solo envía desde Salesforce da 0 (por ejemplo, NoriBot: 758 entregadas en Data Cloud y 758 de Utilidad en Meta). La tabla «Quién envía» marca «Todo fuera» las WABAs sin ningún envío desde Salesforce y «Todo Salesforce» las que no tienen diferencia. En _Todo_, el bloque de Meta compara los últimos 90 días de ambas fuentes, porque Meta no guarda más.
+- **Tiempo hasta la lectura:** mediana de los minutos entre el envío y la primera confirmación de lectura, solo entre los mensajes leídos.
+- **Plantillas sin envíos:** plantillas **aprobadas** en Meta sin ningún envío desde Salesforce en los últimos 90 días (candidatas a limpiar), y plantillas enviadas en ese tiempo que ya no existen en Meta. Una plantilla que se envía desde otra herramienta aparece como «sin envíos» aunque se use.
+- **Días:** Data Cloud agrupa los días en UTC (su SQL no admite zonas horarias con nombre) y Meta en la zona horaria de la WABA. Los envíos entre las 22:00 y las 24:00 UTC (medianoche en España) pueden caer en días distintos en una y otra fuente; los totales de varios días coinciden.
+
+### Cuándo se activa
+
+| Configuración                                                                           | Analítica                                                                     |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Sin `SF_INSTANCE_URL` o sin credenciales                                                | No aparece                                                                    |
+| Con Data Cloud y con [inicio de sesión](#inicio-de-sesión-microsoft-entra-id)           | Activa; los endpoints exigen sesión                                           |
+| Con Data Cloud, sin inicio de sesión, en `npm run dev`                                  | Activa, para desarrollar con datos reales                                     |
+| Con Data Cloud, sin inicio de sesión, en una preview con `ANALYTICS_WITHOUT_LOGIN=true` | Activa, sin sesión. Pensado para previews con Deployment Protection de Vercel |
+| Con Data Cloud, sin inicio de sesión, desplegada                                        | No aparece: son datos de negocio y no se exponen en una URL abierta           |
+
+### Cómo funciona
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant N as Navegador
+    participant R as /api/analytics/*
+    participant C as Caché (1 h)
+    participant SF as Salesforce OAuth
+    participant DC as Data Cloud Query API
+    participant M as Meta Graph API
+
+    N->>R: GET /api/analytics/summary?waba=…&range=30d
+    R->>R: ¿Analítica activa? ¿Sesión? ¿Parámetros válidos?
+    R->>C: unstable_cache(WABAs, periodo)
+    alt Sin caché
+        C->>SF: client_credentials (token reutilizado 30 min)
+        par Consultas en paralelo
+            C->>DC: Ranking por plantilla
+            C->>DC: Envíos por día
+            C->>DC: Fallos por código
+            C->>M: pricing_analytics por WABA
+        end
+    end
+    C-->>R: Resultado
+    R-->>N: JSON (Cache-Control: private, no-store)
+```
+
+- **Origen de los datos:** el objeto de Data Cloud con los eventos de WhatsApp (`DATACLOUD_WHATSAPP_DLO`). Cada mensaje tiene varias filas con el mismo `WhatsAppWamId__c`: el envío desde Salesforce (`SEND_STATUS`, con la plantilla y el idioma dentro de `Message__c`) y los acuses de Meta (`DR`: enviado, entregado, leído, fallido). La app toma el envío y su estado final.
+- **Métricas:** _Entregadas_ = entregadas o leídas / enviadas; _Leídas_ = leídas / entregadas; _Tiempo hasta lectura_ = mediana (`approx_percentile`) de los segundos entre el envío y la primera lectura; _Fallos_ = fallidos o rechazados antes de llegar a Meta. Un fallo es **evitable** si su código depende de nuestra configuración o datos (`SF-3060`, `100`, `132000`, `132015`, `132001`, `131008`, `131005`, `190`, `10`, `131053`: Meta no pudo descargar la imagen o el vídeo de la cabecera, casi siempre por una URL nuestra caducada o privada) y **ruido** en otro caso (número sin WhatsApp, límites de marketing de Meta…).
+- **Total en Meta:** `pricing_analytics` de cada WABA, por categoría y de pago o gratis. Cuenta los mensajes de **todos los orígenes**, no solo de Salesforce, e incluye mensajes que no son plantillas. Meta guarda 90 días, así que en _Todo_ muestra los últimos 90. Cada categoría lleva un icono ⓘ que muestra su explicación al pasar el ratón, tocarlo o enfocarlo con el teclado:
+
+  | Categoría      | Qué es                                                                 | Coste                                              |
+  | -------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+  | Marketing      | Plantillas promocionales                                               | Siempre de pago (tarifa más alta)                  |
+  | Marketing Lite | Plantillas de marketing enviadas por la Marketing Messages API de Meta | De pago, con la tarifa de marketing                |
+  | Utilidad       | Confirmaciones, recordatorios y avisos                                 | De pago, gratis dentro de una conversación abierta |
+  | Autenticación  | Códigos de verificación (OTP)                                          | Siempre de pago                                    |
+  | Servicio       | Respuestas libres a un cliente que ha escrito; no son plantillas       | Gratis                                             |
+
+  Meta cobra por mensaje entregado. Una conversación abierta es la ventana de 24 h que empieza cuando el cliente escribe (72 h si llega desde un anuncio de clic a WhatsApp). _Gratis_ son los mensajes que Meta marca como enviados en una ventana gratuita (`FREE_CUSTOMER_SERVICE`, `FREE_ENTRY_POINT`) y **todos** los de Servicio: Meta devuelve parte de ellos con el tipo `REGULAR` (tarifa estándar), pero la tarifa de servicio es cero. El resto es _De pago_.
+
+- **SQL seguro:** WABA, plantilla, idioma, fecha y nombre del objeto se validan contra patrones estrictos (`src/lib/analytics/queries.ts`); un valor que no encaja responde 400 sin llegar a Data Cloud.
+
+### Caché y llamadas a Salesforce
+
+La analítica no consulta Salesforce en cada visita. Hay tres niveles:
+
+| Nivel                           | Qué guarda                                                                                                                                     | Duración                                            | Dónde vive                                                           |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------- |
+| **Caché de datos** del servidor | El resultado de cada combinación: WABAs seleccionadas + periodo + origen + día elegido (vista) o WABA + plantilla + idioma + periodo (pestaña) | **1 hora** (`unstable_cache`, etiqueta `analytics`) | Data Cache de Vercel, compartida por todas las instancias y usuarios |
+| **Token de Salesforce**         | El token del flujo client credentials                                                                                                          | 30 min, o hasta que Data Cloud responda 401         | Memoria de cada instancia de la función                              |
+| **Caché del navegador**         | Las respuestas ya cargadas en la pestaña                                                                                                       | Mientras no se recargue la página                   | Memoria del navegador                                                |
+
+```mermaid
+flowchart TD
+    A[Petición a /api/analytics/*] --> B{¿Hay resultado en la caché de datos?}
+    B -- "Sí, de hace menos de 1 h" --> C[Respuesta inmediata<br/>sin llamar a Salesforce]
+    B -- "Sí, de hace más de 1 h" --> D[Respuesta inmediata con el dato anterior]
+    D --> E[Regeneración en segundo plano]
+    B -- No --> F[Consulta a Salesforce y a Meta]
+    E --> F
+    F --> G{¿Token en memoria?}
+    G -- No --> H[POST /services/oauth2/token]
+    G -- Sí --> I[Consultas a la Query API de Data Cloud]
+    H --> I
+    I --> J[Resultado guardado 1 h]
+```
+
+**Cuántas llamadas hace cada resultado no cacheado:**
+
+| Petición                                   | Data Cloud                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Meta                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Vista Analítica (WABAs + periodo + origen) | 5 consultas en paralelo por resumen: ranking, envíos por día, fallos, totales por origen (con la mediana) y entregadas por WABA y origen. La vista pide hasta tres resúmenes: el del bloque de Salesforce (con su origen), el del bloque de Meta (todos los orígenes; es el mismo cuando no hay filtro) y el de 90 días para las plantillas sin envíos. Elegir un día pide los de ese día. Las peticiones iguales se comparten, en el navegador y en la caché del servidor | 1 llamada a `pricing_analytics` por WABA (16 a la vez como máximo) |
+| Pestaña Analítica (plantilla + periodo)    | 3 consultas: envíos por día, fallos y totales, más el resumen de su WABA (que reutiliza la caché de la vista si ya está)                                                                                                                                                                                                                                                                                                                                                   | Las del resumen de su WABA, si no estaba en caché                  |
+| Token                                      | 1 petición OAuth cada 30 min por instancia                                                                                                                                                                                                                                                                                                                                                                                                                                 | —                                                                  |
+
+En la práctica, cada combinación distinta consulta Salesforce **como mucho una vez por hora**, la vean una o cien personas. Volver a una WABA o a un periodo ya vistos en la misma pestaña no hace ninguna petición.
+
+- **Refresco:** a partir de la hora, la siguiente visita recibe el dato anterior al instante y dispara la regeneración en segundo plano (_stale-while-revalidate_). Si esa regeneración falla, se sigue sirviendo el dato anterior. La nota al pie indica la antigüedad de las cifras («estas, hace 12 min»).
+- **Errores:** un fallo de Salesforce no se guarda en caché; la siguiente petición vuelve a intentarlo.
+- **El botón Sincronizar** solo refresca las plantillas de Meta, no la analítica. No hace falta: Data Cloud ya va unos 15 minutos por detrás de Meta y las métricas son diarias.
+- **Consultas acotadas:** cada consulta filtra por WABA y por fecha, y agrupa en Data Cloud; a la app solo llegan los totales, nunca eventos sueltos.
+- **Tiempos de espera:** 30 s por consulta a Data Cloud y 15 s por llamada a Meta.
+
+Los tiempos están en `src/lib/analytics/index.ts` (`ANALYTICS_REVALIDATE_SECONDS`) y `src/lib/datacloud.ts` (`TOKEN_TTL_MS`, `QUERY_TIMEOUT_MS`).
+
+### Qué pedir al administrador de Salesforce
+
+1. Una **External Client App** (o Connected App) con el flujo **Client Credentials** activado y los ámbitos OAuth `api` y `cdp_query_api`.
+2. Un **usuario de integración** de solo lectura como usuario de ejecución del flujo, con acceso de lectura al objeto de Data Cloud de WhatsApp.
+3. Su **consumer key** → `SF_CLIENT_ID` y **consumer secret** → `SF_CLIENT_SECRET`, más la URL de la org → `SF_INSTANCE_URL`.
+
+### Desarrollo en local
+
+Sin External Client App, se puede usar la sesión de la CLI de Salesforce:
+
+```bash
+sf org login web -a produccion
+SF_INSTANCE_URL=https://<org>.my.salesforce.com \
+SF_ACCESS_TOKEN=$(sf org auth show-access-token -o produccion --json | jq -r .result.accessToken) \
+npm run dev
+```
+
+El token caduca con la sesión; cuando Data Cloud responda 401, se vuelve a lanzar el comando.
+
 ## Personalización de marca
 
 Con las variables `BRAND_*` cada despliegue lleva la identidad de su empresa:
@@ -357,7 +508,7 @@ Con las variables `BRAND_*` cada despliegue lleva la identidad de su empresa:
 ## Despliegue en Vercel
 
 1. Importa el repositorio en Vercel (framework detectado: Next.js).
-2. En _Settings → Environment Variables_, define `META_ACCESS_TOKEN`, `META_BUSINESS_ID` y, opcionalmente, `REVALIDATE_SECRET` y las `BRAND_*`. Márcalas en **Production** y, si quieres verlas también en las previews, en **Preview**.
+2. En _Settings → Environment Variables_, define `META_ACCESS_TOKEN`, `META_BUSINESS_ID` y, opcionalmente, `REVALIDATE_SECRET`, las `BRAND_*`, las `AUTH_*` y las `SF_*`. Márcalas en **Production** y, si quieres verlas también en las previews, en **Preview**.
 3. Cada push a una rama genera una **preview**, y cada merge a `main` despliega en **producción**.
 4. Para restringir el acceso, activa _Settings → Deployment Protection_.
 
@@ -380,6 +531,23 @@ curl -X POST https://<dominio>/api/revalidate -H "x-revalidate-secret: $REVALIDA
 | `429`     | Datos de hace menos de 2 min; la cabecera `Retry-After` indica los segundos |
 | `502`     | No se pudo contactar con Meta                                               |
 
+### `GET /api/analytics/summary` y `GET /api/analytics/template`
+
+Los usa la interfaz de [analítica](#analítica-salesforce-data-cloud); exigen sesión cuando el inicio de sesión está activo.
+
+| Endpoint                  | Parámetros                                                                                                                                                                                                                                 |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/api/analytics/summary`  | `range` (`7d`, `30d`, `90d`, `all`), `waba` (IDs separados por comas; vacío = todas las WABAs), `origin` (`mce` o `de`; sin él, todos) y opcionalmente `from` y `to` (`YYYY-MM-DD`, `to` excluido) para un día o una semana, de 1 a 7 días |
+| `/api/analytics/template` | `range`, `waba`, `name` y `lang` de la plantilla                                                                                                                                                                                           |
+
+| Respuesta | Significado                                   |
+| --------- | --------------------------------------------- |
+| `200`     | Métricas en JSON                              |
+| `400`     | Parámetro ausente o no válido                 |
+| `401`     | Sin sesión                                    |
+| `404`     | Analítica desactivada                         |
+| `502`     | Data Cloud no respondió o rechazó la consulta |
+
 ## Estructura del proyecto
 
 ```
@@ -394,6 +562,7 @@ src/
     login/page.tsx           # Página de inicio de sesión
     api/auth/[...nextauth]/  # Endpoints de Auth.js
     api/revalidate/route.ts  # POST /api/revalidate
+    api/analytics/           # GET summary y template (analítica)
     globals.css              # Tokens de diseño (Tailwind 4 @theme)
   components/
     TemplatesDashboard.tsx   # Layout, selección, comparación, URL y teclado
@@ -409,16 +578,21 @@ src/
     WhatsAppPreview.tsx      # Burbuja de WhatsApp
     Highlight.tsx            # Resaltado de coincidencias
     UserMenu.tsx             # Usuario con sesión y botón Salir
+    analytics/               # Vista Analítica, pestaña del detalle y piezas comunes
   hooks/
     useTemplateFilters.ts    # Índice de búsqueda y filtros
     useTemplatesSync.ts      # Botón de sincronizar
     useMediaQuery.ts         # Escritorio / móvil
+    useAnalytics.ts          # Carga de los endpoints de analítica
   lib/
     meta-api.ts              # Cliente de Meta Graph API
     templates.ts             # Snapshot cacheado y sincronización
     sync-config.ts           # Tiempos de caché y cooldown
     brand.ts                 # Marca y contraste de colores
     auth-config.ts           # Estado del inicio de sesión según el entorno
+    datacloud.ts             # Cliente de la Query API de Data Cloud
+    meta-analytics.ts        # Volumen de mensajes de Meta (pricing_analytics)
+    analytics/               # Activación, SQL validado, caché, series y códigos de error
     search.ts                # Normalización, coincidencias y fragmentos
     template-groups.ts       # Variantes de idioma
     template-utils.ts        # Etiquetas, ejemplos y variables
@@ -444,13 +618,15 @@ src/
 | `npm run lint`                    | ESLint                                                 |
 | `npm run format` / `format:check` | Prettier                                               |
 
-Los tests cubren la lógica (búsqueda, diferencias, URL, marca y contraste, sincronización, cliente de Meta) y los componentes principales, además de un test de integración del dashboard. El CI de GitHub Actions ejecuta `npm test`, `npm run lint` y `npm run build` con Node 22 en cada pull request y en cada push a `main`.
+Los tests cubren la lógica (búsqueda, diferencias, URL, marca y contraste, sincronización, cliente de Meta, SQL y endpoints de analítica) y los componentes principales, además de un test de integración del dashboard. El CI de GitHub Actions ejecuta `npm test`, `npm run lint` y `npm run build` con Node 22 en cada pull request y en cada push a `main`.
 
 ## Límites conocidos
 
 - Tras una sincronización manual la entrada de caché se invalida. Si Meta falla justo entonces, no hay snapshot anterior que servir y se muestra `error.tsx` hasta la siguiente carga correcta.
 - La comprobación del cooldown no es atómica: dos sincronizaciones simultáneas pueden regenerar las dos (como mucho, una llamada extra a Meta).
 - Si Meta falla durante un despliegue, el build falla y se mantiene en producción la versión anterior.
+- La analítica de Data Cloud solo ve los envíos hechos desde Salesforce. Los de otros orígenes cuentan en _Total en Meta_, pero no por plantilla.
+- Los envíos que Salesforce rechaza sin llegar a construir el mensaje no llevan plantilla, así que no se atribuyen a ninguna.
 - Las imágenes y vídeos de las cabeceras son los ejemplos que Meta guarda con cada plantilla (URLs firmadas que se renuevan con cada sincronización).
 
 ## Contribuir

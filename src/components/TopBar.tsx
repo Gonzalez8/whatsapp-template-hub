@@ -32,8 +32,10 @@ interface TopBarProps {
   syncError: string | null;
   onSync: () => void;
   /** null while comparing: neither view is active. */
-  view: "list" | "gallery" | null;
-  onViewChange: (view: "list" | "gallery") => void;
+  view: "list" | "gallery" | "analytics" | null;
+  onViewChange: (view: "list" | "gallery" | "analytics") => void;
+  /** Offer the analytics view (Data Cloud configured and allowed). */
+  analyticsEnabled?: boolean;
   /** Company logo/name from the deployment config, shown before the WhatsApp mark. */
   brand: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
   authEnabled?: boolean;
@@ -58,6 +60,7 @@ export function TopBar({
   onViewChange,
   brand,
   authEnabled = false,
+  analyticsEnabled = false,
 }: TopBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -189,6 +192,19 @@ export function TopBar({
           </svg>
           Galería
         </button>
+        {analyticsEnabled && (
+          <button
+            type="button"
+            onClick={() => onViewChange("analytics")}
+            aria-pressed={view === "analytics"}
+            className={segmented(view === "analytics")}
+          >
+            <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeWidth="2" d="M5 20V11M12 20V4M19 20v-6" />
+            </svg>
+            Analítica
+          </button>
+        )}
       </div>
 
       <div className="ml-auto flex items-center gap-3">

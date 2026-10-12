@@ -15,9 +15,13 @@ describe("url state", () => {
       languages: ["es", "pt_PT"],
       categories: ["MARKETING"],
       hideSamples: false,
-      view: "compare" as const,
+      view: "analytics" as const,
       template: "999",
       compare: ["999", "1000"],
+      range: "90d" as const,
+      origin: "mce" as const,
+      day: "2026-10-05",
+      tab: "analytics" as const,
     };
 
     expect(parseUrlState(serializeUrlState(state))).toEqual(state);
@@ -27,6 +31,16 @@ describe("url state", () => {
     expect(parseUrlState("?view=gallery").view).toBe("gallery");
     expect(parseUrlState("?view=all").view).toBe("gallery");
     expect(serializeUrlState({ ...DEFAULT_URL_STATE, view: "gallery" })).toBe("view=gallery");
+  });
+
+  it("keeps analytics filters only in the analytics view and ignores invalid ones", () => {
+    const analytics = { ...DEFAULT_URL_STATE, view: "analytics" as const, origin: "de" as const, day: "2026-10-05" };
+    expect(serializeUrlState(analytics)).toBe("view=analytics&origin=de&day=2026-10-05");
+    expect(serializeUrlState({ ...analytics, view: "list" })).toBe("");
+    expect(parseUrlState("?view=analytics&origin=x&day=ayer&range=1y")).toEqual({
+      ...DEFAULT_URL_STATE,
+      view: "analytics",
+    });
   });
 
   it("caps the comparison and ignores empty values", () => {
