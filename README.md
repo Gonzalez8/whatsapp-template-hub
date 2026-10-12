@@ -420,7 +420,7 @@ sequenceDiagram
   | Autenticación  | Códigos de verificación (OTP)                                          | Siempre de pago                                    |
   | Servicio       | Respuestas libres a un cliente que ha escrito; no son plantillas       | Gratis                                             |
 
-  Meta cobra por mensaje entregado. Una conversación abierta es la ventana de 24 h que empieza cuando el cliente escribe (72 h si llega desde un anuncio de clic a WhatsApp). _De pago_ y _Gratis_ salen del tipo de precio que Meta asigna a cada mensaje, no de la categoría.
+  Meta cobra por mensaje entregado. Una conversación abierta es la ventana de 24 h que empieza cuando el cliente escribe (72 h si llega desde un anuncio de clic a WhatsApp). _Gratis_ son los mensajes que Meta marca como enviados en una ventana gratuita (`FREE_CUSTOMER_SERVICE`, `FREE_ENTRY_POINT`) y **todos** los de Servicio: Meta devuelve parte de ellos con el tipo `REGULAR` (tarifa estándar), pero la tarifa de servicio es cero. El resto es _De pago_.
 
 - **SQL seguro:** WABA, plantilla, idioma, fecha y nombre del objeto se validan contra patrones estrictos (`src/lib/analytics/queries.ts`); un valor que no encaja responde 400 sin llegar a Data Cloud.
 

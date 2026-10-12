@@ -254,6 +254,9 @@ describe("fetchMetaVolume", () => {
                     data_points: [
                       { volume: 5, pricing_category: "MARKETING", pricing_type: "REGULAR" },
                       { volume: 2, pricing_category: "SERVICE", pricing_type: "FREE_CUSTOMER_SERVICE" },
+                      // Service messages are free even when Meta reports the standard (REGULAR) rate.
+                      { volume: 4, pricing_category: "SERVICE", pricing_type: "REGULAR" },
+                      { volume: 1, pricing_category: "UTILITY", pricing_type: "FREE_CUSTOMER_SERVICE" },
                     ],
                   },
                 ],
@@ -262,10 +265,10 @@ describe("fetchMetaVolume", () => {
       ),
     );
     expect(await fetchMetaVolume(["a", "bad"], 30)).toEqual({
-      total: 7,
+      total: 12,
       paid: 5,
-      free: 2,
-      byCategory: { MARKETING: 5, SERVICE: 2 },
+      free: 7,
+      byCategory: { MARKETING: 5, SERVICE: 6, UTILITY: 1 },
     });
   });
 

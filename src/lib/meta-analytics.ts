@@ -25,6 +25,15 @@ async function wabaPricing(wabaId: string, start: number, end: number, token: st
 }
 
 /**
+ * Free: anything in a free window (FREE_CUSTOMER_SERVICE, FREE_ENTRY_POINT) and every
+ * service message. Meta doesn't charge for service (non-template) messages, but some
+ * come back with pricing_type REGULAR, i.e. at the standard service rate, which is zero.
+ */
+function isFree(point: PricingPoint): boolean {
+  return point.pricing_category === "SERVICE" || !!point.pricing_type?.startsWith("FREE");
+}
+
+/**
  * Messages Meta counted for the given WABAs over the last `days` days, by pricing
  * category and paid/free. Counts every source, not only Salesforce. Returns null if
  * Meta can't be reached; WABAs that fail individually are left out.
@@ -44,7 +53,7 @@ export async function fetchMetaVolume(wabaIds: string[], days: number): Promise<
     for (const point of result.value) {
       const n = point.volume ?? 0;
       volume.total += n;
-      if (point.pricing_type?.startsWith("FREE")) volume.free += n;
+      if (isFree(point)) volume.free += n;
       else volume.paid += n;
       const category = point.pricing_category ?? "OTHER";
       volume.byCategory[category] = (volume.byCategory[category] ?? 0) + n;

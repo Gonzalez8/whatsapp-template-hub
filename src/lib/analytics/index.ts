@@ -99,13 +99,13 @@ async function loadTemplate(
 /** Cached per arguments (WABAs and range) for an hour, shared by every instance. */
 export const getSummaryAnalytics = unstable_cache(
   (wabaIds: string[], range: AnalyticsRange) => loadSummary([...wabaIds].sort(), range),
-  ["analytics-summary"],
+  ["analytics-summary-v2"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );
 
 export const getTemplateAnalytics = unstable_cache(
   (wabaId: string, name: string, language: string, range: AnalyticsRange) =>
     loadTemplate(wabaId, name, language.toLowerCase(), range),
-  ["analytics-template"],
+  ["analytics-template-v2"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );
