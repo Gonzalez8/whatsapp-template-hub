@@ -66,6 +66,7 @@ const summary: SummaryAnalytics = {
     free: 200,
     byCategory: { MARKETING: 300, SERVICE: 200 },
     byWaba: { "111": { templates: 120, service: 150 }, "222": { templates: 180, service: 50 } },
+    missing: [],
   },
 };
 
@@ -140,10 +141,36 @@ describe("AnalyticsView", () => {
 
     const rows = layer.getAllByRole("row");
     expect(rows[1]).toHaveTextContent("DFO Escuela");
-    expect(rows[1]).toHaveTextContent("Todo fuera");
+    expect(rows[1]).toHaveTextContent("Sin Data Cloud");
     expect(rows[2]).toHaveTextContent("Campus MKT");
-    expect(rows[2]).toHaveTextContent("≈ 30");
-    expect(layer.getByText(/1 WABA envía solo fuera de Salesforce · 1 mixta/)).toHaveTextContent("30,0 %");
+    expect(rows[2]).toHaveTextContent("≈ 30 sin registro");
+    expect(layer.getByText(/1 WABA sin ningún registro en Data Cloud · 1 con parte sin registro/)).toHaveTextContent(
+      "30,0 %",
+    );
+  });
+
+  it("keeps differences per WABA and says when Data Cloud counts more or Meta is missing a WABA", async () => {
+    const data: SummaryAnalytics = {
+      ...summary,
+      wabaOrigins: [
+        { waba: "111", origin: "MARKETING_CLOUD_ENGAGEMENT", sent: 140, delivered: 130 },
+        { waba: "222", origin: "DIGITAL_ENGAGEMENT", sent: 10, delivered: 10 },
+      ],
+      meta: {
+        ...summary.meta!,
+        byWaba: { "111": { templates: 120, service: 0 }, "222": { templates: 180, service: 0 } },
+        missing: ["333"],
+      },
+    };
+    mockFetch(() => Response.json(data));
+    renderView({ wabas: [waba, otherWaba], selectedWabas: new Set() });
+
+    const layer = within(await screen.findByRole("region", { name: "Todo WhatsApp, según Meta" }));
+    // 170 missing from Data Cloud in one WABA is not cancelled by 10 extra in the other.
+    expect(await layer.findByText("≈ 170")).toBeInTheDocument();
+    expect(layer.getByText("Data Cloud +10")).toBeInTheDocument();
+    expect(layer.getByText(/en 1 WABA Data Cloud cuenta 10 más que Meta/)).toBeInTheDocument();
+    expect(layer.getByRole("status")).toHaveTextContent("Meta no ha respondido para 1 WABA");
   });
 
   it("lists approved templates without sends in 90 days and sent ones gone from Meta", async () => {

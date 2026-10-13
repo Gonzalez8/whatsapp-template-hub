@@ -5,6 +5,7 @@ import type { ErrorCount } from "./types";
 const bare = (code: string) => code.replace(/^WA-/, "");
 
 const LABELS: Record<string, string> = {
+  Desconocido: "Fallo sin código de error",
   "SF-3060": "Un parámetro de la plantilla llega vacío",
   "100": "Parámetro del botón vacío",
   "132000": "El número de parámetros no coincide con la plantilla",

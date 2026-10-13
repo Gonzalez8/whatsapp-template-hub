@@ -196,7 +196,7 @@ describe("analytics SQL", () => {
 
   it("omits the date filter for the whole history", () => {
     expect(summaryDailySql({ ...scope, since: null }, ["1"])).not.toContain("EventDateTime__c >=");
-    expect(errorsSql(scope, ["1"])).toContain("f.EventDateTime__c >= '2026-09-11'");
+    expect(errorsSql(scope, ["1"])).toContain("EventDateTime__c >= '2026-09-11'");
   });
 
   it("narrows sends to a day and an origin, but counts reads that came later", () => {
@@ -209,6 +209,22 @@ describe("analytics SQL", () => {
     expect(sends).toContain("Application__c = 'MARKETING_CLOUD_ENGAGEMENT'");
     expect(status).not.toContain("EventDateTime__c <");
     expect(sql).toContain("approx_percentile");
+  });
+
+  it("builds every figure from one row per send with a single final state", () => {
+    const sql = templateRankingSql(scope, ["1"]);
+    // Delivered wins over failed; a rejected send counts as failed even without a wamid.
+    expect(sql).toContain("WHEN d.delivered = 1 THEN 0");
+    expect(sql).toContain("WHEN s.send_status = 'NOT_SENT' OR d.failed = 1 THEN 1");
+    // Receipts are only read for the sends in scope.
+    expect(sql).toContain("WhatsAppWamId__c IN (SELECT wamid FROM sends WHERE wamid IS NOT NULL AND wamid <> '')");
+    expect(sql).toContain(`'"template":\\{"name":"([^"]+)"'`);
+  });
+
+  it("gives one reason per failed message, from the same rows as the failure count", () => {
+    const sql = errorsSql(scope, ["1"]);
+    expect(sql).toContain("FROM msgs m WHERE m.failed = 1");
+    expect(sql).not.toContain("COUNT(DISTINCT");
   });
 
   it("returns one row per origin plus a total", () => {
@@ -313,6 +329,7 @@ describe("fetchMetaVolume", () => {
       free: 7,
       byCategory: { MARKETING: 5, SERVICE: 6, UTILITY: 1 },
       byWaba: { a: { templates: 6, service: 6 } },
+      missing: ["bad"],
     });
   });
 
