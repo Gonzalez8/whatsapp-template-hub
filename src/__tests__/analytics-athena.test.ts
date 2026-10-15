@@ -29,7 +29,7 @@ vi.mock("@aws-sdk/client-athena", () => {
 const { getAthenaConfig, queryAthena, resetAthenaClient, AthenaError } = await import("@/lib/athena");
 const { getAnalyticsSource } = await import("@/lib/analytics/source");
 const { getAnalyticsConfig } = await import("@/lib/analytics/config");
-const { athenaDialect, templateRankingSql } = await import("@/lib/analytics/queries");
+const { athenaDialect, dataCloudDialect, lastLoadSql, templateRankingSql } = await import("@/lib/analytics/queries");
 const { QuerySourceError } = await import("@/lib/query-error");
 
 const ATHENA = { ATHENA_REGION: "eu-west-1", ATHENA_TABLE: "nt_staging__data_cloud.stg_whatsapp_events" };
@@ -111,6 +111,13 @@ describe("athenaDialect", () => {
     expect(sql).not.toContain("UNION ALL");
     // The receipts' wamids come from the send events directly, not from the `sends` CTE.
     expect(sql).not.toContain("SELECT wamid FROM sends");
+  });
+});
+
+describe("lastLoadSql", () => {
+  it("asks the copy when it was last loaded; Data Cloud has nothing to ask", () => {
+    expect(lastLoadSql(athenaDialect("db.events"))).toBe("SELECT MAX(_extracted_at) AS loaded_at FROM db.events");
+    expect(lastLoadSql(dataCloudDialect())).toBeNull();
   });
 });
 

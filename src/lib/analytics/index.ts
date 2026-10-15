@@ -6,6 +6,7 @@ import { getAnalyticsSource } from "./source";
 import {
   ORIGIN_APPLICATIONS,
   errorsSql,
+  lastLoadSql,
   overviewSql,
   summaryDailySql,
   templateDailySql,
@@ -18,6 +19,7 @@ import type {
   AnalyticsPeriod,
   AnalyticsRange,
   Counts,
+  DataSource,
   OriginRow,
   ReadCounts,
   SummaryAnalytics,
@@ -93,6 +95,20 @@ function splitOverview(rows: Row[]): { totals: ReadCounts; origins: OriginRow[] 
   return { totals: total ? toReadCounts(total) : EMPTY, origins };
 }
 
+/**
+ * Which source answered, and for a copy (Athena) when it was last loaded. A copy without
+ * the load column just reports no time: the figures still come out.
+ */
+async function describeSource(): Promise<DataSource> {
+  const current = source();
+  const sql = lastLoadSql(current.dialect);
+  const rows = sql ? await current.run(sql).catch(() => []) : [];
+  const loaded = rows[0]?.loaded_at;
+  // Athena: "2026-10-15 10:51:03.344000" (UTC), to ISO.
+  const loadedAt = loaded ? new Date(`${String(loaded).slice(0, 19).replace(" ", "T")}Z`).toISOString() : null;
+  return { kind: current.kind === "athena" ? "athena" : "datacloud", loadedAt };
+}
+
 /** Data Cloud returns "2026-09-12 00:00:00.000 UTC"; keep the date. */
 const day = (value: Row[string]) => String(value ?? "").slice(0, 10);
 
@@ -104,13 +120,14 @@ async function loadSummary(
 ): Promise<SummaryAnalytics> {
   const scope = scopeFor(range, origin, period);
   const { run } = source();
-  const [ranking, daily, errors, overview, wabaOrigins, meta] = await Promise.all([
+  const [ranking, daily, errors, overview, wabaOrigins, meta, dataSource] = await Promise.all([
     run(templateRankingSql(scope, wabaIds)),
     run(summaryDailySql(scope, wabaIds)),
     run(errorsSql(scope, wabaIds)),
     run(overviewSql(scope, wabaIds)),
     run(wabaOriginSql(scope, wabaIds)),
     fetchMetaVolume(wabaIds, ...metaWindow(range, period)).catch(() => null),
+    describeSource(),
   ]);
   const templates: TemplateRow[] = ranking.map((row) => ({
     waba: String(row.waba),
@@ -123,6 +140,7 @@ async function loadSummary(
     origin,
     period,
     generatedAt: Date.now(),
+    source: dataSource,
     ...splitOverview(overview),
     wabaOrigins: wabaOrigins.map((row) => ({
       waba: String(row.waba),
@@ -155,6 +173,7 @@ async function loadTemplate(
   return {
     range,
     generatedAt: Date.now(),
+    source: summary.source,
     ...splitOverview(overview),
     daily: daily.map((row) => ({ day: day(row.day), ...toCounts(row) })),
     errors: errors.map((row) => describeError(String(row.code ?? "Desconocido"), num(row.failed))),
@@ -166,13 +185,13 @@ async function loadTemplate(
 export const getSummaryAnalytics = unstable_cache(
   (wabaIds: string[], range: AnalyticsRange, origin: AnalyticsOrigin = "all", period: AnalyticsPeriod | null = null) =>
     loadSummary([...wabaIds].sort(), range, origin, period),
-  ["analytics-summary-v8"],
+  ["analytics-summary-v9"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );
 
 export const getTemplateAnalytics = unstable_cache(
   (wabaId: string, name: string, language: string, range: AnalyticsRange) =>
     loadTemplate(wabaId, name, language.toLowerCase(), range),
-  ["analytics-template-v8"],
+  ["analytics-template-v9"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );

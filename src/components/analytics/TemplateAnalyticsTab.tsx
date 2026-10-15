@@ -49,7 +49,7 @@ function TemplateAnalyticsBody({ data, range }: { data: TemplateAnalytics; range
           No hay envíos de esta plantilla desde Salesforce en{" "}
           {range === "all" ? "el histórico" : `los últimos ${RANGE_LABELS[range]}`}.
         </p>
-        <SourceNote generatedAt={data.generatedAt} />
+        <SourceNote generatedAt={data.generatedAt} source={data.source} />
       </>
     );
   }
@@ -113,7 +113,7 @@ function TemplateAnalyticsBody({ data, range }: { data: TemplateAnalytics; range
           <ErrorList errors={data.errors} />
         </Card>
       </div>
-      <SourceNote generatedAt={data.generatedAt} />
+      <SourceNote generatedAt={data.generatedAt} source={data.source} />
     </>
   );
 }

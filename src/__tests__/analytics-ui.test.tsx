@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AnalyticsView } from "@/components/analytics/AnalyticsView";
 import { TemplateAnalyticsTab } from "@/components/analytics/TemplateAnalyticsTab";
-import { BarChart, formatDuration, sendPoints } from "@/components/analytics/shared";
+import { BarChart, SourceNote, formatDuration, sendPoints } from "@/components/analytics/shared";
 import { clearAnalyticsCache } from "@/hooks/useAnalytics";
 import type { SummaryAnalytics, TemplateAnalytics } from "@/lib/analytics/types";
 import type { Template, Waba } from "@/types/template";
@@ -314,5 +314,17 @@ describe("formatDuration", () => {
     expect(formatDuration(3600)).toBe("1 h");
     expect(formatDuration(3720)).toBe("1 h 2 min");
     expect(formatDuration(129_600)).toBe("1,5 días");
+  });
+});
+
+describe("SourceNote", () => {
+  it("names the source and, for the Athena copy, when it was last loaded", () => {
+    const loadedAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    const { rerender } = render(<SourceNote source={{ kind: "athena", loadedAt }} />);
+    expect(screen.getByText(/Fuente: copia de Data Cloud en Athena \(última carga hace 2 h\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/~15 min por detrás/)).toBeNull();
+
+    rerender(<SourceNote source={{ kind: "datacloud", loadedAt: null }} />);
+    expect(screen.getByText(/Fuente: Data Cloud · Data Cloud va ~15 min por detrás de Meta/)).toBeInTheDocument();
   });
 });

@@ -261,7 +261,9 @@ export function AnalyticsView({
           )}
         </Layer>
 
-        {figures.status === "ready" && <SourceNote generatedAt={figures.data.generatedAt} />}
+        {figures.status === "ready" && (
+          <SourceNote generatedAt={figures.data.generatedAt} source={figures.data.source} />
+        )}
       </div>
     </div>
   );

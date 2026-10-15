@@ -31,6 +31,13 @@ export interface ErrorCount {
   label: string;
 }
 
+/** Where the figures were read from, and how fresh that source is. */
+export interface DataSource {
+  kind: "athena" | "datacloud";
+  /** Athena: when the data team last loaded the copy (ISO, UTC); null if unknown. */
+  loadedAt: string | null;
+}
+
 /** Counts plus the median seconds from send to first read (null when nothing was read). */
 export interface ReadCounts extends Counts {
   readMedian: number | null;
@@ -45,6 +52,8 @@ export interface TemplateAnalytics {
   range: AnalyticsRange;
   /** Epoch ms of when the figures were computed (they are cached for an hour). */
   generatedAt: number;
+  /** Absent in figures cached before it existed. */
+  source?: DataSource;
   totals: ReadCounts;
   daily: ({ day: string } & Counts)[];
   errors: ErrorCount[];
@@ -85,6 +94,8 @@ export interface SummaryAnalytics {
   period: AnalyticsPeriod | null;
   /** Epoch ms of when the figures were computed (they are cached for an hour). */
   generatedAt: number;
+  /** Absent in figures cached before it existed. */
+  source?: DataSource;
   totals: ReadCounts;
   origins: OriginRow[];
   wabaOrigins: WabaOriginRow[];

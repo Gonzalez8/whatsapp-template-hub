@@ -59,6 +59,8 @@ export interface Dialect {
   day(isoDay: string): string;
   /** Whether percentiles work with GROUPING SETS (Athena yes, Data Cloud no). */
   groupingSets: boolean;
+  /** Column with the time each row was loaded into a copy, to tell how fresh it is. */
+  loadedAt?: string;
 }
 
 /** The DLO in Salesforce Data Cloud. Its SQL has no JSON functions, hence the regexes. */
@@ -100,6 +102,8 @@ export function athenaDialect(table: string): Dialect {
     templateLanguage: `lower(json_extract_scalar(${message}, '$.template.language.code'))`,
     day: (isoDay) => `TIMESTAMP '${isoDay} 00:00:00'`,
     groupingSets: true,
+    // Set by the data team's load (dbt) on every row.
+    loadedAt: "_extracted_at",
   };
 }
 
@@ -265,6 +269,11 @@ export function wabaOriginSql(scope: Scope, wabaIds: string[]): string {
   return `${messages(scope, wabaIds)}
     SELECT m.waba AS waba, COALESCE(m.origin, '') AS origin, COUNT(*) AS sent, SUM(m.delivered) AS delivered
     FROM msgs m GROUP BY m.waba, m.origin`;
+}
+
+/** When the copy was last loaded (only for sources that record it). */
+export function lastLoadSql(dialect: Dialect): string | null {
+  return dialect.loadedAt ? `SELECT MAX(${dialect.loadedAt}) AS loaded_at FROM ${dialect.table}` : null;
 }
 
 /** Daily template sends for the selected WABAs (all when empty). */
