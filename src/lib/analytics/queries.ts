@@ -1,9 +1,10 @@
 /**
- * SQL for the WhatsApp events Data Cloud keeps from Meta's webhooks.
+ * SQL for the WhatsApp events Salesforce keeps from Meta's webhooks, either in Data Cloud
+ * or in a copy of that table in Amazon Athena (see `Dialect`).
  *
  * One row per event: SEND_STATUS (sent by Salesforce, carries the template payload)
  * and DR (Meta's delivery receipts: sent, delivered, read, failed), all sharing the
- * message's WhatsAppWamId__c. Template name and language live inside Message__c.
+ * message's WhatsApp id. Template name and language live inside the message JSON.
  *
  * Every value that ends up in SQL is validated against a strict pattern first.
  */
@@ -29,6 +30,7 @@ const WABA_ID = /^\d{1,20}$/;
 const TEMPLATE_NAME = /^[a-z0-9_]{1,512}$/;
 const LANGUAGE = /^[A-Za-z_]{2,12}$/;
 const DLO_NAME = /^[A-Za-z0-9_]{1,200}__dll$/;
+const ATHENA_TABLE = /^[a-z0-9_]{1,128}\.[a-z0-9_]{1,128}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export class InvalidQueryParam extends Error {
@@ -40,36 +42,93 @@ function check(value: string, pattern: RegExp, message: string): string {
   return value;
 }
 
-// The name of the template object, not just the first "name" in the payload.
-const NAME_EXPR = `regexp_extract(Message__c, '"template":\\{"name":"([^"]+)"', 1)`;
-const LANGUAGE_EXPR = `lower(regexp_extract(Message__c, '"language":\\{"code":"([^"]+)"', 1))`;
+/** How one source names the event table and its columns, and writes a day literal. */
+export interface Dialect {
+  table: string;
+  wamid: string;
+  eventType: string;
+  status: string;
+  error: string;
+  waba: string;
+  application: string;
+  eventAt: string;
+  /** The template name and language, read from the message JSON. */
+  templateName: string;
+  templateLanguage: string;
+  /** A day (YYYY-MM-DD, already validated) comparable with `eventAt`. */
+  day(isoDay: string): string;
+}
+
+/** The DLO in Salesforce Data Cloud. Its SQL has no JSON functions, hence the regexes. */
+export function dataCloudDialect(dlo: string = DEFAULT_WHATSAPP_DLO): Dialect {
+  return {
+    table: check(dlo, DLO_NAME, "Objeto de Data Cloud no válido"),
+    wamid: "WhatsAppWamId__c",
+    eventType: "EventType__c",
+    status: "SendStatus__c",
+    error: "ErrorCode__c",
+    waba: "ExternalAccountId__c",
+    application: "Application__c",
+    eventAt: "EventDateTime__c",
+    // The name of the template object, not just the first "name" in the payload.
+    templateName: `regexp_extract(Message__c, '"template":\\{"name":"([^"]+)"', 1)`,
+    templateLanguage: `lower(regexp_extract(Message__c, '"language":\\{"code":"([^"]+)"', 1))`,
+    day: (isoDay) => `'${isoDay}'`,
+  };
+}
+
+/**
+ * A copy of the same table in Amazon Athena (`database.table`), with snake_case columns.
+ * Copied as the Data Cloud API returns it, the message is HTML-escaped (&quot;…): it is
+ * unescaped before reading it as JSON (harmless if it is already plain JSON).
+ */
+export function athenaDialect(table: string): Dialect {
+  const message = `replace(replace(replace(replace(replace(message, '&quot;', '"'), '&#39;', ''''), '&lt;', '<'), '&gt;', '>'), '&amp;', '&')`;
+  return {
+    table: check(table, ATHENA_TABLE, "Tabla de Athena no válida"),
+    wamid: "whatsapp_message_id",
+    eventType: "event_type",
+    status: "send_status",
+    error: "error_code",
+    waba: "external_account_id",
+    application: "application",
+    eventAt: "event_at",
+    templateName: `json_extract_scalar(${message}, '$.template.name')`,
+    templateLanguage: `lower(json_extract_scalar(${message}, '$.template.language.code'))`,
+    day: (isoDay) => `TIMESTAMP '${isoDay} 00:00:00'`,
+  };
+}
+
 // WhatsApp codes arrive both with the "WA-" prefix (through e360) and bare ("132000").
 const AVOIDABLE_LIST = AVOIDABLE_ERROR_CODES.flatMap((code) =>
   code.startsWith("WA-") ? [`'${code}'`, `'${code.slice(3)}'`] : [`'${code}'`],
 ).join(",");
 
-/** Values of Application__c: where in Salesforce the send came from. */
+/** Values of the application column: where in Salesforce the send came from. */
 export const ORIGIN_APPLICATIONS = {
   mce: "MARKETING_CLOUD_ENGAGEMENT",
   de: "DIGITAL_ENGAGEMENT",
 } as const;
 
 export interface Scope {
-  dlo: string;
+  /** Where the events live and how its SQL is written. */
+  dialect: Dialect;
   /** First day included (UTC, YYYY-MM-DD), or null for the whole history. */
   since: string | null;
   /** First day excluded (UTC, YYYY-MM-DD), or null for "until now". Only bounds the sends. */
   until?: string | null;
-  /** Only sends from this Application__c; null for every origin. */
+  /** Only sends from this application (Marketing Cloud, Digital Engagement); null for all. */
   origin?: string | null;
 }
 
 function sinceClause(scope: Scope): string {
-  return scope.since ? `AND EventDateTime__c >= '${check(scope.since, ISO_DATE, "Fecha no válida")}'` : "";
+  if (!scope.since) return "";
+  return `AND ${scope.dialect.eventAt} >= ${scope.dialect.day(check(scope.since, ISO_DATE, "Fecha no válida"))}`;
 }
 
 function untilClause(scope: Scope): string {
-  return scope.until ? `AND EventDateTime__c < '${check(scope.until, ISO_DATE, "Fecha no válida")}'` : "";
+  if (!scope.until) return "";
+  return `AND ${scope.dialect.eventAt} < ${scope.dialect.day(check(scope.until, ISO_DATE, "Fecha no válida"))}`;
 }
 
 function originClause(scope: Scope): string {
@@ -77,12 +136,13 @@ function originClause(scope: Scope): string {
   if (!(Object.values(ORIGIN_APPLICATIONS) as string[]).includes(scope.origin)) {
     throw new InvalidQueryParam("Origen no válido");
   }
-  return `AND Application__c = '${scope.origin}'`;
+  return `AND ${scope.dialect.application} = '${scope.origin}'`;
 }
 
-function wabaClause(wabaIds: string[]): string {
+function wabaClause(scope: Scope, wabaIds: string[]): string {
   if (wabaIds.length === 0) return "";
-  return `AND ExternalAccountId__c IN (${wabaIds.map((id) => `'${check(id, WABA_ID, "WABA no válida")}'`).join(",")})`;
+  const ids = wabaIds.map((id) => `'${check(id, WABA_ID, "WABA no válida")}'`).join(",");
+  return `AND ${scope.dialect.waba} IN (${ids})`;
 }
 
 /**
@@ -91,17 +151,18 @@ function wabaClause(wabaIds: string[]): string {
  * the reads that came the day after.
  */
 function statusCte(scope: Scope, wabaIds: string[]): string {
+  const d = scope.dialect;
   return `status AS (
-    SELECT WhatsAppWamId__c AS wamid,
-      MAX(CASE WHEN SendStatus__c IN ('DELIVERED','READ') THEN 1 ELSE 0 END) AS delivered,
-      MAX(CASE WHEN SendStatus__c = 'READ' THEN 1 ELSE 0 END) AS read,
-      MAX(CASE WHEN SendStatus__c IN ('FAILED','NOT_SENT') THEN 1 ELSE 0 END) AS failed,
-      MAX(CASE WHEN SendStatus__c IN ('FAILED','NOT_SENT') THEN ErrorCode__c END) AS error_code,
-      MIN(CASE WHEN SendStatus__c = 'READ' THEN EventDateTime__c END) AS read_at
-    FROM ${check(scope.dlo, DLO_NAME, "Objeto de Data Cloud no válido")}
-    WHERE EventType__c IN ('SEND_STATUS','DR') ${wabaClause(wabaIds)} ${sinceClause(scope)}
-      AND WhatsAppWamId__c IN (SELECT wamid FROM sends WHERE wamid IS NOT NULL AND wamid <> '')
-    GROUP BY WhatsAppWamId__c)`;
+    SELECT ${d.wamid} AS wamid,
+      MAX(CASE WHEN ${d.status} IN ('DELIVERED','READ') THEN 1 ELSE 0 END) AS delivered,
+      MAX(CASE WHEN ${d.status} = 'READ' THEN 1 ELSE 0 END) AS read,
+      MAX(CASE WHEN ${d.status} IN ('FAILED','NOT_SENT') THEN 1 ELSE 0 END) AS failed,
+      MAX(CASE WHEN ${d.status} IN ('FAILED','NOT_SENT') THEN ${d.error} END) AS error_code,
+      MIN(CASE WHEN ${d.status} = 'READ' THEN ${d.eventAt} END) AS read_at
+    FROM ${d.table}
+    WHERE ${d.eventType} IN ('SEND_STATUS','DR') ${wabaClause(scope, wabaIds)} ${sinceClause(scope)}
+      AND ${d.wamid} IN (SELECT wamid FROM sends WHERE wamid IS NOT NULL AND wamid <> '')
+    GROUP BY ${d.wamid})`;
 }
 
 /**
@@ -110,18 +171,19 @@ function statusCte(scope: Scope, wabaIds: string[]): string {
  * fix, and many have no wamid, so their own status and error code are kept here.
  */
 function sendsCte(scope: Scope, wabaIds: string[], template?: { name: string; language: string }): string {
+  const d = scope.dialect;
   const templateFilter = template
-    ? `AND ${NAME_EXPR} = '${check(template.name, TEMPLATE_NAME, "Plantilla no válida")}'
-       AND ${LANGUAGE_EXPR} = '${check(template.language, LANGUAGE, "Idioma no válido").toLowerCase()}'`
-    : `AND ${NAME_EXPR} IS NOT NULL`;
+    ? `AND ${d.templateName} = '${check(template.name, TEMPLATE_NAME, "Plantilla no válida")}'
+       AND ${d.templateLanguage} = '${check(template.language, LANGUAGE, "Idioma no válido").toLowerCase()}'`
+    : `AND ${d.templateName} IS NOT NULL`;
   return `sends AS (
-    SELECT WhatsAppWamId__c AS wamid, ExternalAccountId__c AS waba,
-      ${NAME_EXPR} AS template, ${LANGUAGE_EXPR} AS language, Application__c AS origin,
-      SendStatus__c AS send_status, ErrorCode__c AS send_error,
-      EventDateTime__c AS sent_at, date_trunc('DAY', EventDateTime__c) AS day
-    FROM ${check(scope.dlo, DLO_NAME, "Objeto de Data Cloud no válido")}
-    WHERE EventType__c = 'SEND_STATUS' AND SendStatus__c IN ('SENT','NOT_SENT')
-      ${wabaClause(wabaIds)} ${sinceClause(scope)} ${untilClause(scope)} ${originClause(scope)} ${templateFilter})`;
+    SELECT ${d.wamid} AS wamid, ${d.waba} AS waba,
+      ${d.templateName} AS template, ${d.templateLanguage} AS language, ${d.application} AS origin,
+      ${d.status} AS send_status, ${d.error} AS send_error,
+      ${d.eventAt} AS sent_at, date_trunc('DAY', ${d.eventAt}) AS day
+    FROM ${d.table}
+    WHERE ${d.eventType} = 'SEND_STATUS' AND ${d.status} IN ('SENT','NOT_SENT')
+      ${wabaClause(scope, wabaIds)} ${sinceClause(scope)} ${untilClause(scope)} ${originClause(scope)} ${templateFilter})`;
 }
 
 /**

@@ -4,7 +4,8 @@ import { getDataCloudConfig, queryDataCloud, resetDataCloudToken, toRows, DataCl
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { describeError } from "@/lib/analytics/errors";
 import {
-  DEFAULT_WHATSAPP_DLO,
+  athenaDialect,
+  dataCloudDialect,
   InvalidQueryParam,
   ORIGIN_APPLICATIONS,
   errorsSql,
@@ -55,7 +56,7 @@ describe("getAnalyticsConfig", () => {
   const dc = { ...SF, SF_ACCESS_TOKEN: "t" };
 
   it("is off without Data Cloud", () => {
-    expect(getAnalyticsConfig({ ...ENTRA })).toEqual({ status: "disabled", reason: "no-datacloud" });
+    expect(getAnalyticsConfig({ ...ENTRA })).toEqual({ status: "disabled", reason: "no-source" });
   });
 
   it("requires login outside local development", () => {
@@ -176,7 +177,7 @@ describe("queryDataCloud", () => {
 });
 
 describe("analytics SQL", () => {
-  const scope = { dlo: DEFAULT_WHATSAPP_DLO, since: "2026-09-11" };
+  const scope = { dialect: dataCloudDialect(), since: "2026-09-11" };
 
   it("filters by WABA, template, language and date", () => {
     const sql = templateDailySql(scope, "741822361776098", "campus_confirmation_orbi_es", "ES_ES");
@@ -241,7 +242,8 @@ describe("analytics SQL", () => {
     ["template", () => templateDailySql(scope, "1", "x'; DROP TABLE t; --", "es")],
     ["language", () => templateDailySql(scope, "1", "ok", "es') OR ('1")],
     ["date", () => summaryDailySql({ ...scope, since: "2026-01-01' OR 1=1" }, [])],
-    ["DLO", () => summaryDailySql({ dlo: "Account; --", since: null }, [])],
+    ["DLO", () => summaryDailySql({ dialect: dataCloudDialect("Account; --"), since: null }, [])],
+    ["Athena table", () => summaryDailySql({ dialect: athenaDialect("db.t; DROP TABLE x"), since: null }, [])],
   ])("rejects an injected %s", (_, build) => {
     expect(build).toThrow(InvalidQueryParam);
   });

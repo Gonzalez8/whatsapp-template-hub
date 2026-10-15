@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { DataCloudError } from "@/lib/datacloud";
+import { QuerySourceError } from "@/lib/query-error";
 import { getTemplatesSnapshot } from "@/lib/templates";
 import type { Waba } from "@/types/template";
 import { getAnalyticsConfig } from "./config";
@@ -89,7 +89,7 @@ export const PRIVATE_JSON = { "Cache-Control": "private, no-store" };
 
 export function analyticsError(error: unknown): Response {
   if (error instanceof InvalidQueryParam) return Response.json({ error: error.message }, { status: 400 });
-  if (error instanceof DataCloudError) return Response.json({ error: error.message }, { status: 502 });
+  if (error instanceof QuerySourceError) return Response.json({ error: error.message }, { status: 502 });
   console.error(
     JSON.stringify({ event: "analytics_error", message: error instanceof Error ? error.message : String(error) }),
   );

@@ -25,3 +25,22 @@ export async function settleWithConcurrency<T, R>(
   await Promise.all(Array.from({ length: workers }, worker));
   return results;
 }
+
+/**
+ * Wraps tasks so that at most `max` run at the same time; the rest wait their turn.
+ * Per server instance.
+ */
+export function createLimiter(max: number) {
+  let running = 0;
+  const waiting: (() => void)[] = [];
+  return async function limit<T>(task: () => Promise<T>): Promise<T> {
+    if (running >= max) await new Promise<void>((resolve) => waiting.push(resolve));
+    running++;
+    try {
+      return await task();
+    } finally {
+      running--;
+      waiting.shift()?.();
+    }
+  };
+}

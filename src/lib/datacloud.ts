@@ -1,3 +1,6 @@
+import { createLimiter } from "@/lib/concurrency";
+import { QuerySourceError, type Row } from "@/lib/query-error";
+
 type Env = Record<string, string | undefined>;
 
 const API_VERSION = "v63.0";
@@ -28,7 +31,7 @@ export function getDataCloudConfig(env: Env = process.env): DataCloudConfig {
   return { status: "disabled" };
 }
 
-export class DataCloudError extends Error {
+export class DataCloudError extends QuerySourceError {
   name = "DataCloudError";
 }
 
@@ -62,7 +65,7 @@ async function getToken(config: Exclude<DataCloudConfig, { status: "disabled" }>
   return cachedToken;
 }
 
-export type Row = Record<string, string | number | null>;
+export type { Row };
 
 /** Data Cloud returns positional rows plus a metadata map; turn them into named rows. */
 export function toRows(body: { data?: unknown[][]; metadata?: Record<string, { placeInOrder?: number }> }): Row[] {
@@ -75,19 +78,7 @@ export function toRows(body: { data?: unknown[][]; metadata?: Record<string, { p
   );
 }
 
-let running = 0;
-const waiting: (() => void)[] = [];
-
-async function withSlot<T>(task: () => Promise<T>): Promise<T> {
-  if (running >= MAX_CONCURRENT_QUERIES) await new Promise<void>((resolve) => waiting.push(resolve));
-  running++;
-  try {
-    return await task();
-  } finally {
-    running--;
-    waiting.shift()?.();
-  }
-}
+const withSlot = createLimiter(MAX_CONCURRENT_QUERIES);
 
 /** Runs a read-only SQL query against the Data Cloud Query API (v2), at most 8 at a time. */
 export async function queryDataCloud(sql: string, config: DataCloudConfig = getDataCloudConfig()): Promise<Row[]> {
