@@ -58,10 +58,20 @@ describe("getAthenaConfig", () => {
     });
   });
 
-  it("takes a technical user's key only when both halves are set", () => {
-    const keyed = getAthenaConfig({ ...ATHENA, ATHENA_ACCESS_KEY_ID: "AKIA", ATHENA_SECRET_ACCESS_KEY: "s" });
-    expect(keyed).toMatchObject({ credentials: { accessKeyId: "AKIA", secretAccessKey: "s" } });
-    expect(getAthenaConfig({ ...ATHENA, ATHENA_ACCESS_KEY_ID: "AKIA" })).toMatchObject({ credentials: undefined });
+  it("takes a technical user's key only when it is a real one and both halves are set", () => {
+    const key = "AKIAABCDEFGHIJKLMNOP";
+    const keyed = getAthenaConfig({ ...ATHENA, ATHENA_ACCESS_KEY_ID: key, ATHENA_SECRET_ACCESS_KEY: "s" });
+    expect(keyed).toMatchObject({ credentials: { accessKeyId: key, secretAccessKey: "s" } });
+    expect(getAthenaConfig({ ...ATHENA, ATHENA_ACCESS_KEY_ID: key })).toMatchObject({ credentials: undefined });
+    const placeholder = { ...ATHENA, ATHENA_ACCESS_KEY_ID: "PENDIENTE", ATHENA_SECRET_ACCESS_KEY: "PENDIENTE" };
+    expect(getAthenaConfig(placeholder)).toMatchObject({ status: "enabled", credentials: undefined });
+  });
+
+  it("stays off on Vercel until there is a real key: there is no AWS session to fall back on", () => {
+    const placeholder = { ...ATHENA, VERCEL: "1", ATHENA_ACCESS_KEY_ID: "PENDIENTE", ATHENA_SECRET_ACCESS_KEY: "x" };
+    expect(getAthenaConfig(placeholder)).toEqual({ status: "disabled" });
+    const keyed = { ...placeholder, ATHENA_ACCESS_KEY_ID: "AKIAABCDEFGHIJKLMNOP" };
+    expect(getAthenaConfig(keyed)).toMatchObject({ status: "enabled" });
   });
 });
 

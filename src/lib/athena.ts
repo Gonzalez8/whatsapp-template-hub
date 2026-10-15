@@ -31,17 +31,26 @@ export type AthenaConfig =
       credentials?: { accessKeyId: string; secretAccessKey: string };
     };
 
+/** An AWS access key id: AKIA… (long-term) or ASIA… (temporary), 20 characters. */
+const ACCESS_KEY_ID = /^(AKIA|ASIA)[A-Z0-9]{16}$/;
+
 /**
  * Athena is on when `ATHENA_REGION` and `ATHENA_TABLE` are set. The key goes in
  * `ATHENA_ACCESS_KEY_ID` / `ATHENA_SECRET_ACCESS_KEY` rather than the usual AWS_* names,
- * which Vercel reserves for its own runtime.
+ * which Vercel reserves for its own runtime. On Vercel there is no AWS session to fall
+ * back on, so without a real key (e.g. a placeholder) Athena stays off and the app keeps
+ * using Data Cloud.
  */
 export function getAthenaConfig(env: Env = process.env): AthenaConfig {
   const region = env.ATHENA_REGION?.trim();
   const table = env.ATHENA_TABLE?.trim();
   if (!region || !table) return { status: "disabled" };
-  const accessKeyId = env.ATHENA_ACCESS_KEY_ID?.trim();
-  const secretAccessKey = env.ATHENA_SECRET_ACCESS_KEY?.trim();
+  const keyId = env.ATHENA_ACCESS_KEY_ID?.trim();
+  const secret = env.ATHENA_SECRET_ACCESS_KEY?.trim();
+  const hasKey = !!keyId && ACCESS_KEY_ID.test(keyId) && !!secret;
+  if (env.VERCEL && !hasKey) return { status: "disabled" };
+  const accessKeyId = hasKey ? keyId : undefined;
+  const secretAccessKey = hasKey ? secret : undefined;
   return {
     status: "enabled",
     region,
