@@ -1,12 +1,12 @@
 import { getAuthConfig } from "@/lib/auth-config";
-import { getDataCloudConfig } from "@/lib/datacloud";
+import { getAnalyticsSource } from "./source";
 
 type Env = Record<string, string | undefined>;
 
 export type AnalyticsConfig =
   | { status: "enabled"; requiresSession: boolean }
-  /** No Salesforce credentials: analytics is simply not offered. */
-  | { status: "disabled"; reason: "no-datacloud" }
+  /** No data source (Athena or Data Cloud): analytics is simply not offered. */
+  | { status: "disabled"; reason: "no-source" }
   /** Credentials present but the app is open to anyone: business metrics stay hidden. */
   | { status: "disabled"; reason: "needs-login" };
 
@@ -16,7 +16,7 @@ export type AnalyticsConfig =
  * meant for previews behind Vercel's Deployment Protection. Production always needs login.
  */
 export function getAnalyticsConfig(env: Env = process.env): AnalyticsConfig {
-  if (getDataCloudConfig(env).status === "disabled") return { status: "disabled", reason: "no-datacloud" };
+  if (getAnalyticsSource(env).kind === "none") return { status: "disabled", reason: "no-source" };
   if (getAuthConfig(env).status === "enabled") return { status: "enabled", requiresSession: true };
   if (env.NODE_ENV === "development") return { status: "enabled", requiresSession: false };
   if (env.ANALYTICS_WITHOUT_LOGIN?.trim() === "true" && env.VERCEL_ENV === "preview") {

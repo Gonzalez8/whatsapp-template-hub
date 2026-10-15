@@ -4,9 +4,9 @@ import { getDataCloudConfig, queryDataCloud, resetDataCloudToken, toRows, DataCl
 import { getAnalyticsConfig } from "@/lib/analytics/config";
 import { describeError } from "@/lib/analytics/errors";
 import {
-  DEFAULT_WHATSAPP_DLO,
+  athenaDialect,
+  dataCloudDialect,
   InvalidQueryParam,
-  ORIGIN_APPLICATIONS,
   errorsSql,
   overviewSql,
   summaryDailySql,
@@ -14,7 +14,7 @@ import {
   templateRankingSql,
 } from "@/lib/analytics/queries";
 import { fillDays, toWeeks } from "@/lib/analytics/series";
-import { rates } from "@/lib/analytics/types";
+import { ORIGIN_APPLICATIONS, rates } from "@/lib/analytics/types";
 import { fetchMetaVolume } from "@/lib/meta-analytics";
 
 const SF = { SF_INSTANCE_URL: "https://acme.my.salesforce.com/" };
@@ -54,8 +54,8 @@ describe("getDataCloudConfig", () => {
 describe("getAnalyticsConfig", () => {
   const dc = { ...SF, SF_ACCESS_TOKEN: "t" };
 
-  it("is off without Data Cloud", () => {
-    expect(getAnalyticsConfig({ ...ENTRA })).toEqual({ status: "disabled", reason: "no-datacloud" });
+  it("is off without any events source", () => {
+    expect(getAnalyticsConfig({ ...ENTRA })).toEqual({ status: "disabled", reason: "no-source" });
   });
 
   it("requires login outside local development", () => {
@@ -176,7 +176,7 @@ describe("queryDataCloud", () => {
 });
 
 describe("analytics SQL", () => {
-  const scope = { dlo: DEFAULT_WHATSAPP_DLO, since: "2026-09-11" };
+  const scope = { dialect: dataCloudDialect(), since: "2026-09-11" };
 
   it("filters by WABA, template, language and date", () => {
     const sql = templateDailySql(scope, "741822361776098", "campus_confirmation_orbi_es", "ES_ES");
@@ -188,9 +188,14 @@ describe("analytics SQL", () => {
   });
 
   it("counts WhatsApp codes with and without the WA- prefix as avoidable", () => {
-    const sql = templateRankingSql(scope, []);
+    const sql = templateRankingSql(scope, ["1"]);
     expect(sql).toContain("'WA-132000','132000'");
     expect(sql).toContain("'SF-3060'");
+  });
+
+  it("reads nothing, never the whole table, when there is no WABA", () => {
+    const sql = templateRankingSql(scope, []);
+    expect(sql).toContain("AND 1 = 0");
     expect(sql).not.toContain("ExternalAccountId__c IN");
   });
 
@@ -207,7 +212,9 @@ describe("analytics SQL", () => {
     ];
     expect(sends).toContain("EventDateTime__c < '2026-09-12'");
     expect(sends).toContain("Application__c = 'MARKETING_CLOUD_ENGAGEMENT'");
-    expect(status).not.toContain("EventDateTime__c <");
+    // The receipts themselves are not bounded above; only the sends they belong to are.
+    const receipts = status.slice(0, status.indexOf("AND WhatsAppWamId__c IN ("));
+    expect(receipts).not.toContain("EventDateTime__c <");
     expect(sql).toContain("approx_percentile");
   });
 
@@ -217,7 +224,10 @@ describe("analytics SQL", () => {
     expect(sql).toContain("WHEN d.delivered = 1 THEN 0");
     expect(sql).toContain("WHEN s.send_status = 'NOT_SENT' OR d.failed = 1 THEN 1");
     // Receipts are only read for the sends in scope.
-    expect(sql).toContain("WhatsAppWamId__c IN (SELECT wamid FROM sends WHERE wamid IS NOT NULL AND wamid <> '')");
+    // Receipts are only read for the sends in scope, taken straight from the send events.
+    expect(sql).toMatch(
+      /AND WhatsAppWamId__c IN \(\s*SELECT WhatsAppWamId__c FROM \S+\s*WHERE EventType__c = 'SEND_STATUS'/,
+    );
     expect(sql).toContain(`'"template":\\{"name":"([^"]+)"'`);
   });
 
@@ -241,7 +251,8 @@ describe("analytics SQL", () => {
     ["template", () => templateDailySql(scope, "1", "x'; DROP TABLE t; --", "es")],
     ["language", () => templateDailySql(scope, "1", "ok", "es') OR ('1")],
     ["date", () => summaryDailySql({ ...scope, since: "2026-01-01' OR 1=1" }, [])],
-    ["DLO", () => summaryDailySql({ dlo: "Account; --", since: null }, [])],
+    ["DLO", () => summaryDailySql({ dialect: dataCloudDialect("Account; --"), since: null }, [])],
+    ["Athena table", () => summaryDailySql({ dialect: athenaDialect("db.t; DROP TABLE x"), since: null }, [])],
   ])("rejects an injected %s", (_, build) => {
     expect(build).toThrow(InvalidQueryParam);
   });

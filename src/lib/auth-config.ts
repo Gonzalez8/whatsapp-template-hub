@@ -1,7 +1,7 @@
 type Env = Record<string, string | undefined>;
 
 /** Variables Microsoft Entra ID login needs. Setting any of them turns login on. */
-export const ENTRA_ENV_VARS = [
+const ENTRA_ENV_VARS = [
   "AUTH_MICROSOFT_ENTRA_ID_ID",
   "AUTH_MICROSOFT_ENTRA_ID_SECRET",
   "AUTH_MICROSOFT_ENTRA_ID_ISSUER",

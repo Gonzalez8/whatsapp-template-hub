@@ -1,11 +1,11 @@
 import { unstable_cache } from "next/cache";
-import { queryDataCloud, type Row } from "@/lib/datacloud";
+import type { Row } from "@/lib/query-error";
 import { fetchMetaVolume } from "@/lib/meta-analytics";
 import { describeError } from "./errors";
+import { getAnalyticsSource } from "./source";
 import {
-  DEFAULT_WHATSAPP_DLO,
-  ORIGIN_APPLICATIONS,
   errorsSql,
+  lastLoadSql,
   overviewSql,
   summaryDailySql,
   templateDailySql,
@@ -13,26 +13,33 @@ import {
   wabaOriginSql,
   type Scope,
 } from "./queries";
-import type {
-  AnalyticsOrigin,
-  AnalyticsPeriod,
-  AnalyticsRange,
-  Counts,
-  OriginRow,
-  ReadCounts,
-  SummaryAnalytics,
-  TemplateAnalytics,
-  TemplateRow,
+import {
+  DAY_MS,
+  META_MAX_DAYS,
+  ORIGIN_APPLICATIONS,
+  RANGE_DAYS,
+  type AnalyticsOrigin,
+  type AnalyticsPeriod,
+  type AnalyticsRange,
+  type Counts,
+  type DataSource,
+  type OriginRow,
+  type ReadCounts,
+  type SummaryAnalytics,
+  type TemplateAnalytics,
+  type TemplateRow,
 } from "./types";
 
-export const ANALYTICS_TAG = "analytics";
-/** Data Cloud lags ~15 min behind and the data is daily: one hour of cache is plenty. */
+const ANALYTICS_TAG = "analytics";
+/** The events lag behind Meta (Data Cloud ~15 min, the Athena copy a few hours): one hour of cache is plenty. */
 const ANALYTICS_REVALIDATE_SECONDS = 3600;
 
-const DAY_MS = 86_400_000;
-const RANGE_DAYS: Record<AnalyticsRange, number | null> = { "7d": 7, "30d": 30, "90d": 90, all: null };
-/** Meta keeps 90 days of pricing data at most. */
-const META_MAX_DAYS = 90;
+/** The configured source (Athena or Data Cloud); analytics is only enabled when there is one. */
+function source() {
+  const current = getAnalyticsSource();
+  if (current.kind === "none") throw new Error("Analytics has no events source configured");
+  return current;
+}
 
 function scopeFor(
   range: AnalyticsRange,
@@ -43,7 +50,7 @@ function scopeFor(
   const days = RANGE_DAYS[range];
   const since = days === null ? null : new Date(now.getTime() - days * DAY_MS).toISOString().slice(0, 10);
   return {
-    dlo: process.env.DATACLOUD_WHATSAPP_DLO?.trim() || DEFAULT_WHATSAPP_DLO,
+    dialect: source().dialect,
     since: period?.from ?? since,
     until: period?.to ?? null,
     origin: origin === "all" ? null : ORIGIN_APPLICATIONS[origin],
@@ -86,7 +93,22 @@ function splitOverview(rows: Row[]): { totals: ReadCounts; origins: OriginRow[] 
   return { totals: total ? toReadCounts(total) : EMPTY, origins };
 }
 
-/** Data Cloud returns "2026-09-12 00:00:00.000 UTC"; keep the date. */
+/**
+ * Which source answered, and for a copy (Athena) when it was last loaded. A copy without
+ * the load column just reports no time: the figures still come out.
+ */
+async function describeSource(): Promise<DataSource> {
+  const current = source();
+  const sql = lastLoadSql(current.dialect);
+  const rows = sql ? await current.run(sql).catch(() => []) : [];
+  const loaded = rows[0]?.loaded_at;
+  // Athena: "2026-10-15 10:51:03.344000" (UTC), to ISO; anything else, no time.
+  const date = loaded ? new Date(`${String(loaded).slice(0, 19).replace(" ", "T")}Z`) : null;
+  const loadedAt = date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+  return { kind: current.kind, loadedAt };
+}
+
+/** The sources return "2026-09-12 00:00:00.000 UTC" or similar; keep the date. */
 const day = (value: Row[string]) => String(value ?? "").slice(0, 10);
 
 async function loadSummary(
@@ -96,13 +118,15 @@ async function loadSummary(
   period: AnalyticsPeriod | null,
 ): Promise<SummaryAnalytics> {
   const scope = scopeFor(range, origin, period);
-  const [ranking, daily, errors, overview, wabaOrigins, meta] = await Promise.all([
-    queryDataCloud(templateRankingSql(scope, wabaIds)),
-    queryDataCloud(summaryDailySql(scope, wabaIds)),
-    queryDataCloud(errorsSql(scope, wabaIds)),
-    queryDataCloud(overviewSql(scope, wabaIds)),
-    queryDataCloud(wabaOriginSql(scope, wabaIds)),
+  const { run } = source();
+  const [ranking, daily, errors, overview, wabaOrigins, meta, dataSource] = await Promise.all([
+    run(templateRankingSql(scope, wabaIds)),
+    run(summaryDailySql(scope, wabaIds)),
+    run(errorsSql(scope, wabaIds)),
+    run(overviewSql(scope, wabaIds)),
+    run(wabaOriginSql(scope, wabaIds)),
     fetchMetaVolume(wabaIds, ...metaWindow(range, period)).catch(() => null),
+    describeSource(),
   ]);
   const templates: TemplateRow[] = ranking.map((row) => ({
     waba: String(row.waba),
@@ -115,6 +139,7 @@ async function loadSummary(
     origin,
     period,
     generatedAt: Date.now(),
+    source: dataSource,
     ...splitOverview(overview),
     wabaOrigins: wabaOrigins.map((row) => ({
       waba: String(row.waba),
@@ -136,16 +161,18 @@ async function loadTemplate(
   range: AnalyticsRange,
 ): Promise<TemplateAnalytics> {
   const scope = scopeFor(range);
+  const { run } = source();
   const template = { name, language };
   const [daily, errors, overview, summary] = await Promise.all([
-    queryDataCloud(templateDailySql(scope, wabaId, name, language)),
-    queryDataCloud(errorsSql(scope, [wabaId], template)),
-    queryDataCloud(overviewSql(scope, [wabaId], template)),
+    run(templateDailySql(scope, wabaId, name, language)),
+    run(errorsSql(scope, [wabaId], template)),
+    run(overviewSql(scope, [wabaId], template)),
     getSummaryAnalytics([wabaId], range),
   ]);
   return {
     range,
     generatedAt: Date.now(),
+    source: summary.source,
     ...splitOverview(overview),
     daily: daily.map((row) => ({ day: day(row.day), ...toCounts(row) })),
     errors: errors.map((row) => describeError(String(row.code ?? "Desconocido"), num(row.failed))),
@@ -157,13 +184,13 @@ async function loadTemplate(
 export const getSummaryAnalytics = unstable_cache(
   (wabaIds: string[], range: AnalyticsRange, origin: AnalyticsOrigin = "all", period: AnalyticsPeriod | null = null) =>
     loadSummary([...wabaIds].sort(), range, origin, period),
-  ["analytics-summary-v7"],
+  ["analytics-summary-v9"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );
 
 export const getTemplateAnalytics = unstable_cache(
   (wabaId: string, name: string, language: string, range: AnalyticsRange) =>
     loadTemplate(wabaId, name, language.toLowerCase(), range),
-  ["analytics-template-v7"],
+  ["analytics-template-v9"],
   { revalidate: ANALYTICS_REVALIDATE_SECONDS, tags: [ANALYTICS_TAG] },
 );

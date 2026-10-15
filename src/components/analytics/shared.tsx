@@ -1,7 +1,13 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import type { AnalyticsOrigin, AnalyticsRange, ErrorCount } from "@/lib/analytics/types";
+import {
+  originOfApplication,
+  type AnalyticsOrigin,
+  type AnalyticsRange,
+  type DataSource,
+  type ErrorCount,
+} from "@/lib/analytics/types";
 import { formatDay, formatWeekday } from "@/lib/analytics/series";
 
 // Spanish leaves 4-digit numbers ungrouped (2917); in tables next to 15.302 that reads as a typo.
@@ -23,11 +29,10 @@ export const ORIGIN_LABELS: Record<AnalyticsOrigin, string> = {
   de: "Digital Engagement",
 };
 
-/** Name of an Application__c value from Data Cloud. */
+/** Name of a Salesforce application (`Application__c` / `application`). */
 export function applicationLabel(application: string): string {
-  if (application === "MARKETING_CLOUD_ENGAGEMENT") return ORIGIN_LABELS.mce;
-  if (application === "DIGITAL_ENGAGEMENT") return ORIGIN_LABELS.de;
-  return application || "Sin origen";
+  const origin = originOfApplication(application);
+  return origin ? ORIGIN_LABELS[origin] : application || "Sin origen";
 }
 
 /** "<1 min", "12 min", "2 h 5 min", "1,5 días" (null → "—"). */
@@ -365,12 +370,16 @@ function age(generatedAt: number, now = Date.now()) {
   return minutes < 1 ? "hace un momento" : minutes < 60 ? `hace ${minutes} min` : `hace ${Math.round(minutes / 60)} h`;
 }
 
-export function SourceNote({ generatedAt }: { generatedAt?: number }) {
+export function SourceNote({ generatedAt, source }: { generatedAt?: number; source: DataSource }) {
+  const origin =
+    source.kind === "athena"
+      ? `Fuente: copia de Data Cloud en Athena${source.loadedAt ? ` (última carga ${age(Date.parse(source.loadedAt))})` : ""}`
+      : "Fuente: Data Cloud (unos 15 min por detrás de Meta)";
   return (
     <p className="text-faint text-[11px] leading-relaxed">
-      Fuente: Data Cloud · solo envíos hechos desde Salesforce · «Leídas» requiere que el destinatario tenga activadas
-      las confirmaciones de lectura · Data Cloud va ~15 min por detrás de Meta · las cifras se recalculan cada hora
-      {generatedAt ? ` (estas, ${age(generatedAt)})` : ""}.
+      {origin} · solo envíos hechos desde Salesforce · «Leídas» requiere que el destinatario tenga activadas las
+      confirmaciones de lectura · las cifras se recalculan cada hora{generatedAt ? ` (estas, ${age(generatedAt)})` : ""}
+      .
     </p>
   );
 }

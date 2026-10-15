@@ -34,7 +34,7 @@ interface TopBarProps {
   /** null while comparing: neither view is active. */
   view: "list" | "gallery" | "analytics" | null;
   onViewChange: (view: "list" | "gallery" | "analytics") => void;
-  /** Offer the analytics view (Data Cloud configured and allowed). */
+  /** Offer the analytics view (an events source is configured and allowed). */
   analyticsEnabled?: boolean;
   /** Company logo/name from the deployment config, shown before the WhatsApp mark. */
   brand: { name?: string; logoUrl?: string; logoOnWhite?: boolean };

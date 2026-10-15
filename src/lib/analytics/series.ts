@@ -1,6 +1,6 @@
 // Shared by server and client: chart series helpers.
 
-const DAY_MS = 86_400_000;
+import { DAY_MS } from "./types";
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const shortDate = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
 export const formatDay = (day: string) => shortDate.format(new Date(`${day}T00:00:00Z`));

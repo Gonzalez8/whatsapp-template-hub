@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { DataCloudError } from "@/lib/datacloud";
+import { QuerySourceError } from "@/lib/query-error";
 import { getTemplatesSnapshot } from "@/lib/templates";
 import type { Waba } from "@/types/template";
 import { getAnalyticsConfig } from "./config";
@@ -10,6 +10,8 @@ import {
   ANALYTICS_RANGES,
   type AnalyticsOrigin,
   type AnalyticsPeriod,
+  DAY_MS,
+  RANGE_DAYS,
   type AnalyticsRange,
 } from "./types";
 
@@ -55,8 +57,6 @@ export function parseOrigin(value: string | null): AnalyticsOrigin {
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-const DAY_MS = 86_400_000;
-const RANGE_DAYS: Record<AnalyticsRange, number | null> = { "7d": 7, "30d": 30, "90d": 90, all: null };
 const dayMs = (day: string) => Date.parse(`${day}T00:00:00Z`);
 
 /**
@@ -89,7 +89,7 @@ export const PRIVATE_JSON = { "Cache-Control": "private, no-store" };
 
 export function analyticsError(error: unknown): Response {
   if (error instanceof InvalidQueryParam) return Response.json({ error: error.message }, { status: 400 });
-  if (error instanceof DataCloudError) return Response.json({ error: error.message }, { status: 502 });
+  if (error instanceof QuerySourceError) return Response.json({ error: error.message }, { status: 502 });
   console.error(
     JSON.stringify({ event: "analytics_error", message: error instanceof Error ? error.message : String(error) }),
   );
