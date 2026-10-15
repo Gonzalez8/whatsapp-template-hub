@@ -39,6 +39,7 @@ const summary: SummaryAnalytics = {
   origin: "all",
   period: null,
   generatedAt: Date.now() - 12 * 60_000,
+  source: { kind: "datacloud", loadedAt: null },
   totals: counts(100, 90, 45, 10, 2, 300),
   origins: [
     { origin: "MARKETING_CLOUD_ENGAGEMENT", ...counts(70, 60, 30) },
@@ -243,6 +244,7 @@ describe("TemplateAnalyticsTab", () => {
   const data: TemplateAnalytics = {
     range: "all",
     generatedAt: Date.now(),
+    source: { kind: "athena", loadedAt: null },
     totals: counts(69, 69, 55, 0, 0, 30),
     daily: [{ day: "2026-05-26", ...counts(69, 69, 55) }],
     errors: [],
@@ -322,9 +324,9 @@ describe("SourceNote", () => {
     const loadedAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
     const { rerender } = render(<SourceNote source={{ kind: "athena", loadedAt }} />);
     expect(screen.getByText(/Fuente: copia de Data Cloud en Athena \(última carga hace 2 h\)/)).toBeInTheDocument();
-    expect(screen.queryByText(/~15 min por detrás/)).toBeNull();
+    expect(screen.queryByText(/15 min por detrás/)).toBeNull();
 
     rerender(<SourceNote source={{ kind: "datacloud", loadedAt: null }} />);
-    expect(screen.getByText(/Fuente: Data Cloud · Data Cloud va ~15 min por detrás de Meta/)).toBeInTheDocument();
+    expect(screen.getByText(/Fuente: Data Cloud \(unos 15 min por detrás de Meta\)/)).toBeInTheDocument();
   });
 });

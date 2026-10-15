@@ -4,7 +4,6 @@ import { fetchMetaVolume } from "@/lib/meta-analytics";
 import { describeError } from "./errors";
 import { getAnalyticsSource } from "./source";
 import {
-  ORIGIN_APPLICATIONS,
   errorsSql,
   lastLoadSql,
   overviewSql,
@@ -14,32 +13,31 @@ import {
   wabaOriginSql,
   type Scope,
 } from "./queries";
-import type {
-  AnalyticsOrigin,
-  AnalyticsPeriod,
-  AnalyticsRange,
-  Counts,
-  DataSource,
-  OriginRow,
-  ReadCounts,
-  SummaryAnalytics,
-  TemplateAnalytics,
-  TemplateRow,
+import {
+  DAY_MS,
+  META_MAX_DAYS,
+  ORIGIN_APPLICATIONS,
+  RANGE_DAYS,
+  type AnalyticsOrigin,
+  type AnalyticsPeriod,
+  type AnalyticsRange,
+  type Counts,
+  type DataSource,
+  type OriginRow,
+  type ReadCounts,
+  type SummaryAnalytics,
+  type TemplateAnalytics,
+  type TemplateRow,
 } from "./types";
 
-export const ANALYTICS_TAG = "analytics";
+const ANALYTICS_TAG = "analytics";
 /** The events lag behind Meta (Data Cloud ~15 min, the Athena copy a few hours): one hour of cache is plenty. */
 const ANALYTICS_REVALIDATE_SECONDS = 3600;
-
-const DAY_MS = 86_400_000;
-const RANGE_DAYS: Record<AnalyticsRange, number | null> = { "7d": 7, "30d": 30, "90d": 90, all: null };
-/** Meta keeps 90 days of pricing data at most. */
-const META_MAX_DAYS = 90;
 
 /** The configured source (Athena or Data Cloud); analytics is only enabled when there is one. */
 function source() {
   const current = getAnalyticsSource();
-  if (current.kind === "none") throw new Error("No hay origen de datos para la analítica");
+  if (current.kind === "none") throw new Error("Analytics has no events source configured");
   return current;
 }
 
@@ -104,12 +102,13 @@ async function describeSource(): Promise<DataSource> {
   const sql = lastLoadSql(current.dialect);
   const rows = sql ? await current.run(sql).catch(() => []) : [];
   const loaded = rows[0]?.loaded_at;
-  // Athena: "2026-10-15 10:51:03.344000" (UTC), to ISO.
-  const loadedAt = loaded ? new Date(`${String(loaded).slice(0, 19).replace(" ", "T")}Z`).toISOString() : null;
-  return { kind: current.kind === "athena" ? "athena" : "datacloud", loadedAt };
+  // Athena: "2026-10-15 10:51:03.344000" (UTC), to ISO; anything else, no time.
+  const date = loaded ? new Date(`${String(loaded).slice(0, 19).replace(" ", "T")}Z`) : null;
+  const loadedAt = date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+  return { kind: current.kind, loadedAt };
 }
 
-/** Data Cloud returns "2026-09-12 00:00:00.000 UTC"; keep the date. */
+/** The sources return "2026-09-12 00:00:00.000 UTC" or similar; keep the date. */
 const day = (value: Row[string]) => String(value ?? "").slice(0, 10);
 
 async function loadSummary(

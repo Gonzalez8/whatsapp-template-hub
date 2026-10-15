@@ -7,7 +7,6 @@ import {
   athenaDialect,
   dataCloudDialect,
   InvalidQueryParam,
-  ORIGIN_APPLICATIONS,
   errorsSql,
   overviewSql,
   summaryDailySql,
@@ -15,7 +14,7 @@ import {
   templateRankingSql,
 } from "@/lib/analytics/queries";
 import { fillDays, toWeeks } from "@/lib/analytics/series";
-import { rates } from "@/lib/analytics/types";
+import { ORIGIN_APPLICATIONS, rates } from "@/lib/analytics/types";
 import { fetchMetaVolume } from "@/lib/meta-analytics";
 
 const SF = { SF_INSTANCE_URL: "https://acme.my.salesforce.com/" };
@@ -55,7 +54,7 @@ describe("getDataCloudConfig", () => {
 describe("getAnalyticsConfig", () => {
   const dc = { ...SF, SF_ACCESS_TOKEN: "t" };
 
-  it("is off without Data Cloud", () => {
+  it("is off without any events source", () => {
     expect(getAnalyticsConfig({ ...ENTRA })).toEqual({ status: "disabled", reason: "no-source" });
   });
 
@@ -189,9 +188,14 @@ describe("analytics SQL", () => {
   });
 
   it("counts WhatsApp codes with and without the WA- prefix as avoidable", () => {
-    const sql = templateRankingSql(scope, []);
+    const sql = templateRankingSql(scope, ["1"]);
     expect(sql).toContain("'WA-132000','132000'");
     expect(sql).toContain("'SF-3060'");
+  });
+
+  it("reads nothing, never the whole table, when there is no WABA", () => {
+    const sql = templateRankingSql(scope, []);
+    expect(sql).toContain("AND 1 = 0");
     expect(sql).not.toContain("ExternalAccountId__c IN");
   });
 

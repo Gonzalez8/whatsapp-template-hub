@@ -3,9 +3,28 @@
 export const ANALYTICS_RANGES = ["7d", "30d", "90d", "all"] as const;
 export type AnalyticsRange = (typeof ANALYTICS_RANGES)[number];
 
+export const DAY_MS = 86_400_000;
+/** Days each range covers; null for the whole history. */
+export const RANGE_DAYS: Record<AnalyticsRange, number | null> = { "7d": 7, "30d": 30, "90d": 90, all: null };
+/** Meta keeps 90 days of pricing data at most. */
+export const META_MAX_DAYS = 90;
+
 /** Where in Salesforce the send came from: Marketing Cloud or Digital Engagement. */
 export const ANALYTICS_ORIGINS = ["all", "mce", "de"] as const;
 export type AnalyticsOrigin = (typeof ANALYTICS_ORIGINS)[number];
+
+/** Values of the application column for each origin. */
+export const ORIGIN_APPLICATIONS = {
+  mce: "MARKETING_CLOUD_ENGAGEMENT",
+  de: "DIGITAL_ENGAGEMENT",
+} as const satisfies Record<Exclude<AnalyticsOrigin, "all">, string>;
+
+/** The origin of an application column value, if it is one of ours. */
+export function originOfApplication(application: string): Exclude<AnalyticsOrigin, "all"> | null {
+  if (application === ORIGIN_APPLICATIONS.mce) return "mce";
+  if (application === ORIGIN_APPLICATIONS.de) return "de";
+  return null;
+}
 
 /** A stretch of days inside the range (UTC, YYYY-MM-DD, `to` excluded): a day or a week. */
 export interface AnalyticsPeriod {
@@ -44,7 +63,7 @@ export interface ReadCounts extends Counts {
 }
 
 export interface OriginRow extends ReadCounts {
-  /** Application__c, e.g. MARKETING_CLOUD_ENGAGEMENT; "" when Salesforce didn't fill it. */
+  /** The application column, e.g. MARKETING_CLOUD_ENGAGEMENT; "" when Salesforce didn't fill it. */
   origin: string;
 }
 
@@ -52,8 +71,7 @@ export interface TemplateAnalytics {
   range: AnalyticsRange;
   /** Epoch ms of when the figures were computed (they are cached for an hour). */
   generatedAt: number;
-  /** Absent in figures cached before it existed. */
-  source?: DataSource;
+  source: DataSource;
   totals: ReadCounts;
   daily: ({ day: string } & Counts)[];
   errors: ErrorCount[];
@@ -94,8 +112,7 @@ export interface SummaryAnalytics {
   period: AnalyticsPeriod | null;
   /** Epoch ms of when the figures were computed (they are cached for an hour). */
   generatedAt: number;
-  /** Absent in figures cached before it existed. */
-  source?: DataSource;
+  source: DataSource;
   totals: ReadCounts;
   origins: OriginRow[];
   wabaOrigins: WabaOriginRow[];

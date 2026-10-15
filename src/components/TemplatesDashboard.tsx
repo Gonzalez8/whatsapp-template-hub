@@ -26,7 +26,7 @@ interface TemplatesDashboardProps {
   brand?: { name?: string; logoUrl?: string; logoOnWhite?: boolean };
   /** Login is on for this deployment: show the signed-in user. */
   authEnabled?: boolean;
-  /** Data Cloud analytics is configured and allowed for this deployment. */
+  /** Analytics has an events source and is allowed for this deployment. */
   analyticsEnabled?: boolean;
 }
 

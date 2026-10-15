@@ -34,13 +34,16 @@ export function createLimiter(max: number) {
   let running = 0;
   const waiting: (() => void)[] = [];
   return async function limit<T>(task: () => Promise<T>): Promise<T> {
+    // A finished task hands its slot straight to the next in line, so a new call can't
+    // slip in between and run one over the limit.
     if (running >= max) await new Promise<void>((resolve) => waiting.push(resolve));
-    running++;
+    else running++;
     try {
       return await task();
     } finally {
-      running--;
-      waiting.shift()?.();
+      const next = waiting.shift();
+      if (next) next();
+      else running--;
     }
   };
 }

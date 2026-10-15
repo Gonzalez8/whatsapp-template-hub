@@ -4,6 +4,10 @@ import { useCallback, useMemo, useState } from "react";
 import type { Template, Waba } from "@/types/template";
 import {
   ANALYTICS_ORIGINS,
+  META_MAX_DAYS,
+  ORIGIN_APPLICATIONS,
+  RANGE_DAYS,
+  originOfApplication,
   rates,
   type AnalyticsOrigin,
   type AnalyticsRange,
@@ -34,13 +38,13 @@ import {
 } from "./shared";
 
 const RANGES: AnalyticsRange[] = ["7d", "30d", "90d", "all"];
-const RANGE_DAYS: Partial<Record<AnalyticsRange, number>> = { "7d": 7, "30d": 30, "90d": 90 };
 const PAGE = 25;
 const UNUSED_PAGE = 8;
 /** Window for "templates without sends". */
 const UNUSED_RANGE: AnalyticsRange = "90d";
-/** Meta keeps 90 days of pricing data. */
+/** Meta keeps 90 days of pricing data: "Todo" compares those. */
 const META_RANGE: AnalyticsRange = "90d";
+const LAST_90_DAYS = `últimos ${META_MAX_DAYS} días`;
 
 const SALESFORCE_ORIGIN_LABELS: Record<AnalyticsOrigin, string> = {
   all: "Todo Salesforce",
@@ -61,11 +65,6 @@ const CATEGORIES: Record<string, { label: string; help: string }> = {
   },
   AUTHENTICATION: { label: "Autenticación", help: "Códigos de verificación (OTP). Siempre de pago." },
   SERVICE: { label: "Servicio", help: "Respuestas libres a un cliente que ha escrito; no son plantillas. Gratis." },
-};
-
-const ORIGIN_OF_APPLICATION: Record<string, AnalyticsOrigin> = {
-  MARKETING_CLOUD_ENGAGEMENT: "mce",
-  DIGITAL_ENGAGEMENT: "de",
 };
 
 const templateKey = (waba: string, name: string, language: string) => `${waba}|${name}|${language.toLowerCase()}`;
@@ -135,7 +134,7 @@ export function AnalyticsView({
         ? selected.map((w) => w.waba_name).join(" · ")
         : "Marca WABAs en la barra lateral para acotar";
 
-  // The ranking comes from Data Cloud; link each row to the template Meta has (if it still exists).
+  // The ranking comes from the events source; link each row to the template Meta has (if it still exists).
   const findTemplate = useCallback(
     (row: TemplateRow) =>
       byId
@@ -177,7 +176,7 @@ export function AnalyticsView({
           source="Meta"
           title="Todo WhatsApp, según Meta"
           description="Cualquier herramienta: todo lo que Meta entrega y factura"
-          aside={!period && range === "all" ? "últimos 90 días" : undefined}
+          aside={!period && range === "all" ? LAST_90_DAYS : undefined}
         >
           {everything.status === "loading" && <div className="shimmer h-40 rounded-xl" aria-busy="true" />}
           {everything.status === "error" && <LoadError message={everything.message} />}
@@ -192,9 +191,13 @@ export function AnalyticsView({
         </Layer>
 
         <Layer
-          source="Data Cloud"
+          source={
+            figures.status === "ready" && figures.data.source?.kind === "athena"
+              ? "Data Cloud (copia en Athena)"
+              : "Data Cloud"
+          }
           title="Detalle de Salesforce"
-          description="Data Cloud: plantilla a plantilla, con entrega, lectura y fallos"
+          description="Eventos de Salesforce: plantilla a plantilla, con entrega, lectura y fallos"
           controls={
             <Segmented
               label="Origen en Salesforce"
@@ -298,8 +301,8 @@ function Layer({
   );
 }
 
-const MC = "MARKETING_CLOUD_ENGAGEMENT";
-const DE = "DIGITAL_ENGAGEMENT";
+const MC = ORIGIN_APPLICATIONS.mce;
+const DE = ORIGIN_APPLICATIONS.de;
 const HATCH = "repeating-linear-gradient(135deg, var(--color-line-strong) 0 5px, var(--color-line) 5px 10px)";
 const UNMATCHED_HELP =
   "Plantillas que Meta entregó y Data Cloud no tiene registradas: enviadas con otra herramienta o desde una parte de Salesforce que no vuelca en Data Cloud. Es una resta (Meta − Data Cloud) por WABA, no un origen comprobado; en un solo día puede moverse unos mensajes porque Meta cuenta los días con la hora de la WABA y Data Cloud en UTC.";
@@ -312,17 +315,17 @@ interface WabaReconciliation {
   id: string;
   mc: number;
   de: number;
-  /** Delivered according to Data Cloud. */
+  /** Delivered according to Salesforce's events. */
   sf: number;
   /** Delivered according to Meta. */
   inMeta: number;
-  /** Meta − Data Cloud: positive = not in Data Cloud; negative = Data Cloud counts more. */
+  /** Meta − Salesforce: positive = not in its events; negative = Salesforce counts more. */
   diff: number;
 }
 
 /**
- * Meta against Data Cloud, WABA by WABA. Differences are kept per WABA: one WABA where
- * Data Cloud counts more does not hide another where it has nothing.
+ * Meta against Salesforce's events, WABA by WABA. Differences are kept per WABA: one WABA where
+ * Salesforce counts more does not hide another where it has nothing.
  */
 function reconcile(data: SummaryAnalytics, meta: MetaVolume, wabaIds: string[] | null) {
   const ids = wabaIds ?? [...new Set([...Object.keys(meta.byWaba), ...data.wabaOrigins.map((r) => r.waba)])];
@@ -761,7 +764,7 @@ function Origins({
           <tbody>
             {rows.map((row) => {
               const rr = rates(row);
-              const filter = ORIGIN_OF_APPLICATION[row.origin];
+              const filter = originOfApplication(row.origin);
               return (
                 <tr key={row.origin} className="border-line/70 border-t">
                   <td className="py-2">
@@ -836,7 +839,7 @@ function UnusedTemplates({
   }, [ready, wabas, findTemplate]);
 
   return (
-    <Card title="Plantillas sin envíos" aside="últimos 90 días">
+    <Card title="Plantillas sin envíos" aside={LAST_90_DAYS}>
       {state.status === "loading" && <div className="shimmer h-24 rounded-lg" aria-busy="true" />}
       {state.status === "error" && <LoadError message={state.message} />}
       {ready && (

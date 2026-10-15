@@ -1,5 +1,5 @@
-import { settleWithConcurrency } from "./concurrency";
-import type { MetaVolume } from "./analytics/types";
+import type { MetaVolume } from "@/lib/analytics/types";
+import { settleWithConcurrency } from "@/lib/concurrency";
 
 const META_API = "https://graph.facebook.com/v23.0";
 const FETCH_TIMEOUT_MS = 15_000;

@@ -9,6 +9,12 @@
  * Every value that ends up in SQL is validated against a strict pattern first.
  */
 
+import { ORIGIN_APPLICATIONS } from "./types";
+
+/**
+ * Data Cloud names the object with a suffix of its own in each org. This is the one of
+ * the org the app was built for; any other sets `DATACLOUD_WHATSAPP_DLO`.
+ */
 export const DEFAULT_WHATSAPP_DLO = "MessagingEventsWhatsAppV2_Whats_752DC657__dll";
 
 /** Failures we can fix (template or data configuration), as opposed to noise like numbers without WhatsApp. */
@@ -102,21 +108,15 @@ export function athenaDialect(table: string): Dialect {
     templateLanguage: `lower(json_extract_scalar(${message}, '$.template.language.code'))`,
     day: (isoDay) => `TIMESTAMP '${isoDay} 00:00:00'`,
     groupingSets: true,
-    // Set by the data team's load (dbt) on every row.
+    // Load time of each row, if the copy keeps it (optional: see describeSource).
     loadedAt: "_extracted_at",
   };
 }
 
-// WhatsApp codes arrive both with the "WA-" prefix (through e360) and bare ("132000").
+// WhatsApp codes arrive both with the "WA-" prefix and bare ("132000"), depending on the channel.
 const AVOIDABLE_LIST = AVOIDABLE_ERROR_CODES.flatMap((code) =>
   code.startsWith("WA-") ? [`'${code}'`, `'${code.slice(3)}'`] : [`'${code}'`],
 ).join(",");
-
-/** Values of the application column: where in Salesforce the send came from. */
-export const ORIGIN_APPLICATIONS = {
-  mce: "MARKETING_CLOUD_ENGAGEMENT",
-  de: "DIGITAL_ENGAGEMENT",
-} as const;
 
 export interface Scope {
   /** Where the events live and how its SQL is written. */
@@ -148,7 +148,8 @@ function originClause(scope: Scope): string {
 }
 
 function wabaClause(scope: Scope, wabaIds: string[]): string {
-  if (wabaIds.length === 0) return "";
+  // No WABA means no rows, never the whole table.
+  if (wabaIds.length === 0) return "AND 1 = 0";
   const ids = wabaIds.map((id) => `'${check(id, WABA_ID, "WABA no válida")}'`).join(",");
   return `AND ${scope.dialect.waba} IN (${ids})`;
 }
@@ -158,6 +159,8 @@ function wabaClause(scope: Scope, wabaIds: string[]): string {
  * so a message sent on the last day still counts the reads that came the day after.
  * The wamids come straight from the send events, without reading the message (the
  * heaviest column, and the costly part in Athena); `msgs` keeps only template sends.
+ * The WABA and date filters repeat in the outer query on purpose: they let both scans
+ * skip partitions, which is what keeps the cost down.
  */
 function statusCte(scope: Scope, wabaIds: string[]): string {
   const d = scope.dialect;

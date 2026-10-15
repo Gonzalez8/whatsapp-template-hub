@@ -152,7 +152,7 @@ async function runQuery(sql: string, config: EnabledConfig): Promise<Row[]> {
 
 const withSlot = createLimiter(MAX_CONCURRENT_QUERIES);
 
-/** Runs a read-only SQL query in Athena, at most 8 at a time per instance. */
+/** Runs a read-only SQL query in Athena, a few at a time per instance (MAX_CONCURRENT_QUERIES). */
 export async function queryAthena(sql: string, config: AthenaConfig = getAthenaConfig()): Promise<Row[]> {
   if (config.status === "disabled") throw new AthenaError("Athena no está configurado");
   return withSlot(() => runQuery(sql, config));

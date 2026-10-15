@@ -4,7 +4,7 @@ import { QuerySourceError, type Row } from "@/lib/query-error";
 type Env = Record<string, string | undefined>;
 
 const API_VERSION = "v63.0";
-const QUERY_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 /** Queries in flight per server instance; the rest wait their turn. */
 const MAX_CONCURRENT_QUERIES = 8;
 /** Salesforce access tokens don't say when they expire; renew well before the usual session timeout. */
@@ -49,7 +49,7 @@ async function getToken(config: Exclude<DataCloudConfig, { status: "disabled" }>
       client_id: config.clientId,
       client_secret: config.clientSecret,
     }),
-    signal: AbortSignal.timeout(QUERY_TIMEOUT_MS),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     cache: "no-store",
   });
   const body = await res.json().catch(() => ({}));
@@ -65,8 +65,6 @@ async function getToken(config: Exclude<DataCloudConfig, { status: "disabled" }>
   return cachedToken;
 }
 
-export type { Row };
-
 /** Data Cloud returns positional rows plus a metadata map; turn them into named rows. */
 export function toRows(body: { data?: unknown[][]; metadata?: Record<string, { placeInOrder?: number }> }): Row[] {
   const metadata = body.metadata ?? {};
@@ -80,7 +78,7 @@ export function toRows(body: { data?: unknown[][]; metadata?: Record<string, { p
 
 const withSlot = createLimiter(MAX_CONCURRENT_QUERIES);
 
-/** Runs a read-only SQL query against the Data Cloud Query API (v2), at most 8 at a time. */
+/** Runs a read-only SQL query against the Data Cloud Query API (v2), a few at a time per instance (MAX_CONCURRENT_QUERIES). */
 export async function queryDataCloud(sql: string, config: DataCloudConfig = getDataCloudConfig()): Promise<Row[]> {
   if (config.status === "disabled") throw new DataCloudError("Data Cloud no está configurado");
   return withSlot(() => runQuery(sql, config));
@@ -93,7 +91,7 @@ async function runQuery(sql: string, config: Exclude<DataCloudConfig, { status: 
     method: "POST",
     headers: { Authorization: `Bearer ${token.value}`, "Content-Type": "application/json" },
     body: JSON.stringify({ sql }),
-    signal: AbortSignal.timeout(QUERY_TIMEOUT_MS),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     cache: "no-store",
   });
 

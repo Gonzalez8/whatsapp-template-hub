@@ -10,6 +10,8 @@ import {
   ANALYTICS_RANGES,
   type AnalyticsOrigin,
   type AnalyticsPeriod,
+  DAY_MS,
+  RANGE_DAYS,
   type AnalyticsRange,
 } from "./types";
 
@@ -55,8 +57,6 @@ export function parseOrigin(value: string | null): AnalyticsOrigin {
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-const DAY_MS = 86_400_000;
-const RANGE_DAYS: Record<AnalyticsRange, number | null> = { "7d": 7, "30d": 30, "90d": 90, all: null };
 const dayMs = (day: string) => Date.parse(`${day}T00:00:00Z`);
 
 /**

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Template } from "@/types/template";
-import { rates, type AnalyticsRange, type TemplateAnalytics } from "@/lib/analytics/types";
+import { RANGE_DAYS, rates, type AnalyticsRange, type TemplateAnalytics } from "@/lib/analytics/types";
 import { daysAgoUtc, fillDays, formatDay, todayUtc, toWeeks } from "@/lib/analytics/series";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import {
@@ -22,9 +22,8 @@ import {
 } from "./shared";
 
 const RANGES: AnalyticsRange[] = ["30d", "90d", "all"];
-const RANGE_DAYS: Partial<Record<AnalyticsRange, number>> = { "30d": 30, "90d": 90 };
 
-/** "Analítica" tab of a template: its sends, delivery, reads and failures from Data Cloud. */
+/** "Analítica" tab of a template: its sends, delivery, reads and failures from the events source. */
 export function TemplateAnalyticsTab({ template, wabaId }: { template: Template; wabaId: string }) {
   const [range, setRange] = useState<AnalyticsRange>("all");
   const query = new URLSearchParams({ waba: wabaId, name: template.name, lang: template.language, range });
