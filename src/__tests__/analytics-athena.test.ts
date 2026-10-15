@@ -102,6 +102,16 @@ describe("athenaDialect", () => {
     expect(sql).toContain("'&quot;', '\"'");
     expect(sql).not.toContain("__c");
   });
+
+  it("reads receipts without touching the message, and totals by origin in one pass", async () => {
+    const { overviewSql } = await import("@/lib/analytics/queries");
+    const scope = { dialect: athenaDialect("db.events"), since: "2026-09-11" };
+    const sql = overviewSql(scope, ["1"]);
+    expect(sql).toContain("GROUP BY GROUPING SETS ((m.origin), ())");
+    expect(sql).not.toContain("UNION ALL");
+    // The receipts' wamids come from the send events directly, not from the `sends` CTE.
+    expect(sql).not.toContain("SELECT wamid FROM sends");
+  });
 });
 
 describe("queryAthena", () => {

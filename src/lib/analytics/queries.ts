@@ -57,6 +57,8 @@ export interface Dialect {
   templateLanguage: string;
   /** A day (YYYY-MM-DD, already validated) comparable with `eventAt`. */
   day(isoDay: string): string;
+  /** Whether percentiles work with GROUPING SETS (Athena yes, Data Cloud no). */
+  groupingSets: boolean;
 }
 
 /** The DLO in Salesforce Data Cloud. Its SQL has no JSON functions, hence the regexes. */
@@ -74,6 +76,7 @@ export function dataCloudDialect(dlo: string = DEFAULT_WHATSAPP_DLO): Dialect {
     templateName: `regexp_extract(Message__c, '"template":\\{"name":"([^"]+)"', 1)`,
     templateLanguage: `lower(regexp_extract(Message__c, '"language":\\{"code":"([^"]+)"', 1))`,
     day: (isoDay) => `'${isoDay}'`,
+    groupingSets: false,
   };
 }
 
@@ -96,6 +99,7 @@ export function athenaDialect(table: string): Dialect {
     templateName: `json_extract_scalar(${message}, '$.template.name')`,
     templateLanguage: `lower(json_extract_scalar(${message}, '$.template.language.code'))`,
     day: (isoDay) => `TIMESTAMP '${isoDay} 00:00:00'`,
+    groupingSets: true,
   };
 }
 
@@ -146,9 +150,10 @@ function wabaClause(scope: Scope, wabaIds: string[]): string {
 }
 
 /**
- * Delivery receipts of the messages in `sends`, one row per wamid. Restricted to those
- * wamids, and bounded only from below, so a message sent on the last day still counts
- * the reads that came the day after.
+ * Delivery receipts of the sends in scope, one row per wamid. Bounded only from below,
+ * so a message sent on the last day still counts the reads that came the day after.
+ * The wamids come straight from the send events, without reading the message (the
+ * heaviest column, and the costly part in Athena); `msgs` keeps only template sends.
  */
 function statusCte(scope: Scope, wabaIds: string[]): string {
   const d = scope.dialect;
@@ -161,7 +166,11 @@ function statusCte(scope: Scope, wabaIds: string[]): string {
       MIN(CASE WHEN ${d.status} = 'READ' THEN ${d.eventAt} END) AS read_at
     FROM ${d.table}
     WHERE ${d.eventType} IN ('SEND_STATUS','DR') ${wabaClause(scope, wabaIds)} ${sinceClause(scope)}
-      AND ${d.wamid} IN (SELECT wamid FROM sends WHERE wamid IS NOT NULL AND wamid <> '')
+      AND ${d.wamid} IN (
+        SELECT ${d.wamid} FROM ${d.table}
+        WHERE ${d.eventType} = 'SEND_STATUS' AND ${d.status} IN ('SENT','NOT_SENT')
+          AND ${d.wamid} IS NOT NULL AND ${d.wamid} <> ''
+          ${wabaClause(scope, wabaIds)} ${sinceClause(scope)} ${untilClause(scope)} ${originClause(scope)})
     GROUP BY ${d.wamid})`;
 }
 
@@ -232,10 +241,17 @@ export function templateRankingSql(scope: Scope, wabaIds: string[]): string {
 
 /**
  * Totals per origin plus a '__total' row for everything, with the read-time median
- * (which can't be added up from the per-origin rows). Data Cloud doesn't support
- * percentiles with GROUPING SETS, hence the UNION ALL. Optionally for one template.
+ * (which can't be added up from the per-origin rows). One pass with GROUPING SETS where
+ * the source allows it; Data Cloud doesn't with percentiles, hence its UNION ALL.
+ * Optionally for one template.
  */
 export function overviewSql(scope: Scope, wabaIds: string[], template?: { name: string; language: string }): string {
+  if (scope.dialect.groupingSets) {
+    return `${messages(scope, wabaIds, template)}
+    SELECT CASE WHEN grouping(m.origin) = 1 THEN '__total' ELSE COALESCE(m.origin, '') END AS origin,
+      ${COUNTS}, ${READ_MEDIAN}
+    FROM msgs m GROUP BY GROUPING SETS ((m.origin), ())`;
+  }
   return `${messages(scope, wabaIds, template)}
     SELECT COALESCE(m.origin, '') AS origin, ${COUNTS}, ${READ_MEDIAN}
     FROM msgs m GROUP BY m.origin
