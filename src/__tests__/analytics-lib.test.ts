@@ -208,7 +208,9 @@ describe("analytics SQL", () => {
     ];
     expect(sends).toContain("EventDateTime__c < '2026-09-12'");
     expect(sends).toContain("Application__c = 'MARKETING_CLOUD_ENGAGEMENT'");
-    expect(status).not.toContain("EventDateTime__c <");
+    // The receipts themselves are not bounded above; only the sends they belong to are.
+    const receipts = status.slice(0, status.indexOf("AND WhatsAppWamId__c IN ("));
+    expect(receipts).not.toContain("EventDateTime__c <");
     expect(sql).toContain("approx_percentile");
   });
 
@@ -218,7 +220,10 @@ describe("analytics SQL", () => {
     expect(sql).toContain("WHEN d.delivered = 1 THEN 0");
     expect(sql).toContain("WHEN s.send_status = 'NOT_SENT' OR d.failed = 1 THEN 1");
     // Receipts are only read for the sends in scope.
-    expect(sql).toContain("WhatsAppWamId__c IN (SELECT wamid FROM sends WHERE wamid IS NOT NULL AND wamid <> '')");
+    // Receipts are only read for the sends in scope, taken straight from the send events.
+    expect(sql).toMatch(
+      /AND WhatsAppWamId__c IN \(\s*SELECT WhatsAppWamId__c FROM \S+\s*WHERE EventType__c = 'SEND_STATUS'/,
+    );
     expect(sql).toContain(`'"template":\\{"name":"([^"]+)"'`);
   });
 
