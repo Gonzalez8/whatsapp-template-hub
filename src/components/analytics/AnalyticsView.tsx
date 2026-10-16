@@ -17,6 +17,7 @@ import {
   type TemplateRow,
 } from "@/lib/analytics/types";
 import { addDays, daysAgoUtc, fillDays, formatDay, formatWeekday, todayUtc, toWeeks } from "@/lib/analytics/series";
+import { lowRates, sortTemplates, type LowRate, type RankingSort, type RankingSortKey } from "@/lib/analytics/ranking";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import {
   BarChart,
@@ -646,6 +647,28 @@ function SendsChart({
   );
 }
 
+const SORT_COLUMNS: { key: RankingSortKey; label: string; title?: string }[] = [
+  { key: "sent", label: "Enviadas" },
+  { key: "delivery", label: "Entrega" },
+  { key: "read", label: "Lectura" },
+  { key: "readMedian", label: "Lee en", title: "Mediana del tiempo hasta la lectura" },
+  { key: "failed", label: "Fallos" },
+];
+const SORT_ASIDE: Record<RankingSortKey, string> = {
+  sent: "envíos",
+  delivery: "entrega",
+  read: "lectura",
+  readMedian: "tiempo hasta la lectura",
+  failed: "fallos",
+};
+const DEFAULT_SORT: RankingSort = { key: "sent", direction: "desc" };
+const LOW_RATE = "font-semibold text-red-700";
+
+function lowRateTitle(low: LowRate, what: string) {
+  const points = ((low.average - low.rate) * 100).toFixed(1).replace(".", ",");
+  return `${what} ${points} puntos por debajo de la media (${formatPercent(low.average)}): mira sus fallos y a quién se envía`;
+}
+
 function Ranking({
   data,
   showWaba,
@@ -660,8 +683,14 @@ function Ranking({
   onOpenTemplate: (template: Template) => void;
 }) {
   const [visible, setVisible] = useState(PAGE);
+  const [sort, setSort] = useState<RankingSort>(DEFAULT_SORT);
+  const rows = useMemo(() => sortTemplates(data.templates, sort), [data.templates, sort]);
+  // First click: highest first; again: lowest first.
+  const onSort = (key: RankingSortKey) =>
+    setSort((s) => ({ key, direction: s.key === key && s.direction === "desc" ? "asc" : "desc" }));
+  const sortedBy = `${SORT_ASIDE[sort.key]}, de ${sort.direction === "desc" ? "mayor a menor" : "menor a mayor"}`;
   return (
-    <Card title="Plantillas" aside="ordenadas por envíos">
+    <Card title="Plantillas" aside={`ordenadas por ${sortedBy} · en rojo, muy por debajo de la media`}>
       {data.templates.length === 0 ? (
         <p className="text-sm">Sin envíos de plantillas en el periodo.</p>
       ) : (
@@ -671,19 +700,38 @@ function Ranking({
               <tr>
                 <th className="py-1.5 font-medium">Plantilla</th>
                 {showWaba && <th className="px-2 py-1.5 font-medium">WABA</th>}
-                <th className="px-2 py-1.5 text-right font-medium">Enviadas</th>
-                <th className="px-2 py-1.5 text-right font-medium">Entrega</th>
-                <th className="px-2 py-1.5 text-right font-medium">Lectura</th>
-                <th className="px-2 py-1.5 text-right font-medium" title="Mediana del tiempo hasta la lectura">
-                  Lee en
-                </th>
-                <th className="py-1.5 text-right font-medium">Fallos</th>
+                {SORT_COLUMNS.map(({ key, label, title }) => {
+                  const active = sort.key === key;
+                  return (
+                    <th
+                      key={key}
+                      aria-sort={active ? (sort.direction === "desc" ? "descending" : "ascending") : undefined}
+                      className={`py-1.5 text-right font-medium ${key === "failed" ? "" : "px-2"}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onSort(key)}
+                        title={title}
+                        className={`hover:text-ink relative whitespace-nowrap ${active ? "text-ink" : ""}`}
+                      >
+                        {/* Left of the label, outside the flow: the columns keep their width. */}
+                        {active && (
+                          <span aria-hidden className="absolute right-full mr-0.5">
+                            {sort.direction === "desc" ? "↓" : "↑"}
+                          </span>
+                        )}
+                        {label}
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {data.templates.slice(0, visible).map((row) => {
+              {rows.slice(0, visible).map((row) => {
                 const template = findTemplate(row);
                 const rr = rates(row);
+                const low = lowRates(row, data.totals);
                 return (
                   <tr key={`${row.waba}-${row.template}-${row.language}`} className="border-line/70 border-t">
                     <td className="max-w-[220px] py-2 font-mono">
@@ -711,8 +759,18 @@ function Ranking({
                       </td>
                     )}
                     <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(row.sent)}</td>
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatPercent(rr.delivery)}</td>
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatPercent(rr.read)}</td>
+                    <td
+                      className={`px-2 py-2 text-right font-mono whitespace-nowrap ${low.delivery ? LOW_RATE : ""}`}
+                      title={low.delivery ? lowRateTitle(low.delivery, "Entrega") : undefined}
+                    >
+                      {formatPercent(rr.delivery)}
+                    </td>
+                    <td
+                      className={`px-2 py-2 text-right font-mono whitespace-nowrap ${low.read ? LOW_RATE : ""}`}
+                      title={low.read ? lowRateTitle(low.read, "Lectura") : undefined}
+                    >
+                      {formatPercent(rr.read)}
+                    </td>
                     <td className="px-2 py-2 text-right font-mono whitespace-nowrap">
                       {formatDuration(row.readMedian)}
                     </td>

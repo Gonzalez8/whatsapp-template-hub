@@ -139,6 +139,19 @@ describe("AnalyticsView", () => {
     expect(urls).toContain("/api/analytics/summary?waba=111&range=all");
   });
 
+  it("sorts the templates by a column, both ways", async () => {
+    mockFetch(() => Response.json(summary));
+    renderView();
+    await screen.findByText("90 mensajes");
+    const header = () => screen.getByRole("button", { name: /Entrega/ }).closest("th");
+    expect(header()).not.toHaveAttribute("aria-sort");
+    fireEvent.click(screen.getByRole("button", { name: /Entrega/ }));
+    expect(header()).toHaveAttribute("aria-sort", "descending");
+    fireEvent.click(screen.getByRole("button", { name: /Entrega/ }));
+    expect(header()).toHaveAttribute("aria-sort", "ascending");
+    expect(screen.getByText(/ordenadas por entrega, de menor a mayor/)).toBeInTheDocument();
+  });
+
   it("has no such note for a range Meta fully covers", async () => {
     mockFetch(() => Response.json(summary));
     renderView();
