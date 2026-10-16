@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import type { Template, Waba } from "@/types/template";
 import {
   ANALYTICS_ORIGINS,
@@ -17,6 +17,15 @@ import {
   type TemplateRow,
 } from "@/lib/analytics/types";
 import { addDays, daysAgoUtc, fillDays, formatDay, formatWeekday, todayUtc, toWeeks } from "@/lib/analytics/series";
+import {
+  MIN_SENDS_TO_RATE,
+  isRanked,
+  lowRates,
+  sortTemplates,
+  type LowRate,
+  type RankingSort,
+  type RankingSortKey,
+} from "@/lib/analytics/ranking";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import {
   BarChart,
@@ -646,6 +655,29 @@ function SendsChart({
   );
 }
 
+const SORT_COLUMNS: { key: RankingSortKey; label: string; title?: string }[] = [
+  { key: "sent", label: "Enviadas" },
+  { key: "delivery", label: "Entrega" },
+  { key: "read", label: "Lectura" },
+  { key: "readMedian", label: "Lee en", title: "Mediana del tiempo hasta la lectura" },
+  { key: "failed", label: "Fallos" },
+];
+const SORT_ASIDE: Record<RankingSortKey, string> = {
+  sent: "envíos",
+  delivery: "entrega",
+  read: "lectura",
+  readMedian: "tiempo hasta la lectura",
+  failed: "fallos",
+};
+const DEFAULT_SORT: RankingSort = { key: "sent", direction: "desc" };
+const LOW_RATE = "font-semibold text-red-700";
+const FEW_SENDS = `Menos de ${MIN_SENDS_TO_RATE} envíos: porcentajes poco fiables`;
+
+function lowRateTitle(low: LowRate, what: string) {
+  const points = ((low.average - low.rate) * 100).toFixed(1).replace(".", ",");
+  return `${what} ${points} puntos por debajo de la media (${formatPercent(low.average)}): mira sus fallos y a quién se envía`;
+}
+
 function Ranking({
   data,
   showWaba,
@@ -660,8 +692,14 @@ function Ranking({
   onOpenTemplate: (template: Template) => void;
 }) {
   const [visible, setVisible] = useState(PAGE);
+  const [sort, setSort] = useState<RankingSort>(DEFAULT_SORT);
+  const rows = useMemo(() => sortTemplates(data.templates, sort), [data.templates, sort]);
+  // First click: highest first; again: lowest first.
+  const onSort = (key: RankingSortKey) =>
+    setSort((s) => ({ key, direction: s.key === key && s.direction === "desc" ? "asc" : "desc" }));
+  const sortedBy = `${SORT_ASIDE[sort.key]}, de ${sort.direction === "desc" ? "mayor a menor" : "menor a mayor"}`;
   return (
-    <Card title="Plantillas" aside="ordenadas por envíos">
+    <Card title="Plantillas" aside={`ordenadas por ${sortedBy} · en rojo, muy por debajo de la media`}>
       {data.templates.length === 0 ? (
         <p className="text-sm">Sin envíos de plantillas en el periodo.</p>
       ) : (
@@ -671,58 +709,102 @@ function Ranking({
               <tr>
                 <th className="py-1.5 font-medium">Plantilla</th>
                 {showWaba && <th className="px-2 py-1.5 font-medium">WABA</th>}
-                <th className="px-2 py-1.5 text-right font-medium">Enviadas</th>
-                <th className="px-2 py-1.5 text-right font-medium">Entrega</th>
-                <th className="px-2 py-1.5 text-right font-medium">Lectura</th>
-                <th className="px-2 py-1.5 text-right font-medium" title="Mediana del tiempo hasta la lectura">
-                  Lee en
-                </th>
-                <th className="py-1.5 text-right font-medium">Fallos</th>
+                {SORT_COLUMNS.map(({ key, label, title }) => {
+                  const active = sort.key === key;
+                  return (
+                    <th
+                      key={key}
+                      aria-sort={active ? (sort.direction === "desc" ? "descending" : "ascending") : undefined}
+                      className={`py-1.5 text-right font-medium ${key === "failed" ? "" : "px-2"}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onSort(key)}
+                        title={title}
+                        className={`hover:text-ink relative whitespace-nowrap ${active ? "text-ink" : ""}`}
+                      >
+                        {/* Left of the label, outside the flow: the columns keep their width. */}
+                        {active && (
+                          <span aria-hidden className="absolute right-full mr-0.5">
+                            {sort.direction === "desc" ? "↓" : "↑"}
+                          </span>
+                        )}
+                        {label}
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {data.templates.slice(0, visible).map((row) => {
+              {rows.slice(0, visible).map((row, i, shown) => {
                 const template = findTemplate(row);
                 const rr = rates(row);
+                const low = lowRates(row, data.totals);
+                const few = row.sent < MIN_SENDS_TO_RATE;
+                // Ordered by a rate, the templates with few sends come after the rest: say where.
+                const startsFew = !isRanked(row, sort.key) && (i === 0 || isRanked(shown[i - 1], sort.key));
+                const rateClass = (flagged: unknown) => (flagged ? LOW_RATE : few ? "text-faint" : "");
+                const rateTitle = (flagged: LowRate | null, what: string) =>
+                  flagged ? lowRateTitle(flagged, what) : few ? FEW_SENDS : undefined;
                 return (
-                  <tr key={`${row.waba}-${row.template}-${row.language}`} className="border-line/70 border-t">
-                    <td className="max-w-[220px] py-2 font-mono">
-                      {template ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenTemplate(template)}
-                          className="hover:text-accent-ink block max-w-full truncate text-left hover:underline"
-                          title={`${row.template} (${row.language})`}
-                        >
-                          {row.template}
-                        </button>
-                      ) : (
-                        <span className="text-muted block truncate" title="Ya no existe en Meta">
-                          {row.template}
-                        </span>
-                      )}
-                    </td>
-                    {showWaba && (
-                      <td
-                        className="text-muted max-w-[130px] truncate px-2 py-2"
-                        title={byId.get(row.waba)?.waba_name ?? row.waba}
-                      >
-                        {byId.get(row.waba)?.waba_name ?? row.waba}
-                      </td>
+                  <Fragment key={`${row.waba}-${row.template}-${row.language}`}>
+                    {startsFew && (
+                      <tr className="border-line border-t">
+                        <td colSpan={showWaba ? 7 : 6} className="text-muted pt-3 pb-1 text-[11px] font-medium">
+                          {FEW_SENDS}
+                        </td>
+                      </tr>
                     )}
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(row.sent)}</td>
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatPercent(rr.delivery)}</td>
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatPercent(rr.read)}</td>
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">
-                      {formatDuration(row.readMedian)}
-                    </td>
-                    <td
-                      className={`py-2 text-right font-mono whitespace-nowrap ${row.avoidable ? "font-semibold text-red-700" : ""}`}
-                      title={row.avoidable ? `${formatNumber(row.avoidable)} evitables` : undefined}
-                    >
-                      {formatNumber(row.failed)}
-                    </td>
-                  </tr>
+                    <tr className="border-line/70 border-t">
+                      <td className="max-w-[220px] py-2 font-mono">
+                        {template ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenTemplate(template)}
+                            className="hover:text-accent-ink block max-w-full truncate text-left hover:underline"
+                            title={`${row.template} (${row.language})`}
+                          >
+                            {row.template}
+                          </button>
+                        ) : (
+                          <span className="text-muted block truncate" title="Ya no existe en Meta">
+                            {row.template}
+                          </span>
+                        )}
+                      </td>
+                      {showWaba && (
+                        <td
+                          className="text-muted max-w-[130px] truncate px-2 py-2"
+                          title={byId.get(row.waba)?.waba_name ?? row.waba}
+                        >
+                          {byId.get(row.waba)?.waba_name ?? row.waba}
+                        </td>
+                      )}
+                      <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(row.sent)}</td>
+                      <td
+                        className={`px-2 py-2 text-right font-mono whitespace-nowrap ${rateClass(low.delivery)}`}
+                        title={rateTitle(low.delivery, "Entrega")}
+                      >
+                        {formatPercent(rr.delivery)}
+                      </td>
+                      <td
+                        className={`px-2 py-2 text-right font-mono whitespace-nowrap ${rateClass(low.read)}`}
+                        title={rateTitle(low.read, "Lectura")}
+                      >
+                        {formatPercent(rr.read)}
+                      </td>
+                      <td className="px-2 py-2 text-right font-mono whitespace-nowrap">
+                        {formatDuration(row.readMedian)}
+                      </td>
+                      <td
+                        className={`py-2 text-right font-mono whitespace-nowrap ${row.avoidable ? "font-semibold text-red-700" : ""}`}
+                        title={row.avoidable ? `${formatNumber(row.avoidable)} evitables` : undefined}
+                      >
+                        {formatNumber(row.failed)}
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>
