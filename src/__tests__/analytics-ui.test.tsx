@@ -129,6 +129,23 @@ describe("AnalyticsView", () => {
     expect(screen.queryByRole("button", { name: "old_template" })).toBeNull();
   });
 
+  it("says the Meta block covers 90 days when the range is the whole history", async () => {
+    const fetchMock = mockFetch(() => Response.json({ ...summary, range: "all" }));
+    renderView({ range: "all" });
+
+    expect(await screen.findByRole("note")).toHaveTextContent(/Meta solo guarda 90 días/);
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls).toContain("/api/analytics/summary?waba=111&range=90d");
+    expect(urls).toContain("/api/analytics/summary?waba=111&range=all");
+  });
+
+  it("has no such note for a range Meta fully covers", async () => {
+    mockFetch(() => Response.json(summary));
+    renderView();
+    await screen.findByText("90 mensajes");
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
   it("sets Meta's count against what Salesforce delivered, per WABA", async () => {
     mockFetch(() => Response.json(summary));
     renderView({ wabas: [waba, otherWaba], selectedWabas: new Set() });
