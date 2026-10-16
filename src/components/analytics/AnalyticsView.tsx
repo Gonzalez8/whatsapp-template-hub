@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import type { Template, Waba } from "@/types/template";
 import {
   ANALYTICS_ORIGINS,
@@ -17,7 +17,15 @@ import {
   type TemplateRow,
 } from "@/lib/analytics/types";
 import { addDays, daysAgoUtc, fillDays, formatDay, formatWeekday, todayUtc, toWeeks } from "@/lib/analytics/series";
-import { lowRates, sortTemplates, type LowRate, type RankingSort, type RankingSortKey } from "@/lib/analytics/ranking";
+import {
+  MIN_SENDS_TO_RATE,
+  isRanked,
+  lowRates,
+  sortTemplates,
+  type LowRate,
+  type RankingSort,
+  type RankingSortKey,
+} from "@/lib/analytics/ranking";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import {
   BarChart,
@@ -663,6 +671,7 @@ const SORT_ASIDE: Record<RankingSortKey, string> = {
 };
 const DEFAULT_SORT: RankingSort = { key: "sent", direction: "desc" };
 const LOW_RATE = "font-semibold text-red-700";
+const FEW_SENDS = `Menos de ${MIN_SENDS_TO_RATE} envíos: porcentajes poco fiables`;
 
 function lowRateTitle(low: LowRate, what: string) {
   const points = ((low.average - low.rate) * 100).toFixed(1).replace(".", ",");
@@ -728,59 +737,74 @@ function Ranking({
               </tr>
             </thead>
             <tbody>
-              {rows.slice(0, visible).map((row) => {
+              {rows.slice(0, visible).map((row, i, shown) => {
                 const template = findTemplate(row);
                 const rr = rates(row);
                 const low = lowRates(row, data.totals);
+                const few = row.sent < MIN_SENDS_TO_RATE;
+                // Ordered by a rate, the templates with few sends come after the rest: say where.
+                const startsFew = !isRanked(row, sort.key) && (i === 0 || isRanked(shown[i - 1], sort.key));
+                const rateClass = (flagged: unknown) => (flagged ? LOW_RATE : few ? "text-faint" : "");
+                const rateTitle = (flagged: LowRate | null, what: string) =>
+                  flagged ? lowRateTitle(flagged, what) : few ? FEW_SENDS : undefined;
                 return (
-                  <tr key={`${row.waba}-${row.template}-${row.language}`} className="border-line/70 border-t">
-                    <td className="max-w-[220px] py-2 font-mono">
-                      {template ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenTemplate(template)}
-                          className="hover:text-accent-ink block max-w-full truncate text-left hover:underline"
-                          title={`${row.template} (${row.language})`}
-                        >
-                          {row.template}
-                        </button>
-                      ) : (
-                        <span className="text-muted block truncate" title="Ya no existe en Meta">
-                          {row.template}
-                        </span>
-                      )}
-                    </td>
-                    {showWaba && (
-                      <td
-                        className="text-muted max-w-[130px] truncate px-2 py-2"
-                        title={byId.get(row.waba)?.waba_name ?? row.waba}
-                      >
-                        {byId.get(row.waba)?.waba_name ?? row.waba}
-                      </td>
+                  <Fragment key={`${row.waba}-${row.template}-${row.language}`}>
+                    {startsFew && (
+                      <tr className="border-line border-t">
+                        <td colSpan={showWaba ? 7 : 6} className="text-muted pt-3 pb-1 text-[11px] font-medium">
+                          {FEW_SENDS}
+                        </td>
+                      </tr>
                     )}
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(row.sent)}</td>
-                    <td
-                      className={`px-2 py-2 text-right font-mono whitespace-nowrap ${low.delivery ? LOW_RATE : ""}`}
-                      title={low.delivery ? lowRateTitle(low.delivery, "Entrega") : undefined}
-                    >
-                      {formatPercent(rr.delivery)}
-                    </td>
-                    <td
-                      className={`px-2 py-2 text-right font-mono whitespace-nowrap ${low.read ? LOW_RATE : ""}`}
-                      title={low.read ? lowRateTitle(low.read, "Lectura") : undefined}
-                    >
-                      {formatPercent(rr.read)}
-                    </td>
-                    <td className="px-2 py-2 text-right font-mono whitespace-nowrap">
-                      {formatDuration(row.readMedian)}
-                    </td>
-                    <td
-                      className={`py-2 text-right font-mono whitespace-nowrap ${row.avoidable ? "font-semibold text-red-700" : ""}`}
-                      title={row.avoidable ? `${formatNumber(row.avoidable)} evitables` : undefined}
-                    >
-                      {formatNumber(row.failed)}
-                    </td>
-                  </tr>
+                    <tr className="border-line/70 border-t">
+                      <td className="max-w-[220px] py-2 font-mono">
+                        {template ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenTemplate(template)}
+                            className="hover:text-accent-ink block max-w-full truncate text-left hover:underline"
+                            title={`${row.template} (${row.language})`}
+                          >
+                            {row.template}
+                          </button>
+                        ) : (
+                          <span className="text-muted block truncate" title="Ya no existe en Meta">
+                            {row.template}
+                          </span>
+                        )}
+                      </td>
+                      {showWaba && (
+                        <td
+                          className="text-muted max-w-[130px] truncate px-2 py-2"
+                          title={byId.get(row.waba)?.waba_name ?? row.waba}
+                        >
+                          {byId.get(row.waba)?.waba_name ?? row.waba}
+                        </td>
+                      )}
+                      <td className="px-2 py-2 text-right font-mono whitespace-nowrap">{formatNumber(row.sent)}</td>
+                      <td
+                        className={`px-2 py-2 text-right font-mono whitespace-nowrap ${rateClass(low.delivery)}`}
+                        title={rateTitle(low.delivery, "Entrega")}
+                      >
+                        {formatPercent(rr.delivery)}
+                      </td>
+                      <td
+                        className={`px-2 py-2 text-right font-mono whitespace-nowrap ${rateClass(low.read)}`}
+                        title={rateTitle(low.read, "Lectura")}
+                      >
+                        {formatPercent(rr.read)}
+                      </td>
+                      <td className="px-2 py-2 text-right font-mono whitespace-nowrap">
+                        {formatDuration(row.readMedian)}
+                      </td>
+                      <td
+                        className={`py-2 text-right font-mono whitespace-nowrap ${row.avoidable ? "font-semibold text-red-700" : ""}`}
+                        title={row.avoidable ? `${formatNumber(row.avoidable)} evitables` : undefined}
+                      >
+                        {formatNumber(row.failed)}
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

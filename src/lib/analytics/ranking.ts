@@ -17,22 +17,23 @@ export interface RankingSort {
 
 const isRate = (key: RankingSortKey) => key === "delivery" || key === "read";
 
+/** Whether the row's rate is worth ranking: enough sends, or a column that isn't a rate. */
+export const isRanked = (row: TemplateRow, key: RankingSortKey) => !isRate(key) || row.sent >= MIN_SENDS_TO_RATE;
+
 function value(row: TemplateRow, key: RankingSortKey): number | null {
   if (key === "delivery" || key === "read") return rates(row)[key];
   return row[key];
 }
 
 /**
- * Templates in the given order. Ordered by a rate, those with too few sends go last
- * (by sends), so a template sent 3 times at 66 % doesn't top the list. Missing values
- * always go last; ties keep the most sent first.
+ * Templates in the given order. Ordered by a rate, those with too few sends go after the
+ * rest, ordered the same way among themselves, so a template sent 3 times at 66 % doesn't
+ * top the list. Missing values always go last; ties keep the most sent first.
  */
 export function sortTemplates(rows: readonly TemplateRow[], { key, direction }: RankingSort): TemplateRow[] {
   const sign = direction === "desc" ? -1 : 1;
-  const rated = (row: TemplateRow) => !isRate(key) || row.sent >= MIN_SENDS_TO_RATE;
   return [...rows].sort((a, b) => {
-    if (rated(a) !== rated(b)) return rated(a) ? -1 : 1;
-    if (!rated(a)) return b.sent - a.sent;
+    if (isRanked(a, key) !== isRanked(b, key)) return isRanked(a, key) ? -1 : 1;
     const va = value(a, key);
     const vb = value(b, key);
     if (va === null || vb === null) return va === vb ? b.sent - a.sent : va === null ? 1 : -1;

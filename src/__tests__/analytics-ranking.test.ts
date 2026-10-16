@@ -24,9 +24,24 @@ describe("sortTemplates", () => {
     expect(names(sortTemplates(rows, { key: "sent", direction: "desc" }))).toEqual(["big", "low", "high", "tiny"]);
   });
 
-  it("orders by a rate both ways, leaving templates with too few sends last", () => {
-    expect(names(sortTemplates(rows, { key: "delivery", direction: "asc" }))).toEqual(["low", "big", "high", "tiny"]);
-    expect(names(sortTemplates(rows, { key: "delivery", direction: "desc" }))).toEqual(["high", "big", "low", "tiny"]);
+  it("orders by a rate both ways, with templates with too few sends after the rest, ordered too", () => {
+    const all = [...rows, row("tiny-high", 5, 5, 5), row("tiny-low", 4, 1, 1)];
+    expect(names(sortTemplates(all, { key: "delivery", direction: "asc" }))).toEqual([
+      "low",
+      "big",
+      "high",
+      "tiny-low",
+      "tiny",
+      "tiny-high",
+    ]);
+    expect(names(sortTemplates(all, { key: "delivery", direction: "desc" }))).toEqual([
+      "high",
+      "big",
+      "low",
+      "tiny-high",
+      "tiny",
+      "tiny-low",
+    ]);
   });
 
   it("leaves missing values last", () => {
