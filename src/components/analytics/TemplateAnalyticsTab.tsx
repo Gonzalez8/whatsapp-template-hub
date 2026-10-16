@@ -78,7 +78,7 @@ function TemplateAnalyticsBody({ data, range }: { data: TemplateAnalytics; range
         <Kpi
           label="Fallos"
           value={formatNumber(totals.failed)}
-          sub={totals.failed ? `${totals.avoidable} evitables` : "sin incidencias"}
+          sub={totals.failed ? `${formatNumber(totals.avoidable)} evitables` : "sin incidencias"}
           tone={totals.avoidable ? "bad" : totals.failed ? undefined : "good"}
         />
       </div>

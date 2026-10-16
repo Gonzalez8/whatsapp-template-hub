@@ -45,6 +45,7 @@ const UNUSED_RANGE: AnalyticsRange = "90d";
 /** Meta keeps 90 days of pricing data: "Todo" compares those. */
 const META_RANGE: AnalyticsRange = "90d";
 const LAST_90_DAYS = `últimos ${META_MAX_DAYS} días`;
+const META_NOTE = `Meta solo guarda ${META_MAX_DAYS} días: en «Todo», este bloque muestra los ${LAST_90_DAYS}, igual que en «90 días». El detalle de Salesforce, abajo, sí cubre todo el histórico.`;
 
 const SALESFORCE_ORIGIN_LABELS: Record<AnalyticsOrigin, string> = {
   all: "Todo Salesforce",
@@ -178,6 +179,11 @@ export function AnalyticsView({
           description="Cualquier herramienta: todo lo que Meta entrega y factura"
           aside={!period && range === "all" ? LAST_90_DAYS : undefined}
         >
+          {!period && range === "all" && (
+            <p role="note" className="bg-canvas text-muted rounded-lg px-3 py-2 text-xs">
+              {META_NOTE}
+            </p>
+          )}
           {everything.status === "loading" && <div className="shimmer h-40 rounded-xl" aria-busy="true" />}
           {everything.status === "error" && <LoadError message={everything.message} />}
           {everything.status === "ready" && (
@@ -609,7 +615,7 @@ function Kpis({ data, origin }: { data: SummaryAnalytics; origin: AnalyticsOrigi
       <Kpi
         label="Fallos"
         value={formatNumber(totals.failed)}
-        sub={`${totals.avoidable} evitables · ${totals.failed - totals.avoidable} ruido`}
+        sub={`${formatNumber(totals.avoidable)} evitables · ${formatNumber(totals.failed - totals.avoidable)} ruido`}
         tone={totals.avoidable ? "bad" : undefined}
       />
     </div>
@@ -712,7 +718,7 @@ function Ranking({
                     </td>
                     <td
                       className={`py-2 text-right font-mono whitespace-nowrap ${row.avoidable ? "font-semibold text-red-700" : ""}`}
-                      title={row.avoidable ? `${row.avoidable} evitables` : undefined}
+                      title={row.avoidable ? `${formatNumber(row.avoidable)} evitables` : undefined}
                     >
                       {formatNumber(row.failed)}
                     </td>
