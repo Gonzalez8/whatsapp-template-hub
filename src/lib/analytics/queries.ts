@@ -58,7 +58,7 @@ export interface Dialect {
   waba: string;
   application: string;
   eventAt: string;
-  /** The template name and language, read from the message JSON. */
+  /** The template name and language: their own columns, or read from the message JSON. */
   templateName: string;
   templateLanguage: string;
   /** A day (YYYY-MM-DD, already validated) comparable with `eventAt`. */
@@ -90,11 +90,10 @@ export function dataCloudDialect(dlo: string = DEFAULT_WHATSAPP_DLO): Dialect {
 
 /**
  * A copy of the same table in Amazon Athena (`database.table`), with snake_case columns.
- * Copied as the Data Cloud API returns it, the message is HTML-escaped (&quot;…): it is
- * unescaped before reading it as JSON (harmless if it is already plain JSON).
+ * The copy keeps the template name and language in their own columns, so the queries
+ * never read the message, the heaviest column by far.
  */
 export function athenaDialect(table: string): Dialect {
-  const message = `replace(replace(replace(replace(replace(message, '&quot;', '"'), '&#39;', ''''), '&lt;', '<'), '&gt;', '>'), '&amp;', '&')`;
   return {
     table: check(table, ATHENA_TABLE, "Tabla de Athena no válida"),
     wamid: "whatsapp_message_id",
@@ -104,8 +103,8 @@ export function athenaDialect(table: string): Dialect {
     waba: "external_account_id",
     application: "application",
     eventAt: "event_at",
-    templateName: `json_extract_scalar(${message}, '$.template.name')`,
-    templateLanguage: `lower(json_extract_scalar(${message}, '$.template.language.code'))`,
+    templateName: "template_name",
+    templateLanguage: "lower(template_language)",
     day: (isoDay) => `TIMESTAMP '${isoDay} 00:00:00'`,
     groupingSets: true,
     // Load time of each row, if the copy keeps it (optional: see describeSource).
