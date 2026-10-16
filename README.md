@@ -412,8 +412,8 @@ Si los dos están configurados, se usa Athena: Data Cloud queda como alternativa
 - **Variables:** `ATHENA_REGION` y `ATHENA_TABLE` (`base_de_datos.tabla`); opcionales `ATHENA_WORKGROUP` (por defecto `primary`) y `ATHENA_OUTPUT_LOCATION` (carpeta `s3://` de resultados, si el _workgroup_ no tiene una).
 - **Credenciales:** en local, la cadena estándar de AWS (por ejemplo, `AWS_PROFILE` con una sesión SSO; ver [Desarrollo en local](#desarrollo-en-local-con-analítica)). En Vercel, la clave de un **usuario técnico de IAM** en `ATHENA_ACCESS_KEY_ID` y `ATHENA_SECRET_ACCESS_KEY` (no en `AWS_*`, que Vercel reserva). Como en Vercel no hay sesión a la que recurrir, Athena solo se usa allí con una clave real (`AKIA…`); con un valor de relleno, la app sigue con Data Cloud.
 - **Permisos de ese usuario**, y nada más: `athena:StartQueryExecution`, `GetQueryExecution`, `GetQueryResults` y `StopQueryExecution` en el _workgroup_; `glue:GetDatabase`, `GetTable` y `GetPartitions` sobre la tabla; lectura en S3 sobre los datos de la tabla, y lectura y escritura en la carpeta de resultados.
-- **La tabla:** los mismos campos que en Data Cloud, en `snake_case` (ver [Campos](#campos-que-lee-la-app)). Si el mensaje está escapado como HTML (`&quot;`), como lo devuelve la API de Data Cloud, se desescapa en la propia consulta. Una columna `_extracted_at` con la hora de carga de cada fila es opcional: si existe, la nota al pie muestra la última carga.
-- **Rendimiento:** casi todo el tiempo de cada consulta se va en leer el mensaje para sacar la plantilla. Si la copia guarda el nombre y el idioma de la plantilla en columnas propias, las consultas bajan a un segundo.
+- **La tabla:** los mismos campos que en Data Cloud, en `snake_case`, con el nombre y el idioma de la plantilla ya extraídos del mensaje en `template_name` y `template_language` (ver [Campos](#campos-que-lee-la-app)). Una columna `_extracted_at` con la hora de carga de cada fila es opcional: si existe, la nota al pie muestra la última carga.
+- **Rendimiento:** las consultas no leen el mensaje, la columna más pesada con diferencia: la plantilla sale de sus propias columnas. Lo que más pesa ahora es el identificador de WhatsApp, que une cada envío con sus acuses: unos 60 MB y 2–3 s por consulta con el histórico completo.
 
 #### Salesforce Data Cloud
 
@@ -431,16 +431,16 @@ Si los dos están configurados, se usa Athena: Data Cloud queda como alternativa
 
 #### Campos que lee la app
 
-| Data Cloud             | Athena                | Para qué                                                                         |
-| ---------------------- | --------------------- | -------------------------------------------------------------------------------- |
-| `WhatsAppWamId__c`     | `whatsapp_message_id` | Une el envío con sus acuses de Meta (todas las filas de un mensaje lo comparten) |
-| `EventType__c`         | `event_type`          | `SEND_STATUS` (envío desde Salesforce) o `DR` (acuse de Meta)                    |
-| `SendStatus__c`        | `send_status`         | `SENT`, `NOT_SENT`, `DELIVERED`, `READ`, `FAILED`                                |
-| `ErrorCode__c`         | `error_code`          | Motivo del fallo (`WA-131026`, `SF-3060`…)                                       |
-| `ExternalAccountId__c` | `external_account_id` | ID de la WABA: lo que permite cruzar con Meta                                    |
-| `Application__c`       | `application`         | Origen: `MARKETING_CLOUD_ENGAGEMENT` o `DIGITAL_ENGAGEMENT`                      |
-| `Message__c`           | `message`             | JSON del envío: nombre e idioma de la plantilla                                  |
-| `EventDateTime__c`     | `event_at`            | Fecha y hora del evento (UTC)                                                    |
+| Data Cloud                                                | Athena                               | Para qué                                                                         |
+| --------------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------- |
+| `WhatsAppWamId__c`                                        | `whatsapp_message_id`                | Une el envío con sus acuses de Meta (todas las filas de un mensaje lo comparten) |
+| `EventType__c`                                            | `event_type`                         | `SEND_STATUS` (envío desde Salesforce) o `DR` (acuse de Meta)                    |
+| `SendStatus__c`                                           | `send_status`                        | `SENT`, `NOT_SENT`, `DELIVERED`, `READ`, `FAILED`                                |
+| `ErrorCode__c`                                            | `error_code`                         | Motivo del fallo (`WA-131026`, `SF-3060`…)                                       |
+| `ExternalAccountId__c`                                    | `external_account_id`                | ID de la WABA: lo que permite cruzar con Meta                                    |
+| `Application__c`                                          | `application`                        | Origen: `MARKETING_CLOUD_ENGAGEMENT` o `DIGITAL_ENGAGEMENT`                      |
+| `Message__c` (nombre e idioma, con expresiones regulares) | `template_name`, `template_language` | Plantilla e idioma del envío                                                     |
+| `EventDateTime__c`                                        | `event_at`                           | Fecha y hora del evento (UTC)                                                    |
 
 ### Cómo se calculan las cifras
 

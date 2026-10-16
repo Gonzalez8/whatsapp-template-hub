@@ -93,13 +93,13 @@ describe("getAnalyticsSource", () => {
 });
 
 describe("athenaDialect", () => {
-  it("writes Athena SQL over the snake_case copy, unescaping the HTML-escaped message", () => {
+  it("writes Athena SQL over the snake_case copy, with the template from its own columns", () => {
     const sql = templateRankingSql({ dialect: athenaDialect("db.events"), since: "2026-09-11" }, ["1"]);
     expect(sql).toContain("FROM db.events");
     expect(sql).toContain("event_at >= TIMESTAMP '2026-09-11 00:00:00'");
     expect(sql).toContain("external_account_id IN ('1')");
-    expect(sql).toContain("json_extract_scalar(replace(");
-    expect(sql).toContain("'&quot;', '\"'");
+    expect(sql).toContain("template_name AS template, lower(template_language) AS language");
+    expect(sql).not.toMatch(/\bmessage\b/);
     expect(sql).not.toContain("__c");
   });
 
