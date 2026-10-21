@@ -24,6 +24,7 @@ Solo necesita un token de Meta. La [analítica de envíos](#analítica-de-envío
   - [Otras orgs de Salesforce](#otras-orgs-de-salesforce)
 - [Personalización de marca](#personalización-de-marca)
 - [Despliegue en Vercel](#despliegue-en-vercel)
+- [Despliegue en Dokploy o con Docker](#despliegue-en-dokploy-o-con-docker)
 - [API](#api)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Scripts, tests y CI](#scripts-tests-y-ci)
@@ -552,6 +553,33 @@ Con las variables `BRAND_*` cada despliegue lleva la identidad de su empresa:
 
 Tras cambiar una variable de entorno: _Deployments → ⋯ → Redeploy_.
 
+## Despliegue en Dokploy o con Docker
+
+El `Dockerfile` construye una imagen con el servidor de Next.js en modo `standalone`, para Dokploy o cualquier servidor con Docker. Vercel no lo usa: allí todo sigue igual.
+
+**En Dokploy:**
+
+1. Crea una aplicación desde el repositorio y elige el tipo de build **Dockerfile**.
+2. En _Environment_, define las mismas variables que en Vercel (ver [Variables de entorno](#variables-de-entorno)). Deja activada la opción **Create Environment File**, que viene activada por defecto: antes de construir, Dokploy escribe las variables en un `.env` junto al `Dockerfile`, y así las tiene también el build.
+3. En _Domains_, asigna el dominio con el puerto **3000**. Dokploy se encarga del HTTPS.
+4. Despliega. Para que cada push a `main` se despliegue solo, activa _Auto Deploy_.
+
+**En otro servidor con Docker**, pasa las variables al build como secreto y otra vez al arrancar:
+
+```bash
+docker build --secret id=env,src=.env.production -t whatsapp-template-hub .
+docker run -d -p 3000:3000 --env-file .env.production whatsapp-template-hub
+```
+
+**Por qué el build necesita las variables:** la página se genera al construir, con los datos de Meta, la marca y si el login y la analítica están activos. Sin ellas, el build funciona, pero la página dice «Configuración incompleta» hasta que se regenera, a los 5 minutos. Los `.env` se borran antes de crear la imagen final: ningún secreto queda dentro de ella.
+
+**Diferencias con Vercel:**
+
+- **Una sola réplica.** La caché de plantillas y de analítica, la espera de 2 minutos entre sincronizaciones y el límite de peticiones viven en la memoria y el disco del contenedor. Con varias réplicas, cada una tendría los suyos. Al desplegar de nuevo la caché empieza vacía y se rellena con la primera visita.
+- **Athena:** fuera de Vercel, sin `ATHENA_ACCESS_KEY_ID` se usan las credenciales estándar de AWS. Si el servidor está en AWS, un rol de IAM asignado a la máquina basta, sin claves.
+- **Inicio de sesión:** el registro de Entra necesita la URI de redirección con el dominio de Dokploy (`https://<dominio>/api/auth/callback/microsoft-entra-id`).
+- **No hay previews por rama ni Deployment Protection.** `ANALYTICS_WITHOUT_LOGIN` solo tiene efecto en previews de Vercel, así que aquí la analítica siempre exige sesión.
+
 ## API
 
 ### `POST /api/revalidate`
@@ -590,6 +618,7 @@ Los usa la interfaz de [analítica](#analítica-de-envíos); exigen sesión cuan
 ## Estructura del proyecto
 
 ```
+Dockerfile                   # Imagen para Dokploy o cualquier servidor con Docker
 src/
   auth.ts                    # Configuración de Auth.js (Microsoft Entra ID)
   middleware.ts              # Exige sesión cuando el inicio de sesión está activo
