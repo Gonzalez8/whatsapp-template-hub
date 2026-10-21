@@ -24,6 +24,7 @@ Solo necesita un token de Meta. La [analítica de envíos](#analítica-de-envío
   - [Otras orgs de Salesforce](#otras-orgs-de-salesforce)
 - [Personalización de marca](#personalización-de-marca)
 - [Despliegue en Vercel](#despliegue-en-vercel)
+- [Despliegue con Docker](#despliegue-con-docker)
 - [API](#api)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Scripts, tests y CI](#scripts-tests-y-ci)
@@ -552,6 +553,39 @@ Con las variables `BRAND_*` cada despliegue lleva la identidad de su empresa:
 
 Tras cambiar una variable de entorno: _Deployments → ⋯ → Redeploy_.
 
+## Despliegue con Docker
+
+El `Dockerfile` construye una imagen estándar con el servidor de Next.js en modo `standalone`. Sirve para cualquier sitio que ejecute contenedores: un servidor con Docker, Dokploy, Coolify, Portainer, ECS… Vercel no lo usa: allí todo sigue igual.
+
+**El build necesita las variables de entorno.** La página se genera al construir, con los datos de Meta, la marca y si el login y la analítica están activos. El `Dockerfile` las acepta de dos formas, según lo que permita la plataforma:
+
+| Forma                                        | Cuándo                                                                                  |
+| -------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Un fichero `.env` en la carpeta del build    | Plataformas que lo escriben antes de construir (Dokploy, con _Create Environment File_) |
+| Un secreto de build con id `env` (un `.env`) | `docker build --secret id=env,src=…` o plataformas con secretos de build                |
+
+Sin variables, el build funciona, pero la página dice «Configuración incompleta» hasta que se regenera, a los 5 minutos. Los `.env` se borran antes de crear la imagen final: ningún secreto queda dentro de ella.
+
+**Con Docker a mano:**
+
+```bash
+docker build --secret id=env,src=.env.production -t whatsapp-template-hub .
+docker run -d -p 3000:3000 --env-file .env.production whatsapp-template-hub
+```
+
+**En una plataforma**, por ejemplo Dokploy:
+
+1. Crea una aplicación desde el repositorio con el tipo de build **Dockerfile**.
+2. Define las variables de entorno (ver [Variables de entorno](#variables-de-entorno)). En Dokploy, deja activada _Create Environment File_, que viene activada por defecto: escribe el `.env` del build.
+3. Asigna el dominio al puerto **3000**. La plataforma suele encargarse del HTTPS.
+
+**Diferencias con Vercel:**
+
+- **Una sola réplica.** La caché de plantillas y de analítica, la espera de 2 minutos entre sincronizaciones y el límite de peticiones viven en la memoria y el disco del contenedor. Con varias réplicas, cada una tendría los suyos. Al desplegar de nuevo la caché empieza vacía y se rellena con la primera visita.
+- **Athena:** fuera de Vercel, sin `ATHENA_ACCESS_KEY_ID` se usan las credenciales estándar de AWS. Si el servidor está en AWS, un rol de IAM asignado a la máquina basta, sin claves.
+- **Inicio de sesión:** el registro de Entra necesita la URI de redirección con el dominio del servidor (`https://<dominio>/api/auth/callback/microsoft-entra-id`).
+- **No hay previews por rama ni Deployment Protection.** `ANALYTICS_WITHOUT_LOGIN` solo tiene efecto en previews de Vercel, así que aquí la analítica siempre exige sesión.
+
 ## API
 
 ### `POST /api/revalidate`
@@ -590,6 +624,7 @@ Los usa la interfaz de [analítica](#analítica-de-envíos); exigen sesión cuan
 ## Estructura del proyecto
 
 ```
+Dockerfile                   # Imagen para cualquier servidor o plataforma con Docker
 src/
   auth.ts                    # Configuración de Auth.js (Microsoft Entra ID)
   middleware.ts              # Exige sesión cuando el inicio de sesión está activo

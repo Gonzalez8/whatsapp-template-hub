@@ -1,0 +1,15 @@
+# Everything the image rebuilds or doesn't need.
+node_modules
+.next
+.git
+.github
+.vercel
+coverage
+*.tsbuildinfo
+npm-debug.log*
+.DS_Store
+# Local secrets never go into the build context. The .env that Dokploy writes before
+# building is the exception: it is how the build gets its variables.
+.env.local
+.env*.local
+.env.development
