@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
-# Container image for any Docker host (Dokploy, Coolify, a plain server…). Vercel ignores it.
+# Container image for any Docker host or platform. Vercel ignores it.
 #
 # The page is generated at build time with the data from Meta, so the build needs the same
-# variables as the running app. Dokploy writes the app's environment to a .env file next to
-# this Dockerfile before building (the "Create Environment File" option, on by default), and
-# Next.js reads it. Elsewhere: docker build --secret id=env,src=.env.production .
+# variables as the running app, in either of two ways:
+#   - a .env file in the build context (some platforms write it, e.g. Dokploy), or
+#   - a build secret with id "env": docker build --secret id=env,src=.env.production .
 
 FROM node:22-alpine AS deps
 WORKDIR /app
