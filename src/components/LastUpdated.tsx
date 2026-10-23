@@ -25,7 +25,7 @@ export function LastUpdated({ fetchedAt }: { fetchedAt: number }) {
 
   return (
     <time dateTime={new Date(fetchedAt).toISOString()} title={new Date(fetchedAt).toLocaleString("es-ES")}>
-      Actualizado {label}
+      Plantillas actualizadas {label}
     </time>
   );
 }

@@ -14,6 +14,6 @@ describe("LastUpdated", () => {
   ])("shows the age of a snapshot fetched %ims ago", (ago, expected) => {
     vi.useFakeTimers({ now: NOW });
     render(<LastUpdated fetchedAt={NOW - ago} />);
-    expect(screen.getByText(`Actualizado ${expected}`)).toBeInTheDocument();
+    expect(screen.getByText(`Plantillas actualizadas ${expected}`)).toBeInTheDocument();
   });
 });
