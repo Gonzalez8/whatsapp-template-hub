@@ -23,6 +23,9 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
 
 export const config = {
   // Everything except the login itself, Auth.js endpoints, the secret-protected
-  // revalidation webhook and static assets. The page and its Server Actions are covered.
-  matcher: ["/((?!login|api/auth|api/revalidate|_next/static|_next/image|favicon.ico).*)"],
+  // revalidation webhook, static assets and the link-preview image and icon (no data in
+  // them, and Slack or Teams can't log in to fetch them). The page and its Server Actions are covered.
+  matcher: [
+    "/((?!login|api/auth|api/revalidate|_next/static|_next/image|favicon.ico|icon$|opengraph-image$|twitter-image$).*)",
+  ],
 };
