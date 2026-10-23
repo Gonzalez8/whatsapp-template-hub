@@ -38,6 +38,7 @@ import {
   ORIGIN_LABELS,
   RangePicker,
   Segmented,
+  Freshness,
   SourceNote,
   applicationLabel,
   formatDuration,
@@ -163,6 +164,11 @@ export function AnalyticsView({
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold">{title}</h1>
             {subtitle && <p className="text-muted mt-0.5 truncate text-xs">{subtitle}</p>}
+            {figures.status === "ready" && (
+              <div className="mt-1">
+                <Freshness generatedAt={figures.data.generatedAt} source={figures.data.source} />
+              </div>
+            )}
           </div>
           <RangePicker value={range} options={RANGES} onChange={onRangeChange} />
         </div>

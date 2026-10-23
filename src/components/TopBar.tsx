@@ -48,6 +48,9 @@ const segmented = (active: boolean) =>
       : "text-chrome-ink/80 hover:bg-white/10 hover:text-white"
   }`;
 
+/** The button only touches the templates; say so, since analytics sits next to it. */
+const SYNC_HELP =
+  "Trae los últimos cambios de las plantillas desde Meta. La analítica no cambia: se recalcula sola cada hora.";
 export function TopBar({
   search,
   onSearchChange,
@@ -221,7 +224,7 @@ export function TopBar({
           type="button"
           onClick={onSync}
           disabled={syncing || coolingDown}
-          title={coolingDown ? `Disponible en ${formatCountdown(cooldown)}` : "Traer los últimos cambios de Meta"}
+          title={coolingDown ? `Disponible en ${formatCountdown(cooldown)}` : SYNC_HELP}
           className="hover:border-accent-bright flex h-9 items-center gap-1.5 rounded-lg border border-white/15 px-3 text-[13px] font-medium hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/15 disabled:hover:bg-transparent"
         >
           <svg

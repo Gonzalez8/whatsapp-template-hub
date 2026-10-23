@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AnalyticsView } from "@/components/analytics/AnalyticsView";
 import { TemplateAnalyticsTab } from "@/components/analytics/TemplateAnalyticsTab";
-import { BarChart, SourceNote, formatDuration, sendPoints } from "@/components/analytics/shared";
+import { BarChart, Freshness, SourceNote, formatDuration, sendPoints } from "@/components/analytics/shared";
 import { clearAnalyticsCache } from "@/hooks/useAnalytics";
 import type { SummaryAnalytics, TemplateAnalytics } from "@/lib/analytics/types";
 import type { Template, Waba } from "@/types/template";
@@ -121,6 +121,7 @@ describe("AnalyticsView", () => {
       /Plantillas promocionales/,
     );
     expect(screen.getByText(/estas, hace 12 min/)).toBeInTheDocument();
+    expect(screen.getByText(/^Cifras calculadas hace 12 min/)).toBeInTheDocument();
     expect(screen.getByText("Evitable")).toBeInTheDocument();
 
     // Templates still in Meta open the detail; deleted ones are plain text.
@@ -346,6 +347,25 @@ describe("formatDuration", () => {
     expect(formatDuration(3600)).toBe("1 h");
     expect(formatDuration(3720)).toBe("1 h 2 min");
     expect(formatDuration(129_600)).toBe("1,5 días");
+  });
+});
+
+describe("Freshness", () => {
+  it("says when the figures were computed and, for Athena, when the data was last loaded", () => {
+    const loadedAt = new Date(Date.now() - 3 * 3_600_000).toISOString();
+    const { rerender } = render(
+      <Freshness generatedAt={Date.now() - 12 * 60_000} source={{ kind: "athena", loadedAt }} />,
+    );
+    expect(screen.getByText("Cifras calculadas hace 12 min · última carga de datos hace 3 h")).toBeInTheDocument();
+
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    rerender(<Freshness generatedAt={Date.now() - 30 * 3_600_000} source={{ kind: "athena", loadedAt: weekAgo }} />);
+    expect(screen.getByText("Cifras calculadas hace 1 día · última carga de datos hace 7 días")).toBeInTheDocument();
+
+    rerender(<Freshness generatedAt={Date.now()} source={{ kind: "datacloud", loadedAt: null }} />);
+    expect(
+      screen.getByText("Cifras calculadas hace un momento · Data Cloud va unos 15 min por detrás de Meta"),
+    ).toBeInTheDocument();
   });
 });
 

@@ -367,7 +367,32 @@ export function LoadError({ message }: { message: string }) {
 /** "hace 12 min" for the moment the cached figures were computed. */
 function age(generatedAt: number, now = Date.now()) {
   const minutes = Math.max(0, Math.round((now - generatedAt) / 60_000));
-  return minutes < 1 ? "hace un momento" : minutes < 60 ? `hace ${minutes} min` : `hace ${Math.round(minutes / 60)} h`;
+  if (minutes < 1) return "hace un momento";
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "hace 1 día" : `hace ${days} días`;
+}
+
+/**
+ * How fresh the analytics figures are, at the top of the view: when they were computed
+ * and, for the Athena copy, when its data was last loaded. Separate from the templates'
+ * "updated" time in the top bar, which the sync button refreshes.
+ */
+export function Freshness({ generatedAt, source }: { generatedAt: number; source: DataSource }) {
+  const data =
+    source.kind === "athena"
+      ? source.loadedAt
+        ? `última carga de datos ${age(Date.parse(source.loadedAt))}`
+        : null
+      : "Data Cloud va unos 15 min por detrás de Meta";
+  return (
+    <p className="text-muted text-xs" title="Las cifras se recalculan solas cada hora">
+      Cifras calculadas {age(generatedAt)}
+      {data && ` · ${data}`}
+    </p>
+  );
 }
 
 export function SourceNote({ generatedAt, source }: { generatedAt?: number; source: DataSource }) {
