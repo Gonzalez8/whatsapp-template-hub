@@ -300,7 +300,7 @@ Abre [http://localhost:3000](http://localhost:3000).
 | `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No          | Secreto de cliente de esa aplicación                                                                                                           | —                                               |
 | `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No          | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                                                                           | —                                               |
 | `AUTH_SECRET`                    | Con login   | Clave para cifrar la sesión. Se genera con `npx auth secret`                                                                                   | —                                               |
-| `AUTH_ALLOWED_EMAILS`            | No          | Lista de correos con acceso, separados por comas. Sin ella, entra cualquier cuenta del tenant                                                  | `ana@empresa.com,luis@empresa.com`              |
+| `AUTH_ALLOWED_EMAILS`            | No          | Correos con acceso, separados por comas. Mejor «exigir asignación» en Entra: ver [Quién puede entrar](#quién-puede-entrar)                     | `ana@empresa.com,luis@empresa.com`              |
 | `ATHENA_REGION`                  | No          | Región de AWS de Athena. Con `ATHENA_TABLE`, activa la analítica con Athena como origen                                                        | `eu-west-1`                                     |
 | `ATHENA_TABLE`                   | No          | Tabla de Athena con los eventos de WhatsApp, `base_de_datos.tabla`                                                                             | `datos.whatsapp_events`                         |
 | `ATHENA_WORKGROUP`               | No          | _Workgroup_ de Athena. Por defecto, `primary`                                                                                                  | `primary`                                       |
@@ -348,7 +348,7 @@ sequenceDiagram
 
 - **Qué protege:** el middleware (`src/middleware.ts`) exige sesión en todas las rutas salvo `/login`, `/api/auth/*`, `/api/revalidate` (que tiene su propio secreto) y los recursos estáticos. La Server Action de sincronizar comprueba la sesión por su cuenta.
 - **La página sigue siendo estática:** la sesión se comprueba antes de servirla. El nombre del usuario y el botón **Salir** se cargan en el navegador (`/api/auth/session`).
-- **Cuentas admitidas:** solo las del tenant indicado en `AUTH_MICROSOFT_ENTRA_ID_ISSUER`. Con `AUTH_ALLOWED_EMAILS`, solo los correos de la lista.
+- **Cuentas admitidas:** solo las del tenant indicado en `AUTH_MICROSOFT_ENTRA_ID_ISSUER` y, dentro de él, quien permita Entra o `AUTH_ALLOWED_EMAILS` (ver [Quién puede entrar](#quién-puede-entrar)).
 - **Implementación:** [Auth.js](https://authjs.dev) v5 (`next-auth@5.0.0-beta.32`, versión fijada) con el proveedor de Microsoft Entra ID. La configuración vive en `src/auth.ts` y `src/lib/auth-config.ts`.
 
 ### Registro de la aplicación en Entra
@@ -367,6 +367,17 @@ Del registro salen el **ID de aplicación (cliente)** → `AUTH_MICROSOFT_ENTRA_
 Cada dominio desde el que se use la app (producción y, si se quiere, la URL fija de una rama de preview) necesita su URI de redirección en el registro. Las URLs aleatorias de cada preview no sirven para iniciar sesión.
 
 Para probar el flujo completo sin el tenant de la empresa, basta una cuenta gratuita de Azure: crea un directorio propio donde registrar una aplicación de prueba.
+
+### Quién puede entrar
+
+Por defecto, Entra deja iniciar sesión a cualquier cuenta del tenant. Hay dos formas de limitarlo; **usa solo una**:
+
+| Forma                                        | Cómo                                                                                                                                                                                                   | Cuándo                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| **Exigir asignación en Entra** (recomendada) | _Aplicaciones empresariales → la app → Propiedades → ¿Se requiere asignación? → Sí_, y en _Usuarios y grupos_ se añaden las personas o, mejor, un grupo. A quien no esté asignado lo rechaza Microsoft | Siempre que un administrador de Entra pueda configurarlo. Los accesos se gestionan donde el resto |
+| `AUTH_ALLOWED_EMAILS`                        | Lista de correos en la variable. La app rechaza al resto después de iniciar sesión                                                                                                                     | Si no se puede tocar Entra. Cada alta o baja es un cambio de variable y un nuevo despliegue       |
+
+Con las dos activas, alguien asignado en Entra pero ausente de la lista se queda fuera sin explicación clara: con la asignación en Entra, deja `AUTH_ALLOWED_EMAILS` vacía.
 
 ## Analítica de envíos
 
