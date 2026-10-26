@@ -21,9 +21,9 @@ describe("CompareView", () => {
   const items = [
     {
       template: tpl("1", "entrevista_finde", "Hola, este fin de semana no hay equipo. Reserva abajo."),
-      wabaName: "Campus",
+      wabaName: "Acme",
     },
-    { template: tpl("2", "entrevista_semana", "Hola, el lunes te llamamos. Reserva abajo."), wabaName: "Campus" },
+    { template: tpl("2", "entrevista_semana", "Hola, el lunes te llamamos. Reserva abajo."), wabaName: "Acme" },
   ];
 
   it("starts without highlighting", () => {
@@ -84,7 +84,7 @@ describe("WabaSidebar", () => {
       phone_numbers: [{ id: "p2", display_phone_number: "+1 555-950-4924", verified_name: "x" }],
       templates: [tplA],
     },
-    { waba_id: "3", waba_name: "Campus Training", phone_numbers: [], templates: [], error: "Invalid WABA (HTTP 400)" },
+    { waba_id: "3", waba_name: "Acme Escuela", phone_numbers: [], templates: [], error: "Invalid WABA (HTTP 400)" },
   ];
   const counts = new Map([
     ["1", 5],
@@ -122,7 +122,7 @@ describe("WabaSidebar", () => {
     );
 
     const names = screen.getAllByRole("checkbox").map((c) => c.closest("label")?.textContent);
-    expect(names[0]).toContain("Campus Training");
+    expect(names[0]).toContain("Acme Escuela");
     expect(screen.getByText("+1 555-947-2241")).toBeInTheDocument();
     expect(screen.getByText("+1 555-950-4924")).toBeInTheDocument();
     expect(screen.getByText("Error al cargar")).toHaveAttribute("title", "Invalid WABA (HTTP 400)");
@@ -144,7 +144,7 @@ describe("WabaSidebar", () => {
 
     expect(screen.getByText("1 de 3")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("checkbox")[1]);
-    fireEvent.click(screen.getByRole("button", { name: "Mostrar solo Campus Training" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar solo Acme Escuela" }));
     expect(onToggle).toHaveBeenCalled();
     expect(onOnly).toHaveBeenCalledWith("3");
 

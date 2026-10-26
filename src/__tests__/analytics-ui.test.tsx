@@ -9,7 +9,7 @@ import type { Template, Waba } from "@/types/template";
 
 const template: Template = {
   id: "t1",
-  name: "campus_confirmation",
+  name: "acme_confirmacion",
   status: "APPROVED",
   category: "UTILITY",
   language: "es_ES",
@@ -20,8 +20,8 @@ const unused: Template = { ...template, id: "t2", name: "never_sent", language: 
 
 const waba: Waba = {
   waba_id: "111",
-  waba_name: "Campus MKT",
-  phone_numbers: [{ id: "p", display_phone_number: "+34 900 000 000", verified_name: "Campus" }],
+  waba_name: "Acme Ventas",
+  phone_numbers: [{ id: "p", display_phone_number: "+34 900 000 000", verified_name: "Acme" }],
   templates: [template, unused, { ...template, id: "t3", name: "paused_one", status: "PAUSED" }],
 };
 
@@ -50,7 +50,7 @@ const summary: SummaryAnalytics = {
     { day: "2026-10-02", sent: 40 },
   ],
   templates: [
-    { waba: "111", template: "campus_confirmation", language: "es_es", ...counts(80, 72, 36, 8, 2, 4000) },
+    { waba: "111", template: "acme_confirmacion", language: "es_es", ...counts(80, 72, 36, 8, 2, 4000) },
     { waba: "111", template: "old_template", language: "es", ...counts(20, 18, 9, 2) },
   ],
   errors: [
@@ -71,7 +71,7 @@ const summary: SummaryAnalytics = {
   },
 };
 
-const otherWaba: Waba = { ...waba, waba_id: "222", waba_name: "DFO Escuela", templates: [] };
+const otherWaba: Waba = { ...waba, waba_id: "222", waba_name: "Acme Online", templates: [] };
 
 function mockFetch(handler: (url: string) => Response) {
   const fetchMock = vi.fn(async (input: string | URL | Request) => handler(input.toString()));
@@ -110,7 +110,7 @@ describe("AnalyticsView", () => {
 
     expect(await screen.findByText("90 mensajes")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toContain("/api/analytics/summary?waba=111&range=30d");
-    expect(screen.getByRole("heading", { name: "Campus MKT" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Acme Ventas" })).toBeInTheDocument();
     expect(screen.getByText("2 evitables · 8 ruido")).toBeInTheDocument();
     expect(screen.getByText("5 min")).toBeInTheDocument(); // read-time median KPI
     expect(screen.getByText("1 h 7 min")).toBeInTheDocument(); // per-template median
@@ -125,7 +125,7 @@ describe("AnalyticsView", () => {
     expect(screen.getByText("Evitable")).toBeInTheDocument();
 
     // Templates still in Meta open the detail; deleted ones are plain text.
-    fireEvent.click(screen.getByRole("button", { name: "campus_confirmation" }));
+    fireEvent.click(screen.getByRole("button", { name: "acme_confirmacion" }));
     expect(onOpenTemplate).toHaveBeenCalledWith(template);
     expect(screen.queryByRole("button", { name: "old_template" })).toBeNull();
   });
@@ -172,9 +172,9 @@ describe("AnalyticsView", () => {
     expect(layer.getAllByText("200").length).toBeGreaterThan(0); // service conversations
 
     const rows = layer.getAllByRole("row");
-    expect(rows[1]).toHaveTextContent("DFO Escuela");
+    expect(rows[1]).toHaveTextContent("Acme Online");
     expect(rows[1]).toHaveTextContent("Sin Data Cloud");
-    expect(rows[2]).toHaveTextContent("Campus MKT");
+    expect(rows[2]).toHaveTextContent("Acme Ventas");
     expect(rows[2]).toHaveTextContent("≈ 30 sin registro");
     expect(layer.getByText(/1 WABA sin ningún registro en Data Cloud · 1 con parte sin registro/)).toHaveTextContent(
       "30,0 %",
@@ -289,7 +289,7 @@ describe("TemplateAnalyticsTab", () => {
 
     expect(await screen.findByText("55 de 69 · en <1 min")).toBeInTheDocument();
     expect(screen.getAllByText("79,7 %")).toHaveLength(2);
-    expect(fetchMock.mock.calls[0][0]).toContain("waba=111&name=campus_confirmation&lang=es_ES&range=all");
+    expect(fetchMock.mock.calls[0][0]).toContain("waba=111&name=acme_confirmacion&lang=es_ES&range=all");
     expect(screen.getByText("sin incidencias")).toBeInTheDocument();
     expect(screen.getByText("Envíos por semana")).toBeInTheDocument();
     expect(screen.getByText(/13,0 puntos por encima de la media/)).toBeInTheDocument();

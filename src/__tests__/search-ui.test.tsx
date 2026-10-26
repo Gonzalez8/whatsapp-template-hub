@@ -20,7 +20,7 @@ const components: TemplateComponent[] = [
   },
   {
     type: "BUTTONS",
-    buttons: [{ type: "URL", text: "Ver curso", url: "https://oposicionesflou.com/contacto-gracias" }],
+    buttons: [{ type: "URL", text: "Ver curso", url: "https://acme.example/contacto-gracias" }],
   },
 ];
 
@@ -96,7 +96,7 @@ describe("WhatsAppPreview", () => {
   });
 
   it("keeps the button URL out of the bubble but on hover and as a link", () => {
-    const url = "https://oposicionesflou.com/contacto-gracias";
+    const url = "https://acme.example/contacto-gracias";
     const { container } = withSearch("", <WhatsAppPreview components={components} mode="template" />);
     const link = screen.getByRole("link", { name: /Ver curso/ });
 
@@ -123,7 +123,7 @@ describe("WhatsAppPreview", () => {
     const link = screen.getByRole("link", { name: /Ver curso.*coincide con la búsqueda/ });
 
     expect(link).toHaveClass("ring-amber-300");
-    expect(container).not.toHaveTextContent("oposicionesflou.com");
+    expect(container).not.toHaveTextContent("acme.example");
   });
 
   it("fills NAMED variables in example mode", () => {

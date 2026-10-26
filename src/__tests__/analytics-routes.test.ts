@@ -31,6 +31,7 @@ const req = (path: string) => new Request(`http://localhost${path}`);
 describe("analytics routes", () => {
   beforeEach(() => {
     vi.stubEnv("SF_INSTANCE_URL", "https://acme.my.salesforce.com");
+    vi.stubEnv("DATACLOUD_WHATSAPP_DLO", "MessagingEventsWhatsAppV2_Acme__dll");
     vi.stubEnv("SF_ACCESS_TOKEN", "t");
     vi.stubEnv("NODE_ENV", "development");
     resetRateLimit();

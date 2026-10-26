@@ -32,7 +32,7 @@ const { getAnalyticsConfig } = await import("@/lib/analytics/config");
 const { athenaDialect, dataCloudDialect, lastLoadSql, templateRankingSql } = await import("@/lib/analytics/queries");
 const { QuerySourceError } = await import("@/lib/query-error");
 
-const ATHENA = { ATHENA_REGION: "eu-west-1", ATHENA_TABLE: "nt_staging__data_cloud.stg_whatsapp_events" };
+const ATHENA = { ATHENA_REGION: "eu-west-1", ATHENA_TABLE: "events_db.whatsapp_events" };
 const enabled = getAthenaConfig(ATHENA);
 
 const row = (...values: (string | null)[]) => ({ Data: values.map((v) => (v === null ? {} : { VarCharValue: v })) });
@@ -51,7 +51,7 @@ describe("getAthenaConfig", () => {
     expect(enabled).toEqual({
       status: "enabled",
       region: "eu-west-1",
-      table: "nt_staging__data_cloud.stg_whatsapp_events",
+      table: "events_db.whatsapp_events",
       workgroup: "primary",
       outputLocation: undefined,
       credentials: undefined,
@@ -76,12 +76,20 @@ describe("getAthenaConfig", () => {
 });
 
 describe("getAnalyticsSource", () => {
-  const dataCloud = { SF_INSTANCE_URL: "https://acme.my.salesforce.com", SF_ACCESS_TOKEN: "t" };
+  const dataCloud = {
+    SF_INSTANCE_URL: "https://acme.my.salesforce.com",
+    SF_ACCESS_TOKEN: "t",
+    DATACLOUD_WHATSAPP_DLO: "MessagingEventsWhatsAppV2_Acme__dll",
+  };
 
   it("prefers Athena, then Data Cloud, else none", () => {
     expect(getAnalyticsSource({ ...dataCloud, ...ATHENA }).kind).toBe("athena");
     expect(getAnalyticsSource(dataCloud).kind).toBe("datacloud");
     expect(getAnalyticsSource({}).kind).toBe("none");
+  });
+
+  it("needs the events object's name for Data Cloud: it differs in every org", () => {
+    expect(getAnalyticsSource({ ...dataCloud, DATACLOUD_WHATSAPP_DLO: "" }).kind).toBe("none");
   });
 
   it("turns analytics on with Athena alone", () => {
@@ -117,7 +125,7 @@ describe("athenaDialect", () => {
 describe("lastLoadSql", () => {
   it("asks the copy when it was last loaded; Data Cloud has nothing to ask", () => {
     expect(lastLoadSql(athenaDialect("db.events"))).toBe("SELECT MAX(_extracted_at) AS loaded_at FROM db.events");
-    expect(lastLoadSql(dataCloudDialect())).toBeNull();
+    expect(lastLoadSql(dataCloudDialect("MessagingEventsWhatsAppV2_Acme__dll"))).toBeNull();
   });
 });
 

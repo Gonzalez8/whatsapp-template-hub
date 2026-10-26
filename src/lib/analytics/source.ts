@@ -1,7 +1,7 @@
 import { getAthenaConfig, queryAthena } from "@/lib/athena";
 import { getDataCloudConfig, queryDataCloud } from "@/lib/datacloud";
 import type { Row } from "@/lib/query-error";
-import { DEFAULT_WHATSAPP_DLO, athenaDialect, dataCloudDialect, type Dialect } from "./queries";
+import { athenaDialect, dataCloudDialect, type Dialect } from "./queries";
 
 type Env = Record<string, string | undefined>;
 
@@ -18,11 +18,13 @@ export function getAnalyticsSource(env: Env = process.env): AnalyticsSource {
   if (athena.status === "enabled") {
     return { kind: "athena", dialect: athenaDialect(athena.table), run: (sql) => queryAthena(sql, athena) };
   }
+  // Data Cloud needs the events object too: its name differs in every org.
   const dataCloud = getDataCloudConfig(env);
-  if (dataCloud.status !== "disabled") {
+  const dlo = env.DATACLOUD_WHATSAPP_DLO?.trim();
+  if (dataCloud.status !== "disabled" && dlo) {
     return {
       kind: "datacloud",
-      dialect: dataCloudDialect(env.DATACLOUD_WHATSAPP_DLO?.trim() || DEFAULT_WHATSAPP_DLO),
+      dialect: dataCloudDialect(dlo),
       run: (sql) => queryDataCloud(sql, dataCloud),
     };
   }

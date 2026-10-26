@@ -287,33 +287,33 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 ## Variables de entorno
 
-| Variable                         | Obligatoria | Descripción                                                                                                                                                                | Ejemplo                                         |
-| -------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `META_ACCESS_TOKEN`              | Sí          | Token de System User con `whatsapp_business_management`                                                                                                                    | `EAAG…`                                         |
-| `META_BUSINESS_ID`               | Sí          | ID de la cuenta de Meta Business                                                                                                                                           | `1234567890`                                    |
-| `REVALIDATE_SECRET`              | No          | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401                                                                                                | cadena aleatoria larga                          |
-| `BRAND_NAME`                     | No          | Nombre de la empresa (junto al logo y en el título de la pestaña)                                                                                                          | `Acme`                                          |
-| `BRAND_LOGO_URL`                 | No          | Logo de la empresa: URL `https://` o ruta dentro de `/public`                                                                                                              | `https://…/logo.svg`                            |
-| `BRAND_COLOR`                    | No          | Color de marca en hexadecimal. Por defecto, `#25D366`                                                                                                                      | `#F02B58`                                       |
-| `BRAND_LOGO_BACKGROUND`          | No          | `white` pone el logo sobre una pastilla blanca, para logos oscuros                                                                                                         | `white`                                         |
-| `SITE_URL`                       | No          | Dirección pública de la app, para la imagen de vista previa de los enlaces (Slack, Teams…). Sin ella se usa el origen de `AUTH_URL` o, en Vercel, el dominio de producción | `https://plantillas.example.com`                |
-| `AUTH_MICROSOFT_ENTRA_ID_ID`     | No          | ID de la aplicación (cliente) registrada en Entra. Activa el inicio de sesión                                                                                              | `00000000-…`                                    |
-| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No          | Secreto de cliente de esa aplicación                                                                                                                                       | —                                               |
-| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No          | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                                                                                                       | —                                               |
-| `AUTH_SECRET`                    | Con login   | Clave para cifrar la sesión. Se genera con `npx auth secret`                                                                                                               | —                                               |
-| `AUTH_ALLOWED_EMAILS`            | No          | Correos con acceso, separados por comas. Mejor «exigir asignación» en Entra: ver [Quién puede entrar](#quién-puede-entrar)                                                 | `ana@empresa.com,luis@empresa.com`              |
-| `ATHENA_REGION`                  | No          | Región de AWS de Athena. Con `ATHENA_TABLE`, activa la analítica con Athena como origen                                                                                    | `eu-west-1`                                     |
-| `ATHENA_TABLE`                   | No          | Tabla de Athena con los eventos de WhatsApp, `base_de_datos.tabla`                                                                                                         | `datos.whatsapp_events`                         |
-| `ATHENA_WORKGROUP`               | No          | _Workgroup_ de Athena. Por defecto, `primary`                                                                                                                              | `primary`                                       |
-| `ATHENA_OUTPUT_LOCATION`         | No          | Carpeta `s3://` para los resultados, si el _workgroup_ no tiene una                                                                                                        | `s3://…/resultados/`                            |
-| `ATHENA_ACCESS_KEY_ID`           | No          | Clave de un usuario técnico de IAM (obligatoria en Vercel). Sin ella, la cadena estándar de AWS (`AWS_PROFILE` en local)                                                   | `AKIA…`                                         |
-| `ATHENA_SECRET_ACCESS_KEY`       | No          | Secreto de esa clave                                                                                                                                                       | —                                               |
-| `SF_INSTANCE_URL`                | No          | URL `https://` de la org con Data Cloud. Activa la analítica con Data Cloud, si no hay Athena                                                                              | `https://<org>.my.salesforce.com`               |
-| `SF_CLIENT_ID`                   | No          | Consumer key de la External Client App (flujo client credentials)                                                                                                          | —                                               |
-| `SF_CLIENT_SECRET`               | No          | Consumer secret de esa aplicación                                                                                                                                          | —                                               |
-| `SF_ACCESS_TOKEN`                | No          | Solo para desarrollo: token de sesión en lugar de `SF_CLIENT_ID`/`SF_CLIENT_SECRET`                                                                                        | ver [abajo](#desarrollo-en-local-con-analítica) |
-| `DATACLOUD_WHATSAPP_DLO`         | No          | Objeto de Data Cloud con los eventos de WhatsApp, si no es el de por defecto                                                                                               | `MessagingEventsWhatsAppV2_…__dll`              |
-| `ANALYTICS_WITHOUT_LOGIN`        | No          | `true` activa la analítica sin inicio de sesión **solo en previews** de Vercel (se ignora en producción). Úsala solo con Deployment Protection                             | `true`                                          |
+| Variable                         | Obligatoria    | Descripción                                                                                                                                                                | Ejemplo                                         |
+| -------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `META_ACCESS_TOKEN`              | Sí             | Token de System User con `whatsapp_business_management`                                                                                                                    | `EAAG…`                                         |
+| `META_BUSINESS_ID`               | Sí             | ID de la cuenta de Meta Business                                                                                                                                           | `1234567890`                                    |
+| `REVALIDATE_SECRET`              | No             | Secreto de `POST /api/revalidate`. Sin él, el endpoint responde siempre 401                                                                                                | cadena aleatoria larga                          |
+| `BRAND_NAME`                     | No             | Nombre de la empresa (junto al logo y en el título de la pestaña)                                                                                                          | `Acme`                                          |
+| `BRAND_LOGO_URL`                 | No             | Logo de la empresa: URL `https://` o ruta dentro de `/public`                                                                                                              | `https://…/logo.svg`                            |
+| `BRAND_COLOR`                    | No             | Color de marca en hexadecimal. Por defecto, `#25D366`                                                                                                                      | `#F02B58`                                       |
+| `BRAND_LOGO_BACKGROUND`          | No             | `white` pone el logo sobre una pastilla blanca, para logos oscuros                                                                                                         | `white`                                         |
+| `SITE_URL`                       | No             | Dirección pública de la app, para la imagen de vista previa de los enlaces (Slack, Teams…). Sin ella se usa el origen de `AUTH_URL` o, en Vercel, el dominio de producción | `https://plantillas.example.com`                |
+| `AUTH_MICROSOFT_ENTRA_ID_ID`     | No             | ID de la aplicación (cliente) registrada en Entra. Activa el inicio de sesión                                                                                              | `00000000-…`                                    |
+| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | No             | Secreto de cliente de esa aplicación                                                                                                                                       | —                                               |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | No             | `https://login.microsoftonline.com/<tenant-id>/v2.0`                                                                                                                       | —                                               |
+| `AUTH_SECRET`                    | Con login      | Clave para cifrar la sesión. Se genera con `npx auth secret`                                                                                                               | —                                               |
+| `AUTH_ALLOWED_EMAILS`            | No             | Correos con acceso, separados por comas. Mejor «exigir asignación» en Entra: ver [Quién puede entrar](#quién-puede-entrar)                                                 | `ana@empresa.com,luis@empresa.com`              |
+| `ATHENA_REGION`                  | No             | Región de AWS de Athena. Con `ATHENA_TABLE`, activa la analítica con Athena como origen                                                                                    | `eu-west-1`                                     |
+| `ATHENA_TABLE`                   | No             | Tabla de Athena con los eventos de WhatsApp, `base_de_datos.tabla`                                                                                                         | `datos.whatsapp_events`                         |
+| `ATHENA_WORKGROUP`               | No             | _Workgroup_ de Athena. Por defecto, `primary`                                                                                                                              | `primary`                                       |
+| `ATHENA_OUTPUT_LOCATION`         | No             | Carpeta `s3://` para los resultados, si el _workgroup_ no tiene una                                                                                                        | `s3://…/resultados/`                            |
+| `ATHENA_ACCESS_KEY_ID`           | No             | Clave de un usuario técnico de IAM (obligatoria en Vercel). Sin ella, la cadena estándar de AWS (`AWS_PROFILE` en local)                                                   | `AKIA…`                                         |
+| `ATHENA_SECRET_ACCESS_KEY`       | No             | Secreto de esa clave                                                                                                                                                       | —                                               |
+| `SF_INSTANCE_URL`                | No             | URL `https://` de la org con Data Cloud. Con credenciales y `DATACLOUD_WHATSAPP_DLO`, activa la analítica con Data Cloud, si no hay Athena                                 | `https://<org>.my.salesforce.com`               |
+| `SF_CLIENT_ID`                   | No             | Consumer key de la External Client App (flujo client credentials)                                                                                                          | —                                               |
+| `SF_CLIENT_SECRET`               | No             | Consumer secret de esa aplicación                                                                                                                                          | —                                               |
+| `SF_ACCESS_TOKEN`                | No             | Solo para desarrollo: token de sesión en lugar de `SF_CLIENT_ID`/`SF_CLIENT_SECRET`                                                                                        | ver [abajo](#desarrollo-en-local-con-analítica) |
+| `DATACLOUD_WHATSAPP_DLO`         | Con Data Cloud | Objeto de Data Cloud con los eventos de WhatsApp. Su nombre cambia en cada org (ver [Salesforce Data Cloud](#salesforce-data-cloud))                                       | `MessagingEventsWhatsAppV2_…__dll`              |
+| `ANALYTICS_WITHOUT_LOGIN`        | No             | `true` activa la analítica sin inicio de sesión **solo en previews** de Vercel (se ignora en producción). Úsala solo con Deployment Protection                             | `true`                                          |
 
 `.env.example` contiene la plantilla completa.
 
@@ -413,12 +413,12 @@ Necesita un **origen de eventos**: una copia de la tabla de eventos en **Amazon 
 
 ### Orígenes de eventos
 
-|               | **Amazon Athena** (principal)                                                    | **Salesforce Data Cloud** (alternativa)                 |
-| ------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Qué es        | Una copia de la tabla de eventos de Data Cloud en un _data lake_ de AWS          | La tabla original                                       |
-| Frescura      | La de la carga que la mantiene (por ejemplo, cada pocas horas)                   | Unos 15 minutos por detrás de Meta                      |
-| Coste         | Lo que Athena lee de S3: unos 5 USD por TB, una fracción de céntimo por consulta | 2 créditos de Data Cloud por millón de filas procesadas |
-| Se activa con | `ATHENA_REGION` y `ATHENA_TABLE`                                                 | `SF_INSTANCE_URL` y credenciales                        |
+|               | **Amazon Athena** (principal)                                                    | **Salesforce Data Cloud** (alternativa)                    |
+| ------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Qué es        | Una copia de la tabla de eventos de Data Cloud en un _data lake_ de AWS          | La tabla original                                          |
+| Frescura      | La de la carga que la mantiene (por ejemplo, cada pocas horas)                   | Unos 15 minutos por detrás de Meta                         |
+| Coste         | Lo que Athena lee de S3: unos 5 USD por TB, una fracción de céntimo por consulta | 2 créditos de Data Cloud por millón de filas procesadas    |
+| Se activa con | `ATHENA_REGION` y `ATHENA_TABLE`                                                 | `SF_INSTANCE_URL`, credenciales y `DATACLOUD_WHATSAPP_DLO` |
 
 Si los dos están configurados, se usa Athena: Data Cloud queda como alternativa, por ejemplo mientras no exista la copia. Las consultas son las mismas para los dos: `src/lib/analytics/queries.ts` las escribe para cada origen (`athenaDialect`, `dataCloudDialect`), que solo se diferencian en los nombres de columna, en cómo se escribe una fecha y en cómo se lee la plantilla del mensaje.
 
@@ -433,7 +433,7 @@ Si los dos están configurados, se usa Athena: Data Cloud queda como alternativa
 #### Salesforce Data Cloud
 
 - **Qué pedir al administrador de Salesforce:** una **External Client App** (o Connected App) con el flujo **Client Credentials** y los ámbitos OAuth `api` y `cdp_query_api`, ejecutada con un **usuario de integración de solo lectura** con acceso al objeto de eventos de WhatsApp. Su consumer key va en `SF_CLIENT_ID`, el secret en `SF_CLIENT_SECRET` y la URL de la org en `SF_INSTANCE_URL`.
-- **El objeto:** Data Cloud lo crea como `MessagingEventsWhatsAppV2_<sufijo>__dll`, con un sufijo distinto en cada org. El valor por defecto del código es el de la org donde se desarrolló; en cualquier otra se indica en `DATACLOUD_WHATSAPP_DLO`. Para encontrarlo: _Data Cloud → Objetos de lago de datos_ (busca «MessagingEventsWhatsApp»), o:
+- **El objeto:** Data Cloud lo crea como `MessagingEventsWhatsAppV2_<sufijo>__dll`, con un sufijo distinto en cada org, y se indica en `DATACLOUD_WHATSAPP_DLO` (sin ella, Data Cloud no se activa). Para encontrarlo: _Data Cloud → Objetos de lago de datos_ (busca «MessagingEventsWhatsApp»), o:
 
   ```bash
   sf api request rest "/services/data/v63.0/ssot/metadata?dataspace=default" -o <org> \
@@ -540,6 +540,7 @@ AWS_PROFILE=mi-perfil ATHENA_REGION=eu-west-1 ATHENA_TABLE=<base_de_datos>.<tabl
 sf org login web -a mi-org
 SF_INSTANCE_URL=https://<org>.my.salesforce.com \
 SF_ACCESS_TOKEN=$(sf org auth show-access-token -o mi-org --json | jq -r .result.accessToken) \
+DATACLOUD_WHATSAPP_DLO=MessagingEventsWhatsAppV2_<sufijo>__dll \
 npm run dev
 ```
 

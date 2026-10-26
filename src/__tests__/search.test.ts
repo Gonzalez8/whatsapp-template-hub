@@ -11,18 +11,18 @@ const template: Template = {
   components: [
     { type: "HEADER", format: "TEXT", text: "Formação confirmada" },
     { type: "BODY", text: "Olá {{1}}, a sua inscrição no curso foi recebida." },
-    { type: "FOOTER", text: "Deusto Formação" },
+    { type: "FOOTER", text: "Acme Formação" },
     {
       type: "BUTTONS",
       buttons: [
-        { type: "URL", text: "Ver curso", url: "https://cloud.email.oposicionesflou.com/contacto-gracias{{1}}" },
-        { type: "PHONE_NUMBER", text: "Llamar", phone_number: "+34911222333" },
+        { type: "URL", text: "Ver curso", url: "https://cloud.email.acme.example/contacto-gracias{{1}}" },
+        { type: "PHONE_NUMBER", text: "Llamar", phone_number: "+34600000000" },
       ],
     },
   ],
 };
 
-const search = (query: string, wabaName = "Deusto Formação PT") =>
+const search = (query: string, wabaName = "Acme Formação PT") =>
   matchesTerms(buildSearchText(template, wabaName), parseQuery(query));
 
 describe("normalize / parseQuery", () => {
@@ -40,10 +40,10 @@ describe("template search", () => {
   it("matches every part of the content, not only the body", () => {
     expect(search("confirmada")).toBe(true); // header
     expect(search("inscricao")).toBe(true); // body, without accents
-    expect(search("deusto")).toBe(true); // footer / WABA
+    expect(search("acme")).toBe(true); // footer / WABA
     expect(search("ver curso")).toBe(true); // button text
-    expect(search("oposicionesflou.com/contacto")).toBe(true); // button URL
-    expect(search("911222333")).toBe(true); // button phone
+    expect(search("acme.example/contacto")).toBe(true); // button URL
+    expect(search("600000000")).toBe(true); // button phone
     expect(search("123456")).toBe(true); // template id
   });
 

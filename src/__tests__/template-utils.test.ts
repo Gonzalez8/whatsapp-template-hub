@@ -10,7 +10,7 @@ import type { Template, TemplateComponent } from "@/types/template";
 
 const namedBody: TemplateComponent = {
   type: "BODY",
-  text: "Hola {{lead_name}}, completa el test: https://humains.es/admision?t={{user_id}}",
+  text: "Hola {{lead_name}}, completa el test: https://acme.example/admision?t={{user_id}}",
   example: {
     body_text_named_params: [
       { param_name: "lead_name", example: "Jose Manuel" },
@@ -37,7 +37,7 @@ const asTemplate = (components: TemplateComponent[]): Template => ({
 describe("example values", () => {
   it("reads NAMED examples (body_text_named_params)", () => {
     const text = replaceVariables(namedBody.text!, getExampleValues(namedBody));
-    expect(text).toBe("Hola Jose Manuel, completa el test: https://humains.es/admision?t=abc-123");
+    expect(text).toBe("Hola Jose Manuel, completa el test: https://acme.example/admision?t=abc-123");
   });
 
   it("reads POSITIONAL examples (body_text)", () => {

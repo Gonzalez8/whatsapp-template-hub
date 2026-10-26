@@ -52,7 +52,7 @@ describe("getDataCloudConfig", () => {
 });
 
 describe("getAnalyticsConfig", () => {
-  const dc = { ...SF, SF_ACCESS_TOKEN: "t" };
+  const dc = { ...SF, SF_ACCESS_TOKEN: "t", DATACLOUD_WHATSAPP_DLO: "MessagingEventsWhatsAppV2_Acme__dll" };
 
   it("is off without any events source", () => {
     expect(getAnalyticsConfig({ ...ENTRA })).toEqual({ status: "disabled", reason: "no-source" });
@@ -176,12 +176,12 @@ describe("queryDataCloud", () => {
 });
 
 describe("analytics SQL", () => {
-  const scope = { dialect: dataCloudDialect(), since: "2026-09-11" };
+  const scope = { dialect: dataCloudDialect("MessagingEventsWhatsAppV2_Acme__dll"), since: "2026-09-11" };
 
   it("filters by WABA, template, language and date", () => {
-    const sql = templateDailySql(scope, "741822361776098", "campus_confirmation_orbi_es", "ES_ES");
-    expect(sql).toContain("ExternalAccountId__c IN ('741822361776098')");
-    expect(sql).toContain("= 'campus_confirmation_orbi_es'");
+    const sql = templateDailySql(scope, "123456789012345", "acme_cita_confirmada_es", "ES_ES");
+    expect(sql).toContain("ExternalAccountId__c IN ('123456789012345')");
+    expect(sql).toContain("= 'acme_cita_confirmada_es'");
     expect(sql).toContain("= 'es_es'");
     expect(sql).toContain("EventDateTime__c >= '2026-09-11'");
     expect(sql).not.toMatch(/LIKE/);
@@ -238,10 +238,10 @@ describe("analytics SQL", () => {
   });
 
   it("returns one row per origin plus a total", () => {
-    const sql = overviewSql(scope, ["1"], { name: "orbi", language: "es_ES" });
+    const sql = overviewSql(scope, ["1"], { name: "acme_cita", language: "es_ES" });
     expect(sql).toContain("UNION ALL");
     expect(sql).toContain("'__total' AS origin");
-    expect(sql).toContain("= 'orbi'");
+    expect(sql).toContain("= 'acme_cita'");
   });
 
   it.each([

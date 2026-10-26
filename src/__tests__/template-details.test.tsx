@@ -85,9 +85,9 @@ describe("detail tabs", () => {
   });
 
   it("shows metadata and the recategorization", () => {
-    render(<InfoTab template={template} wabaName="Flou MKT" />);
+    render(<InfoTab template={template} wabaName="Acme Marketing" />);
 
-    expect(screen.getByText("Flou MKT")).toBeInTheDocument();
+    expect(screen.getByText("Acme Marketing")).toBeInTheDocument();
     expect(screen.getByText(/cambiada por Meta/)).toBeInTheDocument();
   });
 
@@ -103,7 +103,7 @@ describe("detail tabs", () => {
   it("copies the template id to the clipboard", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
-    render(<InfoTab template={template} wabaName="Flou MKT" />);
+    render(<InfoTab template={template} wabaName="Acme Marketing" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Copiar ID" }));
 
@@ -113,7 +113,7 @@ describe("detail tabs", () => {
 
   it("tells the user when the clipboard is not available", async () => {
     vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) } });
-    render(<InfoTab template={template} wabaName="Flou MKT" />);
+    render(<InfoTab template={template} wabaName="Acme Marketing" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Copiar ID" }));
 

@@ -11,12 +11,6 @@
 
 import { ORIGIN_APPLICATIONS } from "./types";
 
-/**
- * Data Cloud names the object with a suffix of its own in each org. This is the one of
- * the org the app was built for; any other sets `DATACLOUD_WHATSAPP_DLO`.
- */
-export const DEFAULT_WHATSAPP_DLO = "MessagingEventsWhatsAppV2_Whats_752DC657__dll";
-
 /** Failures we can fix (template or data configuration), as opposed to noise like numbers without WhatsApp. */
 export const AVOIDABLE_ERROR_CODES = [
   "SF-3060",
@@ -69,8 +63,11 @@ export interface Dialect {
   loadedAt?: string;
 }
 
-/** The DLO in Salesforce Data Cloud. Its SQL has no JSON functions, hence the regexes. */
-export function dataCloudDialect(dlo: string = DEFAULT_WHATSAPP_DLO): Dialect {
+/**
+ * The DLO in Salesforce Data Cloud: `MessagingEventsWhatsAppV2_<suffix>__dll`, with a suffix
+ * of its own in each org (DATACLOUD_WHATSAPP_DLO). Its SQL has no JSON functions, hence the regexes.
+ */
+export function dataCloudDialect(dlo: string): Dialect {
   return {
     table: check(dlo, DLO_NAME, "Objeto de Data Cloud no válido"),
     wamid: "WhatsAppWamId__c",
