@@ -27,24 +27,24 @@ describe("TopBar branding", () => {
   });
 
   it("shows the company logo before the product, named after the company", () => {
-    renderTopBar({ name: "Northius", logoUrl: "https://cdn.example.com/logo.svg" });
+    renderTopBar({ name: "Acme", logoUrl: "https://cdn.example.com/logo.svg" });
 
-    expect(screen.getByRole("img", { name: "Northius" })).toHaveAttribute("src", "https://cdn.example.com/logo.svg");
+    expect(screen.getByRole("img", { name: "Acme" })).toHaveAttribute("src", "https://cdn.example.com/logo.svg");
     expect(screen.getByText("Plantillas de WhatsApp")).toBeInTheDocument();
   });
 
   it("shows the company name as text when there is no logo", () => {
-    renderTopBar({ name: "Northius" });
+    renderTopBar({ name: "Acme" });
 
-    expect(screen.getByText("Northius")).toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
   });
 
   it("puts the logo straight on the bar unless a white plate is configured", () => {
-    const { unmount } = renderTopBar({ name: "Northius", logoUrl: "/logo.svg" });
+    const { unmount } = renderTopBar({ name: "Acme", logoUrl: "/logo.svg" });
     expect(screen.getByRole("img").parentElement).not.toHaveClass("bg-white");
     unmount();
 
-    renderTopBar({ name: "Northius", logoUrl: "/logo.svg", logoOnWhite: true });
+    renderTopBar({ name: "Acme", logoUrl: "/logo.svg", logoOnWhite: true });
     expect(screen.getByRole("img").parentElement).toHaveClass("bg-white");
   });
 
@@ -55,7 +55,7 @@ describe("TopBar branding", () => {
     expect(greenBadge(container)).not.toBeNull();
     unmount();
 
-    const branded = renderTopBar({ name: "Northius", logoUrl: "/logo.svg" });
+    const branded = renderTopBar({ name: "Acme", logoUrl: "/logo.svg" });
     expect(greenBadge(branded.container)).toBeNull();
     expect(screen.getByText("Plantillas de WhatsApp")).toBeInTheDocument();
   });

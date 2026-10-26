@@ -17,8 +17,8 @@ const tpl = (id: string, name: string, language: string, body: string): Template
 
 const wabas: Waba[] = [
   {
-    waba_id: "campus",
-    waba_name: "Campus Training",
+    waba_id: "acme-escuela",
+    waba_name: "Acme Escuela",
     phone_numbers: [],
     templates: [
       tpl("c1", "entrevista_finde", "es", "Este fin de semana no hay equipo."),
@@ -27,8 +27,8 @@ const wabas: Waba[] = [
     ],
   },
   {
-    waba_id: "flou",
-    waba_name: "Flou MKT",
+    waba_id: "acme-mkt",
+    waba_name: "Acme Marketing",
     phone_numbers: [],
     templates: [tpl("f1", "temario", "es", "Descarga el temario.")],
   },
@@ -43,11 +43,11 @@ describe("TemplatesDashboard", () => {
   it("filters by WABA from the sidebar and keeps it in the URL", async () => {
     renderDashboard();
 
-    fireEvent.click(within(sidebar()).getByRole("checkbox", { name: /Flou MKT/ }));
+    fireEvent.click(within(sidebar()).getByRole("checkbox", { name: /Acme Marketing/ }));
 
     expect(screen.queryByRole("button", { name: /^entrevista_finde/ })).toBeNull();
     expect(screen.getByRole("button", { name: /^temario/ })).toBeInTheDocument();
-    expect(window.location.search).toBe("?waba=flou");
+    expect(window.location.search).toBe("?waba=acme-mkt");
   });
 
   it("opens a template, switches language and compares two templates", async () => {
@@ -72,17 +72,17 @@ describe("TemplatesDashboard", () => {
 
   it("shows every filtered template in the gallery and opens one in the detail", () => {
     renderDashboard();
-    fireEvent.click(within(sidebar()).getByRole("checkbox", { name: /Campus Training/ }));
+    fireEvent.click(within(sidebar()).getByRole("checkbox", { name: /Acme Escuela/ }));
 
     fireEvent.click(screen.getByRole("button", { name: "Galería" }));
 
     // One card per template, every language included.
     expect(screen.getAllByRole("article")).toHaveLength(3);
-    expect(window.location.search).toBe("?waba=campus&view=gallery");
+    expect(window.location.search).toBe("?waba=acme-escuela&view=gallery");
 
     expect(screen.getByRole("link", { name: "Abrir entrevista_finde (pt_PT) en Meta" })).toHaveAttribute(
       "href",
-      "https://business.facebook.com/wa/manage/message-templates/?waba_id=campus&id=c2",
+      "https://business.facebook.com/wa/manage/message-templates/?waba_id=acme-escuela&id=c2",
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Ver detalle →" })[1]);

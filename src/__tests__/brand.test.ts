@@ -17,12 +17,12 @@ describe("getBrand", () => {
 
   it("reads name, logo and color", () => {
     const brand = getBrand({
-      BRAND_NAME: "  Northius ",
+      BRAND_NAME: "  Acme ",
       BRAND_LOGO_URL: "https://cdn.example.com/logo.svg",
       BRAND_COLOR: "0017ec",
     });
 
-    expect(brand).toMatchObject({ name: "Northius", logoUrl: "https://cdn.example.com/logo.svg", color: "#0017EC" });
+    expect(brand).toMatchObject({ name: "Acme", logoUrl: "https://cdn.example.com/logo.svg", color: "#0017EC" });
   });
 
   it("accepts a logo in /public and short hex colors", () => {
